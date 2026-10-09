@@ -23,8 +23,7 @@ export default async function AnimaisPage() {
 <button
           className="bg-green-700 text-white px-5 py-3 rounded" 
         >
-         <a
-  href="/animais/novo"> + Animal
+         <a href="/animais/novo"> + Animal
          </a>
         </button>
       <table className="w-full bg-white rounded-xl shadow">
