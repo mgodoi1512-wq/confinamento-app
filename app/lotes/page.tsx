@@ -1,11 +1,12 @@
 
 import { supabase } from "@/lib/supabase";
-
+import { unstable_noStore as noStore } from "next/cache";
 export default async function LotesPage() {
+  noStore();
+
   const { data } = await supabase
     .from("lotes")
     .select("*");
-
   return (
     <main className="p-8">
       <h1 className="text-3xl font-bold mb-6">
