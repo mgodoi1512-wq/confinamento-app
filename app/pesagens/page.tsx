@@ -1,7 +1,9 @@
 
 import { supabase } from "@/lib/supabase";
-
+import { unstable_noStore as noStore } from "next/cache";
 export default async function PesagensPage() {
+  noStore();
+
   const { data, error } = await supabase
     .from("pesagens")
     .select("*");
