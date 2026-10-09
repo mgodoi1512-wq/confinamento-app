@@ -1,7 +1,9 @@
 
 import { supabase } from "@/lib/supabase";
+import { unstable_noStore as noStore } from "next/cache";
+export default async function Animaispage() {
+  noStore();
 
-export default async function AnimaisPage() {
   const { data, error } = await supabase
     .from("animais")
     .select("*");
