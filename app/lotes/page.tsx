@@ -5,8 +5,9 @@ export default async function LotesPage() {
   noStore();
 
   const { data } = await supabase
-    .from("lotes")
-    .select("*");
+  .from("lotes")
+  .select("*")
+  .order("id", { ascending: true });
   return (
     <main className="p-8">
       <h1 className="text-3xl font-bold mb-6">
@@ -25,7 +26,7 @@ export default async function LotesPage() {
           {data?.map((lote) => (
             <tr key={lote.id}>
               <td className="p-3">{lote.id}</td>
-              <td className="p-3">{lote.nome}</td>
+              <td className="p-3">Lote {lote.nome}</td>
             </tr>
           ))}
         </tbody>
