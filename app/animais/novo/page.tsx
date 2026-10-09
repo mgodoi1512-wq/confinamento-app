@@ -10,9 +10,35 @@ export default function NovoAnimal() {
   const [status, setStatus] = useState("Ativo");
 
   async function salvarAnimal(e: React.FormEvent) {
-    e.preventDefault();
+  e.preventDefault();
 
-    const { error } = await supabase.from("animais").insert([
+  // Verifica se o lote existe
+  const { data: loteExistente } = await supabase
+    .from("lotes")
+    .select("*")
+    .eq("nome", lote)
+    .maybeSingle();
+
+  // Se não existir, cria
+  if (!loteExistente) {
+    const { error: erroLote } = await supabase
+      .from("lotes")
+      .insert([
+        {
+          nome: lote,
+        },
+      ]);
+
+    if (erroLote) {
+      alert("Erro ao criar lote: " + erroLote.message);
+      return;
+    }
+  }
+
+  // Cria o animal
+  const { error } = await supabase
+    .from("animais")
+    .insert([
       {
         brinco,
         lote,
@@ -21,18 +47,18 @@ export default function NovoAnimal() {
       },
     ]);
 
-    if (error) {
-      alert("Erro: " + error.message);
-      return;
-    }
-
-    alert("Animal cadastrado com sucesso!");
-
-    setBrinco("");
-    setLote("");
-    setPeso("");
-    setStatus("Ativo");
+  if (error) {
+    alert("Erro: " + error.message);
+    return;
   }
+
+  alert("Animal cadastrado com sucesso!");
+
+  setBrinco("");
+  setLote("");
+  setPeso("");
+  setStatus("Ativo");
+}
 
   return (
     <main className="p-8">
