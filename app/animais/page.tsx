@@ -1,15 +1,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { unstable_noStore as noStore } from "next/cache";
-import { redirect } from "next/navigation";
 
-const {
-  data: { session },
-} = await supabase.auth.getSession();
-
-if (!session) {
-  redirect("/login");
-}
 
 
 export default async function Animaispage() {
@@ -34,8 +26,8 @@ export default async function Animaispage() {
         Gestão de Animais
       </h1>
 <button className="bg-green-700 text-white px-5 py-3 rounded">
-         <link href="/animais/novo"> + Animal
-         </link>
+         <a href="/animais/novo"> + Animal
+         </a>
         </button>
       <table className="w-full bg-white rounded-xl shadow">
         <thead>
