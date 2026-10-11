@@ -1,0 +1,160 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Superfícies */
+    --background: 40 33% 98%;
+    --foreground: 150 14% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 14% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 14% 12%;
+
+    /* Marca: verde pasto */
+    --primary: 148 52% 26%;
+    --primary-foreground: 40 40% 98%;
+
+    --secondary: 40 22% 92%;
+    --secondary-foreground: 150 22% 16%;
+
+    --muted: 40 20% 94%;
+    --muted-foreground: 150 8% 38%;
+
+    --accent: 40 45% 90%;
+    --accent-foreground: 150 25% 16%;
+
+    --destructive: 4 72% 43%;
+    --destructive-foreground: 40 40% 98%;
+
+    --border: 40 14% 85%;
+    --input: 40 14% 85%;
+    --ring: 30 92% 40%;
+
+    /* Status semânticos */
+    --success: 152 55% 30%;
+    --success-foreground: 40 45% 98%;
+    --warning: 34 92% 36%;
+    --warning-foreground: 40 45% 98%;
+    --info: 202 65% 36%;
+    --info-foreground: 40 45% 98%;
+    --agro: 20 68% 42%;
+    --agro-foreground: 40 45% 98%;
+
+    /* Sidebar */
+    --sidebar-background: 150 25% 14%;
+    --sidebar-foreground: 40 30% 92%;
+    --sidebar-primary: 38 90% 55%;
+    --sidebar-primary-foreground: 150 40% 10%;
+    --sidebar-accent: 150 20% 20%;
+    --sidebar-accent-foreground: 40 30% 94%;
+    --sidebar-border: 150 18% 23%;
+    --sidebar-ring: 38 90% 58%;
+
+    /* Gradientes */
+    --gradient-brand: linear-gradient(135deg, hsl(148 52% 26%) 0%, hsl(162 45% 17%) 100%);
+    --gradient-agro: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(20 72% 40%) 100%);
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(40 30% 96%) 100%);
+
+    /* Sombras */
+    --shadow-xs: 0 1px 2px 0 hsl(150 20% 12% / 0.06);
+    --shadow-md: 0 2px 4px -1px hsl(150 20% 12% / 0.08), 0 4px 12px -2px hsl(150 20% 12% / 0.07);
+    --shadow-lg: 0 8px 24px -6px hsl(150 20% 12% / 0.16), 0 2px 6px -2px hsl(150 20% 12% / 0.1);
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 150 12% 8%;
+    --foreground: 40 20% 95%;
+
+    --card: 150 12% 11%;
+    --card-foreground: 40 20% 95%;
+
+    --popover: 150 12% 12%;
+    --popover-foreground: 40 20% 95%;
+
+    --primary: 148 48% 56%;
+    --primary-foreground: 150 40% 8%;
+
+    --secondary: 150 10% 18%;
+    --secondary-foreground: 40 18% 94%;
+
+    --muted: 150 10% 16%;
+    --muted-foreground: 40 12% 64%;
+
+    --accent: 150 10% 18%;
+    --accent-foreground: 40 18% 96%;
+
+    --destructive: 4 74% 60%;
+    --destructive-foreground: 4 40% 8%;
+
+    --border: 150 10% 20%;
+    --input: 150 10% 20%;
+    --ring: 38 92% 60%;
+
+    --success: 152 45% 58%;
+    --success-foreground: 150 40% 8%;
+    --warning: 38 90% 58%;
+    --warning-foreground: 30 60% 8%;
+    --info: 202 70% 62%;
+    --info-foreground: 210 40% 8%;
+    --agro: 22 70% 60%;
+    --agro-foreground: 20 50% 8%;
+
+    --sidebar-background: 150 14% 6%;
+    --sidebar-foreground: 40 18% 90%;
+    --sidebar-primary: 38 90% 58%;
+    --sidebar-primary-foreground: 150 40% 8%;
+    --sidebar-accent: 150 12% 14%;
+    --sidebar-accent-foreground: 40 18% 96%;
+    --sidebar-border: 150 12% 16%;
+    --sidebar-ring: 38 92% 60%;
+
+    --gradient-brand: linear-gradient(135deg, hsl(148 38% 20%) 0%, hsl(162 40% 10%) 100%);
+    --gradient-agro: linear-gradient(135deg, hsl(38 80% 42%) 0%, hsl(20 60% 28%) 100%);
+    --gradient-surface: linear-gradient(180deg, hsl(150 12% 13%) 0%, hsl(150 12% 9%) 100%);
+
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+    --shadow-md: 0 2px 4px -1px hsl(0 0% 0% / 0.5), 0 4px 12px -2px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 10px 30px -8px hsl(0 0% 0% / 0.65), 0 2px 8px -2px hsl(0 0% 0% / 0.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* Números sempre alinhados em colunas e KPIs */
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}

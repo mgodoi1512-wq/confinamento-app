@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "fallbackLng": "pt-BR",
+  "languages": [
+    {
+      "code": "pt-BR",
+      "label": "Português (Brasil)",
+      "detect": ["pt", "pt-BR", "pt-br", "pt-PT"],
+      "dir": "ltr"
+    }
+  ]
+}
