@@ -9,6 +9,7 @@ Esta é uma construção do zero: nenhum código existente além do template ser
 ## Escopo
 
 **Entra (v1):**
+
 1. Autenticação e-mail/senha (login + cadastro) e perfis Gestor/Operador.
 2. Currais e Lotes: entrada em wizard, alocação, transferência de curral e saída (abate/venda/óbito).
 3. Animais: registro individual (brinco, SISBOV, raça, sexo, peso) vinculado a lote/curral.
@@ -23,7 +24,7 @@ Esta é uma construção do zero: nenhum código existente além do template ser
 ## Decisões técnicas
 
 - **Backend:** Enter Cloud (ativar no início). Persistência real, RLS e autenticação. Nenhum dado mockado no frontend.
-- **Idioma:** apenas pt-BR. Ajustar `i18n.config.json` (`fallbackLng: "pt-BR"`, lista com somente `pt-BR`), criar `public/locales/pt-BR.json` (chaves flat) e remover `en.json`/`zh-CN.json`. `src/i18n/*` não muda. `LanguageSwitcher` deixa de ser renderizado (componente permanece no repo); reativar multi-idioma no futuro é editar 1 JSON + 1 arquivo de locale.
+- **Idioma:** apenas pt-BR. Ajustar `i18n.config.json` (`fallbackLng: "pt-BR"`, lista com somente `pt-BR`), criar `,/locales/pt-BR.json` (chaves flat) e remover `en.json`/`zh-CN.json`. `src/i18n/*` não muda. `LanguageSwitcher` deixa de ser renderizado (componente permanece no repo); reativar multi-idioma no futuro é editar 1 JSON + 1 arquivo de locale.
 - **Cliente:** importar de `@/integrations/supabase/client` (gerado ao ativar o Enter Cloud). Nunca editar `src/integrations/supabase/client.ts` nem `types.ts`.
 - **Segurança:** toda regra de perfil vive em RLS (`public.is_gestor()` como `SECURITY DEFINER`). O guard de rota no cliente é só UX.
 - **Cálculos de domínio em TypeScript**, não em views SQL (evita armadilha de `security_invoker`): `src/lib/domain.ts` com GMD, arroba (peso vivo ÷ 15), projeção de abate, ocupação de curral, carência e dias de confinamento.
@@ -32,6 +33,7 @@ Esta é uma construção do zero: nenhum código existente além do template ser
 - **Tema claro/escuro:** `next-themes` (já instalado) com `attribute="class"` no `App.tsx`.
 
 ### Referências de estado de lote (regra única)
+
 - Peso médio atual do lote = última pesagem válida; sem pesagem, peso médio de entrada.
 - Dias de confinamento = hoje − `entry_date`. GMD = (peso atual − peso entrada) ÷ dias.
 - Ocupação do curral = Σ `head_count` dos lotes ativos ÷ `capacity_head`.
@@ -50,19 +52,19 @@ Tokens definidos pelo agente de design (identidade agro: verde pasto + creme + �
 
 Todas as tabelas com `enable row level security` na mesma migração + políticas. Leitura: `auth.uid() is not null` (dados compartilhados da fazenda). Escrita operacional: qualquer autenticado. Escrita de cadastros (`pens`, `diets`, `diet_items`, `protocols`, `protocol_items`, `farms`): só gestor. `profiles`: todos leem, cada um atualiza o próprio `full_name`, `role` só gestor.
 
-| Tabela | Campos principais |
-|---|---|
-| `farms` | name, city, state |
-| `profiles` | id (auth.users), full_name, role (`gestor`/`operador`) — trigger no signup |
-| `pens` | code, capacity_head, area_m2, status (`ativo`/`vazio`/`manutencao`/`adaptacao`), notes |
-| `diets` / `diet_items` | name, dry_matter_pct, is_active / ingredient, kg_per_head_day |
-| `protocols` / `protocol_items` | name, is_active / kind (`vacina`/`vermifugo`/`outro`), product, dose, withdrawal_days |
-| `lots` | code, origin, entry_date, breed, category, head_count, entry_avg_weight_kg, target_weight_kg, pen_id, diet_id, protocol_id, status |
-| `animals` | lot_id, pen_id, ear_tag (unique), sisbov, breed, sex, entry_weight_kg, current_weight_kg, status, health_status, withdrawal_until |
-| `weighings` / `weight_records` | lot_id, pen_id, date, kind, head_count_weighed, avg_weight_kg / weighing_id, animal_id, weight_kg |
-| `feed_logs` | pen_id, lot_id, date, shift, diet_id, kg_per_head, head_count, total_kg |
-| `trough_readings` | pen_id, lot_id, date, score (0–5), leftover_kg, adjustment_pct, adjustment_kg, notes |
-| `health_events` | animal_id, lot_id, pen_id, kind (`protocolo`/`vacina`/`tratamento`/`obito`), product, dose, diagnosis, event_date, withdrawal_until |
+| Tabela                         | Campos principais                                                                                                                   |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `farms`                        | name, city, state                                                                                                                   |
+| `profiles`                     | id (auth.users), full_name, role (`gestor`/`operador`) — trigger no signup                                                          |
+| `pens`                         | code, capacity_head, area_m2, status (`ativo`/`vazio`/`manutencao`/`adaptacao`), notes                                              |
+| `diets` / `diet_items`         | name, dry_matter_pct, is_active / ingredient, kg_per_head_day                                                                       |
+| `protocols` / `protocol_items` | name, is_active / kind (`vacina`/`vermifugo`/`outro`), product, dose, withdrawal_days                                               |
+| `lots`                         | code, origin, entry_date, breed, category, head_count, entry_avg_weight_kg, target_weight_kg, pen_id, diet_id, protocol_id, status  |
+| `animals`                      | lot_id, pen_id, ear_tag (unique), sisbov, breed, sex, entry_weight_kg, current_weight_kg, status, health_status, withdrawal_until   |
+| `weighings` / `weight_records` | lot_id, pen_id, date, kind, head_count_weighed, avg_weight_kg / weighing_id, animal_id, weight_kg                                   |
+| `feed_logs`                    | pen_id, lot_id, date, shift, diet_id, kg_per_head, head_count, total_kg                                                             |
+| `trough_readings`              | pen_id, lot_id, date, score (0–5), leftover_kg, adjustment_pct, adjustment_kg, notes                                                |
+| `health_events`                | animal_id, lot_id, pen_id, kind (`protocolo`/`vacina`/`tratamento`/`obito`), product, dose, diagnosis, event_date, withdrawal_until |
 
 - Trigger `handle_new_user` cria `profiles`; **primeiro usuário cadastrado vira `gestor`**, os demais entram como `operador` e o gestor promove em `/config/usuarios`.
 - E-mail de cadastro com confirmação automática (`supabase_configure_auth`).
@@ -74,16 +76,16 @@ Público: `/login` (login + cadastro).
 
 Layout protegido (`AppLayout` com `Outlet`, sidebar 264px → drawer + bottom nav no mobile): Painel, Currais/Lotes, Animais, Pesagens, Trato, Sanidade, Configurações.
 
-| Rota | Tela |
-|---|---|
-| `/` | Painel: KPIs (animais confinados, GMD médio, dias de confinamento, mortalidade %), ocupação por curral, trato/leitura de hoje |
-| `/currais`, `/currais/:id` | Lista de currais com ocupação e status; detalhe com lote, dieta e histórico de cocho |
-| `/lotes`, `/lotes/novo`, `/lotes/:id` | Lista; wizard 3 passos (identificação → pesagem de entrada → sanidade/alocação); detalhe com GMD, evolução de peso, projeção de abate e ações (transferir curral, registrar saída) |
-| `/animais` | Tabela com filtros (curral, lote, status sanitário) + sheet de detalhe e edição |
-| `/pesagens`, `/pesagens/nova`, `/pesagens/:id` | Histórico; sessão de coleta com HUD (média móvel, GMD parcial, progresso) e revisão de outliers; detalhe com gráfico |
-| `/trato`, `/trato/leitura` | Registro de trato do dia; ronda de leitura de cocho mobile-first (sheet + score 0–5 + ajuste) com "salvar e próximo" |
-| `/sanidade/protocolos`, `/sanidade/tratamentos`, `/sanidade/ocorrencias` | Cadastro de protocolo e itens; aplicação de tratamento com carência; óbitos/morbidade |
-| `/config`, `/config/usuarios`, `/config/currais`, `/config/dietas` | Dados da fazenda; usuários e papéis (só gestor); cadastros de curral e dieta |
+| Rota                                                                     | Tela                                                                                                                                                                               |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                                                      | Painel: KPIs (animais confinados, GMD médio, dias de confinamento, mortalidade %), ocupação por curral, trato/leitura de hoje                                                      |
+| `/currais`, `/currais/:id`                                               | Lista de currais com ocupação e status; detalhe com lote, dieta e histórico de cocho                                                                                               |
+| `/lotes`, `/lotes/novo`, `/lotes/:id`                                    | Lista; wizard 3 passos (identificação → pesagem de entrada → sanidade/alocação); detalhe com GMD, evolução de peso, projeção de abate e ações (transferir curral, registrar saída) |
+| `/animais`                                                               | Tabela com filtros (curral, lote, status sanitário) + sheet de detalhe e edição                                                                                                    |
+| `/pesagens`, `/pesagens/nova`, `/pesagens/:id`                           | Histórico; sessão de coleta com HUD (média móvel, GMD parcial, progresso) e revisão de outliers; detalhe com gráfico                                                               |
+| `/trato`, `/trato/leitura`                                               | Registro de trato do dia; ronda de leitura de cocho mobile-first (sheet + score 0–5 + ajuste) com "salvar e próximo"                                                               |
+| `/sanidade/protocolos`, `/sanidade/tratamentos`, `/sanidade/ocorrencias` | Cadastro de protocolo e itens; aplicação de tratamento com carência; óbitos/morbidade                                                                                              |
+| `/config`, `/config/usuarios`, `/config/currais`, `/config/dietas`       | Dados da fazenda; usuários e papéis (só gestor); cadastros de curral e dieta                                                                                                       |
 
 ## Estrutura de arquivos
 
@@ -121,6 +123,7 @@ src/
 ## Status da execução
 
 Concluído:
+
 - Backend: 14 tabelas com RLS ativa e políticas por operação, `is_gestor()`, trigger `handle_new_user` (primeiro usuário = gestor) e `profiles_protect_role` verificados no banco.
 - Seed de demonstração: 6 currais, 3 dietas (12 ingredientes), 2 protocolos (5 itens), 3 lotes, 30 animais, 8 pesagens (10 pesos individuais), 42 registros de trato, 7 leituras de cocho e 4 eventos sanitários.
 - Autenticação: cadastro e login por e-mail/senha com confirmação automática; `/login` verificado por screenshot em desktop (1280) e celular (390).
@@ -136,7 +139,7 @@ Pendente de verificação visual: as telas autenticadas (painel, currais, lotes,
 - [ ] Trigger `handle_new_user` cria `profiles` e marca o primeiro usuário como `gestor`.
 - [ ] `supabase_get_table_schema` confirma RLS + políticas em cada tabela criada.
 - [ ] Seed insere fazenda, currais, dietas+itens, protocolo+itens, lotes, animais, pesagens, trato, leituras de cocho e eventos sanitários.
-- [ ] `i18n.config.json` com apenas `pt-BR` e `public/locales/pt-BR.json` criado; `en.json`/`zh-CN.json` removidos.
+- [ ] `i18n.config.json` com apenas `pt-BR` e `./locales/pt-BR.json` criado; `en.json`/`zh-CN.json` removidos.
 - [ ] `src/index.css` com tokens claro/escuro (incl. `success/warning/info/agro`, `sidebar-*`, gradientes, sombras) e `tailwind.config.ts` expondo-os.
 - [ ] Fontes Inter + Barlow Semi Condensed carregadas no `index.html` e ativas via `font-sans`/`font-display`.
 - [ ] `src/lib/domain.ts` implementa GMD, arroba, projeção de abate, ocupação e carência.

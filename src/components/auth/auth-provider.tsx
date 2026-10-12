@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-
+import { useQueryClient } from "@tanstack/react-query";
 import { AuthContext, type AuthValue } from "@/components/auth/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import type { Profile, Role } from "@/lib/domain";
@@ -11,6 +11,7 @@ import type { Profile, Role } from "@/lib/domain";
  * o callback não é async e as chamadas ao cliente são adiadas com setTimeout.
  */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +36,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return;
-
+      queryClient.clear();
+      setProfile(null);
       setSession(nextSession);
       setLoading(false);
 
@@ -64,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       active = false;
       listener.subscription.unsubscribe();
     };
-  }, [loadProfile]);
+}, [loadProfile, queryClient]);
 
   const value = useMemo<AuthValue>(
     () => ({
@@ -75,14 +77,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isGestor: profile?.role === "gestor",
       loading,
       signOut: async () => {
-        await supabase.auth.signOut();
-        setProfile(null);
-      },
+  queryClient.clear();
+
+  await supabase.auth.signOut();
+
+  setProfile(null);
+},
       refreshProfile: async () => {
         if (session?.user) await loadProfile(session.user.id);
       },
     }),
-    [session, profile, loading, loadProfile],
+    [session, profile, loading, loadProfile, queryClient],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

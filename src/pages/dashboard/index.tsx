@@ -346,7 +346,9 @@ const Dashboard = () => {
             <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2.5">
               <span className="flex items-center gap-2 text-sm">
                 <AlertTriangle className="size-4 text-muted-foreground" />
-                {t("dashboard.alerts.treatment")}
+                {t("dashboard.alerts.treatment", {
+  count: summary.inTreatment,
+})}
               </span>
               <span className="text-sm num font-semibold">
                 {formatInteger(summary.inTreatment)}

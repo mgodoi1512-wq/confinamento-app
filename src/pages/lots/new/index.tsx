@@ -130,6 +130,7 @@ const NewLot = () => {
       }));
 
     try {
+      
       const lot = await createLot.mutateAsync({
         lot: {
           code: (code || suggestion).trim(),
@@ -141,8 +142,8 @@ const NewLot = () => {
           entry_avg_weight_kg: effectiveEntryWeight ?? 0,
           target_weight_kg: parseNumberInput(targetWeight) ?? DEFAULT_TARGET_WEIGHT,
           pen_id: penId || null,
-          diet_id: dietId || null,
-          protocol_id: protocolId || null,
+          diet_id: dietId === "all" ? null : dietId,
+          protocol_id: protocolId === "all" ? null : protocolId,
         },
         animals: payload,
         applyProtocol,

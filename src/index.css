@@ -6,24 +6,24 @@
 @layer base {
   :root {
     /* Superfícies */
-    --background: 40 33% 98%;
+    --background: 38 30% 92%;
     --foreground: 150 14% 12%;
 
-    --card: 0 0% 100%;
+    --card: 20 52% 90%; /*fundo card painel*/
     --card-foreground: 150 14% 12%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 150 14% 12%;
 
     /* Marca: verde pasto */
-    --primary: 148 52% 26%;
+    --primary: 20 52% 26%; /* botão */
     --primary-foreground: 40 40% 98%;
 
     --secondary: 40 22% 92%;
     --secondary-foreground: 150 22% 16%;
 
-    --muted: 40 20% 94%;
-    --muted-foreground: 150 8% 38%;
+    --muted: 20 52% 26%;
+    --muted-foreground: 20 52% 26%;
 
     --accent: 40 45% 90%;
     --accent-foreground: 150 25% 16%;
@@ -31,8 +31,8 @@
     --destructive: 4 72% 43%;
     --destructive-foreground: 40 40% 98%;
 
-    --border: 40 14% 85%;
-    --input: 40 14% 85%;
+    --border: 20 52% 40%;
+    --input: 20 52% 26%;
     --ring: 30 92% 40%;
 
     /* Status semânticos */
@@ -46,19 +46,19 @@
     --agro-foreground: 40 45% 98%;
 
     /* Sidebar */
-    --sidebar-background: 150 25% 14%;
+    --sidebar-background: 20 52% 26%;
     --sidebar-foreground: 40 30% 92%;
-    --sidebar-primary: 38 90% 55%;
-    --sidebar-primary-foreground: 150 40% 10%;
-    --sidebar-accent: 150 20% 20%;
+    --sidebar-primary: 20 52% 40%; /*botão selecionado */
+    --sidebar-primary-foreground: 150 40% 98%;
+    --sidebar-accent: 20 52% 40%;
     --sidebar-accent-foreground: 40 30% 94%;
-    --sidebar-border: 150 18% 23%;
+    --sidebar-border: 20 52% 1%;
     --sidebar-ring: 38 90% 58%;
 
     /* Gradientes */
-    --gradient-brand: linear-gradient(135deg, hsl(148 52% 26%) 0%, hsl(162 45% 17%) 100%);
-    --gradient-agro: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(20 72% 40%) 100%);
-    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(40 30% 96%) 100%);
+    --gradient-brand: linear-gradient(135deg, hsl(20 52% 26%) 0%, hsl(23, 24%, 43%) 100%);
+    --gradient-agro: linear-gradient(135deg, hsl(135, 100%, 25%) 0%, hsl(138, 72%, 40%) 100%);
+    --gradient-surface: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(190, 30%, 96%) 100%);
 
     /* Sombras */
     --shadow-xs: 0 1px 2px 0 hsl(150 20% 12% / 0.06);

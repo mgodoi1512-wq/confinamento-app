@@ -1,5 +1,7 @@
 {
   "common.appName": "Confinamento",
+  "common.appNamee": "Confinamento",
+  "common.logo": "LiBen",
   "common.appSubtitle": "Gestão de gado de corte",
   "common.loading": "Carregando…",
   "common.saving": "Salvando…",
@@ -75,12 +77,13 @@
 
   "auth.title": "Acesso ao sistema",
   "auth.subtitle": "Entre com seu e-mail para gerenciar o confinamento.",
+
   "auth.email": "E-mail",
   "auth.password": "Senha",
   "auth.fullName": "Nome completo",
   "auth.loginTab": "Entrar",
   "auth.signupTab": "Criar conta",
-  "auth.signupHint": "O primeiro cadastro assume o perfil de gestor; os demais entram como operador.",
+  "auth.signupHint": "Estamos em fase de teste.",
   "auth.roleHint": "Você entrará como {{role}}.",
   "auth.errorInvalid": "E-mail ou senha inválidos.",
   "auth.errorEmailInUse": "Este e-mail já está cadastrado.",
@@ -114,7 +117,7 @@
   "dashboard.today.feed": "Trato registrado",
   "dashboard.today.feedValue": "{{done}} de {{total}} currais",
   "dashboard.today.weighing": "Lotes sem pesagem há 30 dias",
-  "dashboard.today.weighingValue": "{{count}} lotes",
+  "dashboard.today.weighingValue": "{{count}}",
   "dashboard.today.health": "Animais em tratamento",
   "dashboard.today.healthValue": "{{count}} animais",
   "dashboard.lots.title": "Desempenho dos lotes",
@@ -122,7 +125,7 @@
   "dashboard.recent.empty": "Nenhum trato registrado hoje.",
   "dashboard.alerts.title": "Alertas sanitários",
   "dashboard.alerts.carencia": "{{count}} animais em carência ativa",
-  "dashboard.alerts.treatment": "{{count}} animais em tratamento",
+  "dashboard.alerts.treatment": "Animais em tratamento",
   "dashboard.alerts.none": "Nenhum alerta sanitário no momento.",
   "dashboard.readySlaughter": "Lotes próximos do peso alvo",
 

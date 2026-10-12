@@ -33,7 +33,9 @@ export const SidebarNav = ({ onNavigate, className }: SidebarNavProps) => {
             {t("common.appName")}
           </p>
           <p className="truncate text-xs text-sidebar-foreground/60">
-            {farm?.name ?? t("common.appSubtitle")}
+            {farm === undefined
+  ? "Carregando..."
+  : farm?.name ?? t("common.appSubtitle")}
           </p>
         </div>
       </div>

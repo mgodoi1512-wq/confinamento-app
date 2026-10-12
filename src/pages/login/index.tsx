@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BarChart3, Beef, Leaf, ShieldCheck, UtensilsCrossed } from "lucide-react";
+import logoLiben from "@/assets/logo-liben-2.png";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -82,16 +83,17 @@ const Login = () => {
     <div className="flex min-h-dvh w-full bg-background">
       {/* Painel de marca */}
       <aside className="hidden w-[46%] flex-col justify-between bg-brand p-10 text-primary-foreground lg:flex">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-md bg-primary-foreground/15">
-            <Leaf className="size-5" />
+<div className="flex flex-col items-center text-center">
+            <span>
+            <img
+  src={logoLiben}
+  alt="LiBen"
+  style={{
+    width: "260px",
+    height: "260px",
+  }}></img>
           </span>
-          <div>
-            <p className="font-display text-lg font-semibold tracking-tight">
-              {t("common.appName")}
-            </p>
-            <p className="text-xs text-primary-foreground/70">{t("common.appSubtitle")}</p>
-          </div>
+          
         </div>
 
         <div className="space-y-6">
