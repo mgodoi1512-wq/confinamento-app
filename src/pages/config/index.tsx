@@ -73,8 +73,8 @@ const SettingsHome = () => {
               required
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <TextField label={t("config.farm.city")} value={city} onChange={setCity} />
-              <TextField label={t("config.farm.state")} value={state} onChange={setState} />
+              <TextField label={t("config.farm.city")} value={city} onChange={setCity} disabled={!isGestor} />
+              <TextField label={t("config.farm.state")} value={state} onChange={setState} disabled={!isGestor} />
             </div>
 
             {isGestor ? (

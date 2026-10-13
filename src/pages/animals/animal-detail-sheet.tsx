@@ -21,6 +21,7 @@ import {
   animalGain,
   animalStatusTone,
   healthTone,
+  currentHealthStatus,
   healthEventTone,
   liveWeightToArroba,
   withdrawalDaysLeft,
@@ -64,6 +65,7 @@ export const AnimalDetailSheet = ({
     .filter((record) => record.animal_id === animal.id && weighingIds.has(record.weighing_id))
     .sort((a, b) => (a.weight_kg < b.weight_kg ? 1 : -1));
 
+  const present = animal.status === "ativo" || animal.status === "tratamento";
   const gain = animalGain(animal);
   const arroba = liveWeightToArroba(animal.current_weight_kg);
   const withdrawal = withdrawalDaysLeft(animal);
@@ -93,11 +95,13 @@ export const AnimalDetailSheet = ({
               tone={animalStatusTone(animal.status)}
               label={t(`status.animal.${animal.status}`)}
             />
-            <StatusBadge
-              tone={healthTone(animal.health_status)}
-              label={t(`status.health.${animal.health_status}`)}
-            />
-            {withdrawal > 0 ? (
+            {present && (
+              <StatusBadge
+                tone={healthTone(currentHealthStatus(animal))}
+                label={t(`status.health.${currentHealthStatus(animal)}`)}
+              />
+            )}
+            {present && withdrawal > 0 ? (
               <StatusBadge
                 tone="agro"
                 label={t("health.withdrawalUntil", {

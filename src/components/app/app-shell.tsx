@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { PageLoading } from "@/components/app/page-loading";
+import { QueryErrors } from "@/components/app/query-errors";
+import { useState, Suspense } from "react";
 import { Outlet } from "react-router-dom";
 
 import { BottomNav } from "@/components/app/bottom-nav";
@@ -31,7 +33,7 @@ export const AppShell = () => {
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar farmName={farm?.name ?? undefined} onOpenMenu={() => setMenuOpen(true)} />
         <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pb-24 pt-5 md:px-6 md:pb-8 md:pt-6 lg:px-8">
-          <Outlet />
+          <QueryErrors /><Suspense fallback={<PageLoading />}><Outlet /></Suspense>
         </main>
         <BottomNav />
       </div>

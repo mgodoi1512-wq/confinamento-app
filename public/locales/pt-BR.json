@@ -32,7 +32,6 @@
   "common.unit.days": "dias",
   "common.unit.percent": "%",
   "common.unit.m2": "m²",
-
   "nav.group.operation": "Operação",
   "nav.group.nutrition": "Nutrição",
   "nav.group.health": "Sanidade",
@@ -52,7 +51,6 @@
   "nav.diets": "Dietas",
   "nav.farm": "Fazenda",
   "nav.openMenu": "Abrir menu",
-
   "action.new": "Novo",
   "action.save": "Salvar",
   "action.saveAndNext": "Salvar e próximo",
@@ -74,16 +72,14 @@
   "action.applyAdjustment": "Aplicar ajuste ao trato",
   "action.startRound": "Iniciar ronda",
   "action.viewProtocols": "Ver protocolos",
-
   "auth.title": "Acesso ao sistema",
   "auth.subtitle": "Entre com seu e-mail para gerenciar o confinamento.",
-
   "auth.email": "E-mail",
   "auth.password": "Senha",
   "auth.fullName": "Nome completo",
   "auth.loginTab": "Entrar",
   "auth.signupTab": "Criar conta",
-  "auth.signupHint": "Estamos em fase de teste.",
+  "auth.signupHint": "Após o cadastro, confirme seu e-mail quando solicitado e aguarde a liberação de um gestor.",
   "auth.roleHint": "Você entrará como {{role}}.",
   "auth.errorInvalid": "E-mail ou senha inválidos.",
   "auth.errorEmailInUse": "Este e-mail já está cadastrado.",
@@ -92,13 +88,12 @@
   "auth.errorAlreadySignedIn": "Sessão iniciada como {{email}}.",
   "auth.signOutConfirm": "Encerrar a sessão neste dispositivo?",
   "auth.welcome": "Bem-vindo, {{name}}",
-
   "dashboard.title": "Painel do confinamento",
   "dashboard.subtitle": "Situação do rebanho, desempenho e pendências do dia",
   "dashboard.kpi.confined": "Animais confinados",
   "dashboard.kpi.gmd": "GMD médio",
   "dashboard.kpi.daysOnFeed": "Dias de confinamento",
-  "dashboard.kpi.mortality": "Mortalidade",
+  "dashboard.kpi.mortality": "Mortalidade acumulada dos lotes",
   "dashboard.kpi.activeLots": "Lotes ativos",
   "dashboard.kpi.occupancy": "Ocupação dos currais",
   "dashboard.kpi.avgWeight": "Peso médio do rebanho",
@@ -128,7 +123,6 @@
   "dashboard.alerts.treatment": "Animais em tratamento",
   "dashboard.alerts.none": "Nenhum alerta sanitário no momento.",
   "dashboard.readySlaughter": "Lotes próximos do peso alvo",
-
   "pens.title": "Currais",
   "pens.subtitle": "Ocupação, lote atual e dieta de cada curral",
   "pens.new": "Novo curral",
@@ -144,7 +138,6 @@
   "pens.deleted": "Curral excluído.",
   "pens.saved": "Curral salvo.",
   "pens.statusHint": "Currais em manutenção ou adaptação não recebem novos lotes.",
-
   "lots.title": "Lotes",
   "lots.subtitle": "Entrada, desempenho e projeção de abate",
   "lots.new": "Novo lote",
@@ -202,7 +195,6 @@
   "lots.exit.weight": "Peso médio de saída",
   "lots.exit.destination": "Frigorífico / destino",
   "lots.exit.saved": "Saída registrada: {{head}} animais.",
-
   "animals.title": "Animais",
   "animals.subtitle": "Registro individual do rebanho confinado",
   "animals.new": "Novo animal",
@@ -221,7 +213,6 @@
   "animals.detail.gain": "Ganho no período",
   "animals.detail.arroba": "Arrobas",
   "animals.statusHint": "Animais em carência não podem ser enviados para abate.",
-
   "weighings.title": "Pesagens",
   "weighings.subtitle": "Sessões de pesagem, GMD e evolução do lote",
   "weighings.new": "Nova pesagem",
@@ -249,7 +240,6 @@
   "weighings.detail.noRecords": "Nenhum peso individual nesta sessão.",
   "weighings.detail.projection": "Nova data projetada de abate",
   "weighings.deleteConfirm": "Excluir esta pesagem?",
-
   "feed.title": "Trato",
   "feed.subtitle": "Fornecimento diário por curral",
   "feed.new": "Registrar trato",
@@ -279,7 +269,6 @@
   "feed.reading.savedFor": "{{pen}} lido",
   "feed.reading.completed": "Ronda concluída: {{count}} currais lidos.",
   "feed.reading.roundProgress": "{{done}} de {{total}} currais lidos",
-
   "trough.score.0": "Subalimentação",
   "trough.score.0.hint": "Cocho limpo, aumentar oferta",
   "trough.score.1": "Consumo ótimo",
@@ -292,7 +281,6 @@
   "trough.score.4.hint": "Sobra de 15 a 20%, reduzir",
   "trough.score.5": "Excesso severo",
   "trough.score.5.hint": "Sobra acima de 25%, revisar dieta",
-
   "health.protocols.title": "Protocolos sanitários",
   "health.protocols.subtitle": "Protocolos de entrada, produtos e carências",
   "health.protocols.new": "Novo protocolo",
@@ -322,9 +310,8 @@
   "health.applyProtocol": "Aplicar protocolo ao lote",
   "health.protocolApplied": "Protocolo aplicado ao lote {{code}}.",
   "health.withdrawalUntil": "Carência até {{date}}",
-  "health.mortality.rate": "Taxa de mortalidade",
+  "health.mortality.rate": "Mortalidade acumulada dos lotes",
   "health.morbidity.rate": "Animais em tratamento",
-
   "config.title": "Configurações",
   "config.subtitle": "Fazenda, cadastros e equipe",
   "config.farm.title": "Dados da fazenda",
@@ -351,7 +338,6 @@
   "config.diets.totalOffered": "Oferta total",
   "config.pens.title": "Currais",
   "config.pens.subtitle": "Capacidade e situação dos currais",
-
   "field.code": "Código",
   "field.name": "Nome",
   "field.origin": "Origem",
@@ -407,7 +393,6 @@
   "field.eventDate": "Data do evento",
   "field.destination": "Destino",
   "field.deathCause": "Causa",
-
   "status.pen.ativo": "Ativo",
   "status.pen.vazio": "Vazio",
   "status.pen.manutencao": "Manutenção",
@@ -443,7 +428,6 @@
   "status.ready": "Pronto para abate",
   "status.overCapacity": "Superlotado",
   "status.withoutWeighing": "Sem pesagem recente",
-
   "empty.title": "Nada por aqui",
   "empty.description": "Nenhum registro encontrado.",
   "empty.noResults": "Nenhum resultado para os filtros atuais.",
@@ -452,13 +436,33 @@
   "empty.permission.title": "Acesso restrito",
   "empty.permission.description": "Esta área é exclusiva para gestores.",
   "loading.generic": "Carregando informações…",
-
   "toast.error.title": "Algo deu errado",
   "toast.error.generic": "Não foi possível concluir a operação. Tente novamente.",
   "toast.saved": "Registro salvo.",
   "toast.requiredFields": "Preencha os campos obrigatórios.",
-
   "notFound.title": "Página não encontrada",
   "notFound.description": "O endereço acessado não existe neste sistema.",
-  "notFound.actions.backHome": "Voltar ao painel"
+  "notFound.actions.backHome": "Voltar ao painel",
+  "config.users.access": "Acesso à fazenda",
+  "animals.filter.movement": "Exibir animais",
+  "animals.filter.present": "Presentes",
+  "animals.filter.exited": "Saídos",
+  "animals.filter.all": "Todos",
+  "weighings.record.actions": "Ações",
+  "weighings.record.edit": "Editar peso",
+  "weighings.record.delete": "Excluir peso",
+  "weighings.record.context": "Animal {{tag}} · peso registrado: {{weight}} kg",
+  "weighings.record.invalidWeight": "Informe um peso positivo de até 99.999,99 kg.",
+  "weighings.record.precision": "O peso será salvo com duas casas decimais.",
+  "weighings.record.confirmLastRequired": "Confirme a exclusão da pesagem, pois este é o último peso.",
+  "weighings.record.updated": "Peso corrigido e média atualizada.",
+  "weighings.record.deleted": "Peso excluído e pesagem recalculada.",
+  "weighings.record.sessionDeleted": "Último peso e pesagem excluídos.",
+  "weighings.record.deleteDescription": "Deseja excluir somente o peso deste animal? Os demais registros da pesagem serão mantidos.",
+  "weighings.record.deleteLastDescription": "Este é o único peso registrado. Excluí-lo também removerá esta pesagem inteira.",
+  "weighings.record.confirmLast": "Confirmo a exclusão do último peso e da pesagem.",
+  "weighings.record.recalculate": "A média e o peso atual do animal serão recalculados. A quantidade de animais pesados permanece igual.",
+  "feed.reading.applied": "Ajuste aplicado: {{count}} registro(s) de trato criado(s).",
+  "feed.reading.alreadyApplied": "Ajuste já aplicado; nenhum novo trato foi criado.",
+  "feed.reading.nothingToApply": "Não há ajustes pendentes para aplicar hoje."
 }

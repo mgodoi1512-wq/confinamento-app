@@ -19,6 +19,7 @@ const Login = () => {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,6 +30,7 @@ const Login = () => {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    setNotice(null);
 
     if (!email || !password) {
       setError(t("auth.errorRequired"));
@@ -42,7 +44,7 @@ const Login = () => {
     setSubmitting(true);
 
     if (mode === "signup") {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -57,6 +59,10 @@ const Login = () => {
             ? t("auth.errorEmailInUse")
             : signUpError.message,
         );
+        return;
+      }
+      if (!data.session) {
+        setNotice("Confira seu e-mail para confirmar o cadastro. Depois do login, aguarde a liberação de um gestor.");
         return;
       }
       navigate("/", { replace: true });
@@ -130,7 +136,7 @@ const Login = () => {
               <p className="font-display text-lg font-semibold tracking-tight">
                 {t("common.appName")}
               </p>
-              <p className="text-xs text-muted-foreground">{t("common.appSubtitle")}</p>
+              <p className="text-xs text-stone-200">{t("common.appSubtitle")}</p>
             </div>
           </div>
 
@@ -192,6 +198,7 @@ const Login = () => {
                   />
                 </div>
 
+                {notice && <p role="status" className="rounded-md bg-muted p-3 text-sm">{notice}</p>}
                 {error ? (
                   <p className="rounded-md bg-destructive/12 px-3 py-2 text-sm text-destructive">
                     {error}
@@ -205,7 +212,7 @@ const Login = () => {
             </Tabs>
 
             {mode === "signup" ? (
-              <p className="mt-4 text-xs text-muted-foreground">{t("auth.signupHint")}</p>
+              <p className="mt-4 text-xs text-stone-200">{t("auth.signupHint")}</p>
             ) : null}
           </div>
         </div>

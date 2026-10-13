@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { SelectField } from "@/components/form/select-field";
 import { useAuth } from "@/hooks/use-auth";
-import { useProfiles, useUpdateProfile } from "@/hooks/use-users";
+import { useProfiles, useUpdateProfile, useMembers } from "@/hooks/use-users";
 import { ROLE_OPTIONS } from "@/lib/constants";
 import type { Profile, Role } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
@@ -17,6 +17,7 @@ const SettingsUsers = () => {
   const { isGestor, profile: currentProfile } = useAuth();
 
   const profilesQuery = useProfiles();
+  const membersQuery = useMembers();
   const updateProfile = useUpdateProfile();
 
   const profiles = profilesQuery.data ?? [];
@@ -36,6 +37,16 @@ const SettingsUsers = () => {
   };
 
   const columns: Column<Profile>[] = [
+    {
+      key: "access", headerKey: "config.users.access",
+      render: (row) => <button
+        className="rounded border px-3 py-2 text-sm"
+        disabled={row.id === currentProfile?.id || updateProfile.isPending || membersQuery.isLoading || membersQuery.isError}
+        onClick={() => void updateProfile.mutateAsync({ id: row.id, enabled: !membersQuery.data?.some((member) => member.user_id === row.id && member.enabled) })
+          .then(() => toast.success("Acesso atualizado."))
+          .catch((error) => toast.error(error instanceof Error ? error.message : "Falha ao atualizar acesso."))}
+      >{membersQuery.data?.some((member) => member.user_id === row.id && member.enabled) ? "Revogar acesso" : "Liberar acesso"}</button>,
+    },
     {
       key: "name",
       headerKey: "field.fullName",

@@ -14,11 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/use-auth";
-import { useDiets } from "@/hooks/use-diets";
-import { useFeedLogs, useSaveFeedLog } from "@/hooks/use-feed";
+import { useDietItems } from "@/hooks/use-diets";
+import { useFeedLogs } from "@/hooks/use-feed";
 import { useLots } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
-import { useSaveTroughReading, useTroughReadings } from "@/hooks/use-trough";
+import { useSaveTroughReading, useTroughReadings, useApplyReadings } from "@/hooks/use-trough";
 import {
   TROUGH_ADJUSTMENT,
   computePenOccupancy,
@@ -36,19 +36,20 @@ const ReadingRound = () => {
   const troughQuery = useTroughReadings();
   const pensQuery = usePens();
   const lotsQuery = useLots();
-  const dietsQuery = useDiets();
+  const dietItemsQuery = useDietItems();
   const feedQuery = useFeedLogs();
 
   const saveReading = useSaveTroughReading();
-  const saveFeedLog = useSaveFeedLog();
+  const applyReadings = useApplyReadings();
 
   const readings = useMemo(() => troughQuery.data ?? [], [troughQuery.data]);
   const pens = useMemo(() => pensQuery.data ?? [], [pensQuery.data]);
   const lots = useMemo(() => lotsQuery.data ?? [], [lotsQuery.data]);
-  const diets = useMemo(() => dietsQuery.data ?? [], [dietsQuery.data]);
+  const dietItems = useMemo(() => dietItemsQuery.data ?? [], [dietItemsQuery.data]);
   const feedLogs = useMemo(() => feedQuery.data ?? [], [feedQuery.data]);
 
   const [activePen, setActivePen] = useState<PenOccupancy | null>(null);
+  const [baseInput, setBaseInput] = useState("");
   const [score, setScore] = useState<number | null>(null);
   const [leftover, setLeftover] = useState("");
   const [adjustmentPct, setAdjustmentPct] = useState("");
@@ -60,22 +61,23 @@ const ReadingRound = () => {
   const occupancy = useMemo(() => computePenOccupancy(pens, lots), [pens, lots]);
   const pensWithLot = occupancy.filter((item) => item.lot);
 
-  const todayReadings = readings.filter((reading) => reading.date === today);
+  const todayReadings = readings.filter((reading, index) => reading.date === today && readings.findIndex((other) => other.date === today && other.pen_id === reading.pen_id) === index);
   const readPenIds = new Set(todayReadings.map((reading) => reading.pen_id));
   const pending = pensWithLot.filter((item) => !readPenIds.has(item.pen.id));
 
   const basePerHead = (penId: string) => {
-    const lastLog = feedLogs.find((log) => log.pen_id === penId);
+    const lastLog = feedLogs.find((log) => log.pen_id === penId && log.shift === "manha" && log.date < today);
     if (lastLog) return lastLog.kg_per_head;
     const lot = pensWithLot.find((item) => item.pen.id === penId)?.lot;
-    const dietTotal = diets
-      .filter((diet) => diet.id === lot?.diet_id)
+    const dietTotal = dietItems
+      .filter((diet) => diet.diet_id === lot?.diet_id)
       .reduce((sum, diet) => sum + diet.kg_per_head_day, 0);
     return dietTotal;
   };
 
   const openPen = (item: PenOccupancy) => {
     setActivePen(item);
+    setBaseInput(String(basePerHead(item.pen.id)));
     setScore(null);
     setLeftover("");
     setAdjustmentPct("");
@@ -88,7 +90,7 @@ const ReadingRound = () => {
   };
 
   const pct = parseNumberInput(adjustmentPct) ?? 0;
-  const unitBase = activePen ? basePerHead(activePen.pen.id) : 0;
+  const unitBase = parseNumberInput(baseInput) ?? 0;
   const adjustmentKg = (unitBase * pct) / 100;
 
   const nextPending = (currentPenId: string) =>
@@ -97,26 +99,17 @@ const ReadingRound = () => {
   const save = async () => {
     if (!activePen || score === null) return;
 
+    if (parseNumberInput(baseInput) === null || unitBase < 0 || pct < -100 || (leftover.trim() && (parseNumberInput(leftover) === null || parseNumberInput(leftover) < 0))) { toast.error("Confira oferta base, sobras e ajuste."); return; }
     setSaving(true);
 
     try {
-      console.log({
-  pen_id: activePen.pen.id,
-  lot_id: activePen.lot?.id ?? null,
-  date: today,
-  score,
-  leftover_kg: parseNumberInput(leftover),
-  adjustment_pct: pct,
-  adjustment_kg: Math.round(adjustmentKg * 1000) / 1000,
-  notes: notes.trim() || null,
-  recorded_by: user?.id ?? null,
-});
       await saveReading.mutateAsync({
         pen_id: activePen.pen.id,
         lot_id: activePen.lot?.id ?? null,
         date: today,
         score,
         leftover_kg: parseNumberInput(leftover),
+        base_kg_per_head: unitBase,
         adjustment_pct: pct,
         adjustment_kg: Math.round(adjustmentKg * 1000) / 1000,
         notes: notes.trim() || null,
@@ -134,49 +127,26 @@ const ReadingRound = () => {
 
       setActivePen(null);
       toast.success(t("feed.reading.completed", { count: pending.length }));
-    } catch {
+    } catch (error) {
       setSaving(false);
-      toast.error(t("toast.error.generic"));
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 
   const applyAdjustments = async () => {
-    const adjustments = todayReadings.filter((reading) => reading.adjustment_pct !== 0);
-    if (adjustments.length === 0) return;
-
     setApplying(true);
-
     try {
-      for (const reading of adjustments) {
-        const base = basePerHead(reading.pen_id);
-        const adjusted = Math.round(base * (1 + reading.adjustment_pct / 100) * 1000) / 1000;
-        const lot = lots.find((item) => item.pen_id === reading.pen_id && item.status === "ativo");
-        await saveFeedLog.mutateAsync({
-          pen_id: reading.pen_id,
-          lot_id: lot?.id ?? null,
-          date: today,
-          shift: "manha",
-          diet_id: lot?.diet_id ?? null,
-          head_count: lot?.head_count ?? 0,
-          kg_per_head: adjusted,
-          total_kg: Math.round(adjusted * (lot?.head_count ?? 0) * 100) / 100,
-          notes: t("feed.reading.adjustment"),
-        });
+      const result = await applyReadings.mutateAsync(today);
+      if (result.created > 0) {
+        toast.success(t("feed.reading.applied", { count: result.created }));
+      } else if (result.alreadyApplied > 0) {
+        toast.info(t("feed.reading.alreadyApplied"));
+      } else {
+        toast.info(t("feed.reading.nothingToApply"));
       }
-      toast.success(t("feed.saved"));
-    } catch (error) {
-  setSaving(false);
-
-  console.error("TROUGH ERROR:", error);
-
-  toast.error(
-    error instanceof Error
-      ? error.message
-      : JSON.stringify(error)
-  );
-} finally {
-      setApplying(false);
     }
+    catch (error) { toast.error(error instanceof Error ? error.message : t("toast.error.generic")); }
+    finally { setApplying(false); }
   };
 
   return (
@@ -294,9 +264,9 @@ const ReadingRound = () => {
                       {pens.find((pen) => pen.id === reading.pen_id)?.code ?? "—"}
                     </span>
                     <span className="num text-muted-foreground">
-                      {formatNumber(basePerHead(reading.pen_id), 2)} →{" "}
+                      {formatNumber((reading.base_kg_per_head ?? 0), 2)} →{" "}
                       {formatNumber(
-                        basePerHead(reading.pen_id) * (1 + reading.adjustment_pct / 100),
+                        (reading.base_kg_per_head ?? 0) * (1 + reading.adjustment_pct / 100),
                         2,
                       )}{" "}
                       kg/cab
@@ -339,6 +309,8 @@ const ReadingRound = () => {
                 </p>
               </SheetHeader>
 
+              <NumericField label="Oferta base da manhã (confira antes de aplicar)" unit="kg/cab" value={baseInput} onValueChange={setBaseInput} />
+              <p className="text-xs text-muted-foreground">Sem trato anterior da manhã, a referência vem da soma diária da dieta. Informe aqui apenas a oferta prevista para a manhã. Cada leitura gera o trato uma única vez.</p>
               <TroughScoreSelector value={score} onChange={selectScore} />
 
               <NumericField

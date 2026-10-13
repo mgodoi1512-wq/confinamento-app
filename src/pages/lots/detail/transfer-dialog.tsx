@@ -22,6 +22,7 @@ export const TransferDialog = ({ lot }: { lot: Lot }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [penId, setPenId] = useState("");
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
 
   const lotsQuery = useLots();
@@ -30,7 +31,7 @@ export const TransferDialog = ({ lot }: { lot: Lot }) => {
 
   const pens = pensQuery.data ?? [];
   const occupancy = computePenOccupancy(pens, lotsQuery.data ?? []).filter(
-    (item) => item.pen.id !== lot.pen_id && item.pen.status !== "manutencao",
+    (item) => item.pen.id !== lot.pen_id && item.pen.status !== "manutencao" && item.free >= lot.head_count,
   );
 
   const submit = async () => {
@@ -40,14 +41,15 @@ export const TransferDialog = ({ lot }: { lot: Lot }) => {
     }
 
     try {
-      await transfer.mutateAsync({ lot, penId });
+      await transfer.mutateAsync({ lot, penId, requestId });
+      setRequestId(crypto.randomUUID());
       toast.success(
         t("lots.transfer.saved", { code: pens.find((pen) => pen.id === penId)?.code ?? "" }),
       );
       setOpen(false);
       setPenId("");
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 

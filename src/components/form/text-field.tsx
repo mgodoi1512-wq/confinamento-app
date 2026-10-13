@@ -12,6 +12,7 @@ export type TextFieldProps = {
   error?: string;
   helper?: string;
   required?: boolean;
+  disabled?: boolean;
   textarea?: boolean;
   className?: string;
   monospace?: boolean;
@@ -27,6 +28,7 @@ export const TextField = ({
   error,
   helper,
   required = false,
+  disabled = false,
   textarea = false,
   className,
   monospace = false,
@@ -43,6 +45,8 @@ export const TextField = ({
       {textarea ? (
         <textarea
           id={id}
+          disabled={disabled}
+          required={required}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
@@ -54,6 +58,8 @@ export const TextField = ({
       ) : (
         <Input
           id={id}
+          disabled={disabled}
+          required={required}
           type={type}
           value={value}
           onChange={(event) => onChange(event.target.value)}

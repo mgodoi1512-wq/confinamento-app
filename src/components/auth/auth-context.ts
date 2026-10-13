@@ -9,6 +9,8 @@ export type AuthValue = {
   role: Role | null;
   isGestor: boolean;
   loading: boolean;
+  approved: boolean;
+  authError: string | null;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };

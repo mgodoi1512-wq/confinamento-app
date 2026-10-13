@@ -142,3 +142,30 @@ Whenever a new module (such as a component, hook, or utility) or a new page is a
    <Route path="/profile" element={<Profile />} />
    ```
 5. **If you need a reusable button, add it to `src/components/ui/button.tsx`.**
+
+## Correções de integridade (12/10/2026)
+
+- `src/lib/mutations.ts`: cliente RPC para operações atômicas e idempotentes.
+- `src/lib/query.ts`: paginação das coleções de domínio.
+- `src/components/app/query-errors.tsx`: feedback de falhas de consultas.
+- `tests/domain.test.mjs`: regressões de cálculos e datas.
+- `tests/database.test.mjs`: integração transacional e autorização em banco de teste.
+- `supabase/migrations/20261012220000_integrity_and_access.sql`: transações, aprovação de acesso e validação de rebanho.
+- `CORRECOES.md`: instalação, migração e limites de validação.
+
+A aplicação continua sendo uma instalação compartilhada de uma fazenda. `app_members` controla aprovação explícita de usuários; não é isolamento de múltiplas fazendas. Escritas de rebanho passam pela RPC `app_mutate`; RLS e permissões impedem contornar as validações usando tabelas diretamente.
+
+As páginas em `router.tsx` usam importação dinâmica e Suspense no App/AppShell. O gerenciador da entrega é npm, com package-lock.json.
+
+Revisão 2: `EXECUTAR-NO-SUPABASE.sql` copia a migração para acesso rápido; `LEIA-PRIMEIRO.txt` explica recuperação de execução com tipos incompatíveis.
+
+## Correção de pesos individuais
+
+- `src/pages/weighings/detail/weight-record-actions.tsx`: edição de um peso individual, mantendo a composição da pesagem.
+- `useCorrectWeightRecord` em `src/hooks/use-weighings.ts`: chamada RPC e atualização de caches.
+- `supabase/migrations/20261013010000_weight_record_corrections.sql`: correção transacional com chave de repetição, verificação de dados desatualizados e recálculo de média/quantidade/peso vigente.
+- `tests/database.test.mjs`: regressões de edição/exclusão individual, nos esquemas UUID e TEXT.
+
+Revisão somente edição: `supabase/migrations/20261013020000_edit_weight_only.sql` substitui a função de correção e bloqueia exclusão individual no banco. A exclusão da pesagem completa permanece em `useDeleteWeighing`.
+
+Feedback de aplicação de cocho: `supabase/migrations/20261013030000_trough_application_feedback.sql` adiciona `app_apply_readings`. O hook `useApplyReadings` devolve contagens de registros criados, já aplicados e leituras sem ajuste. A página diferencia sucesso, repetição e ausência de ajustes pendentes.

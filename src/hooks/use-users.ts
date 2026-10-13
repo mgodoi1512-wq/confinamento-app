@@ -1,3 +1,5 @@
+import { mutateApp } from "@/lib/mutations";
+import { fetchAll } from "@/lib/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -8,28 +10,18 @@ export const profilesQueryKey = ["profiles"] as const;
 export const useProfiles = () =>
   useQuery({
     queryKey: profilesQueryKey,
-    queryFn: async (): Promise<Profile[]> => {
-      const { data, error } = await supabase.from("profiles").select("*").order("created_at");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => fetchAll<Profile>(() => supabase.from("profiles").select("*").order("created_at").order("id")),
   });
 
-/** A alteração de papel é autorizada pela política de RLS (somente gestor). */
+export const useMembers = () => useQuery({
+  queryKey: ["app-members"],
+  queryFn: () => fetchAll<{ user_id: string; enabled: boolean }>(() => supabase.from("app_members").select("user_id,enabled").order("user_id")),
+});
 export const useUpdateProfile = () => {
-  const queryClient = useQueryClient();
-
+  const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, role, fullName }: { id: string; role?: Role; fullName?: string }) => {
-      const payload: { role?: Role; full_name?: string } = {};
-      if (role) payload.role = role;
-      if (fullName !== undefined) payload.full_name = fullName;
-
-      const { error } = await supabase.from("profiles").update(payload).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: profilesQueryKey });
-    },
+    mutationFn: (payload: { id: string; role?: Role; fullName?: string; enabled?: boolean }) =>
+      mutateApp("update_profile", payload, crypto.randomUUID()),
+    onSuccess: () => { void client.invalidateQueries(); },
   });
 };

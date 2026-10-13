@@ -100,8 +100,8 @@ const SettingsDiets = () => {
       });
       toast.success(t("config.diets.saved"));
       setOpen(false);
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 
@@ -109,8 +109,8 @@ const SettingsDiets = () => {
     try {
       await deleteDiet.mutateAsync(diet.id);
       toast.success(t("config.diets.deleted"));
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 
@@ -222,8 +222,9 @@ const SettingsDiets = () => {
             <DialogTitle>{editing ? t("config.diets.edit") : t("config.diets.new")}</DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid items-start gap-4 sm:grid-cols-2">
             <TextField
+              className="[&_input]:h-12 [&_label]:text-xs [&_label]:text-muted-foreground"
               label={t("field.name")}
               value={name}
               onChange={(value) => {
@@ -258,11 +259,10 @@ const SettingsDiets = () => {
           </label>
 
           <div className="space-y-3">
-            <p className="text-sm font-medium">{t("field.ingredient")}</p>
             {drafts.map((draft) => (
-              <div key={draft.key} className="flex items-end gap-3">
+              <div key={draft.key} className="flex items-start gap-3">
                 <TextField
-                  className="flex-1"
+                  className="min-w-0 flex-1 [&_input]:h-12 [&_label]:text-xs [&_label]:text-muted-foreground"
                   label={t("field.ingredient")}
                   value={draft.ingredient}
                   onChange={(value) =>
@@ -272,10 +272,9 @@ const SettingsDiets = () => {
                       ),
                     )
                   }
-                  helper={INGREDIENT_SUGGESTIONS.slice(0, 4).join(" · ")}
                 />
                 <NumericField
-                  className="w-36"
+                  className="w-28 shrink-0 sm:w-36"
                   label={t("field.inclusion")}
                   unit="kg"
                   value={draft.kg}
@@ -290,7 +289,7 @@ const SettingsDiets = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="mb-1 h-11 w-11 text-muted-foreground"
+                  className="mt-[22px] h-12 w-11 shrink-0 text-muted-foreground"
                   aria-label={t("action.delete")}
                   onClick={() =>
                     setDrafts((current) => current.filter((item) => item.key !== draft.key))
@@ -301,13 +300,17 @@ const SettingsDiets = () => {
               </div>
             ))}
 
+            <p className="text-xs text-muted-foreground">
+              {INGREDIENT_SUGGESTIONS.slice(0, 4).join(" · ")}
+            </p>
+
             <Button
               variant="outline"
               className="h-11 w-full"
               onClick={() => setDrafts((current) => [...current, emptyItem()])}
             >
               <Plus />
-              {t("config.diets.new")}
+              {t("field.ingredient")}
             </Button>
 
             <p className="text-right text-sm text-muted-foreground">

@@ -1,3 +1,5 @@
+import { mutateApp } from "@/lib/mutations";
+import { fetchAll } from "@/lib/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -11,25 +13,18 @@ export const feedLogsQueryKey = ["feed-logs"] as const;
 export const useFeedLogs = () =>
   useQuery({
     queryKey: feedLogsQueryKey,
-    queryFn: async (): Promise<FeedLog[]> => {
-      const { data, error } = await supabase
+    queryFn: () => fetchAll<FeedLog>(() => supabase
         .from("feed_logs")
         .select("*")
         .order("date", { ascending: false })
-        .order("shift");
-      if (error) throw error;
-      return data ?? [];
-    },
+        .order("shift").order("id")),
   });
 
 export const useSaveFeedLog = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: FeedLogInsert) => {
-      const { error } = await supabase.from("feed_logs").insert(payload);
-      if (error) throw error;
-    },
+    mutationFn: (payload: FeedLogInsert) => mutateApp("save_feed", payload, crypto.randomUUID()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: feedLogsQueryKey });
     },
@@ -40,10 +35,7 @@ export const useDeleteFeedLog = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("feed_logs").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => mutateApp("delete_feed", { id }, crypto.randomUUID()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: feedLogsQueryKey });
     },

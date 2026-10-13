@@ -1,3 +1,5 @@
+import { fetchAll } from "@/lib/query";
+import { mutateApp } from "@/lib/mutations";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -11,64 +13,26 @@ export const animalsQueryKey = ["animals"] as const;
 export const useAnimals = () =>
   useQuery({
     queryKey: animalsQueryKey,
-    queryFn: async (): Promise<Animal[]> => {
-      const { data, error } = await supabase.from("animals").select("*").order("ear_tag");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => fetchAll<Animal>(() => supabase.from("animals").select("*").order("ear_tag").order("id")),
   });
-
-const isDuplicateTag = (message: string) => message.includes("duplicate key");
 
 export const useSaveAnimal = () => {
-  const queryClient = useQueryClient();
-
+  const client = useQueryClient();
   return useMutation({
     mutationFn: async (payload: AnimalInsert & { id?: string }) => {
-      const { error } = payload.id
-        ? await supabase.from("animals").update(payload).eq("id", payload.id)
-        : await supabase.from("animals").insert(payload);
-
-      if (error) {
-        throw new Error(isDuplicateTag(error.message) ? "duplicate-ear-tag" : error.message);
+      try { return await mutateApp("save_animal", payload, crypto.randomUUID()); }
+      catch (error) {
+        if (error instanceof Error && error.message.includes("animals_ear_tag_key")) throw new Error("duplicate-ear-tag");
+        throw error;
       }
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: animalsQueryKey });
-    },
+    onSuccess: () => { void client.invalidateQueries(); },
   });
 };
-
 export const useDeleteAnimal = () => {
-  const queryClient = useQueryClient();
-
+  const client = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("animals").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: animalsQueryKey });
-    },
-  });
-};
-
-/** Ajusta o peso atual de um animal a partir de uma pesagem individual. */
-export const useUpdateAnimalWeights = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (updates: { id: string; weight: number }[]) => {
-      for (const update of updates) {
-        const { error } = await supabase
-          .from("animals")
-          .update({ current_weight_kg: update.weight })
-          .eq("id", update.id);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: animalsQueryKey });
-    },
+    mutationFn: (id: string) => mutateApp("delete_animal", { id }, crypto.randomUUID()),
+    onSuccess: () => { void client.invalidateQueries(); },
   });
 };

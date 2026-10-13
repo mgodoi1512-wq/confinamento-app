@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
+  readonly VITE_FARM_TIME_ZONE?: string;
   readonly VITE_ENTER_ANALYTICS_ENABLED?: string;
   readonly VITE_ENTER_ANALYTICS_TOKEN?: string;
   readonly VITE_ENTER_PROJECT_ID?: string;

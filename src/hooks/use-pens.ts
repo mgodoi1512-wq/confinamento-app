@@ -1,3 +1,5 @@
+import { mutateApp } from "@/lib/mutations";
+import { fetchAll } from "@/lib/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -11,23 +13,14 @@ export const pensQueryKey = ["pens"] as const;
 export const usePens = () =>
   useQuery({
     queryKey: pensQueryKey,
-    queryFn: async (): Promise<Pen[]> => {
-      const { data, error } = await supabase.from("pens").select("*").order("code");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => fetchAll<Pen>(() => supabase.from("pens").select("*").order("code").order("id")),
   });
 
 export const useSavePen = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: PenInsert & { id?: string }) => {
-      const { error } = payload.id
-        ? await supabase.from("pens").update(payload).eq("id", payload.id)
-        : await supabase.from("pens").insert(payload);
-      if (error) throw error;
-    },
+    mutationFn: (payload: PenInsert & { id?: string }) => mutateApp("save_pen", payload, crypto.randomUUID()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: pensQueryKey });
     },
@@ -38,10 +31,7 @@ export const useDeletePen = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("pens").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => mutateApp("delete_pen", { id }, crypto.randomUUID()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: pensQueryKey });
     },

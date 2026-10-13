@@ -24,7 +24,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useHealthEvents, useSaveHealthEvent } from "@/hooks/use-health";
 import { useLots } from "@/hooks/use-lots";
 import { healthEventTone, isUnderWithdrawal, type HealthEvent } from "@/lib/domain";
-import { addDays, formatDate, formatNumber, parseNumberInput, todayIso } from "@/lib/format";
+import { isValidIsoDate, addDays, formatDate, formatNumber, parseNumberInput, todayIso } from "@/lib/format";
 
 const Treatments = () => {
   const { t } = useTranslation();
@@ -57,20 +57,21 @@ const Treatments = () => {
   const [date, setDate] = useState(today);
   const [withdrawalDays, setWithdrawalDays] = useState("");
   const [notes, setNotes] = useState("");
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
 
   const animalOptions = animals
-    .filter((animal) => animal.status !== "morto" && animal.status !== "abatido")
+    .filter((animal) => (animal.status === "ativo" || animal.status === "tratamento"))
     .map((animal) => ({
       value: animal.id,
       labelKey: `${animal.ear_tag} · ${lots.find((lot) => lot.id === animal.lot_id)?.code ?? "—"}`,
     }));
 
   const days = parseNumberInput(withdrawalDays) ?? 0;
-  const withdrawalUntil = days > 0 ? addDays(date, days) : null;
+  const withdrawalUntil = days > 0 && Number.isInteger(days) && days <= 36500 && isValidIsoDate(date) ? addDays(date, days) : null;
 
-  const inTreatment = animals.filter((animal) => animal.health_status === "tratamento").length;
-  const underWithdrawal = animals.filter((animal) => isUnderWithdrawal(animal, today)).length;
+  const inTreatment = animals.filter((animal) => animal.status === "tratamento").length;
+  const underWithdrawal = animals.filter((animal) => (animal.status === "ativo" || animal.status === "tratamento") && isUnderWithdrawal(animal, today)).length;
 
   const submit = async () => {
     if (!animalId || !product.trim()) {
@@ -78,10 +79,12 @@ const Treatments = () => {
       return;
     }
 
+    if (!isValidIsoDate(date) || date > today || !Number.isInteger(days) || days < 0 || days > 36500 || (withdrawalDays.trim() && parseNumberInput(withdrawalDays) === null)) { setError("Informe uma data válida e carência em dias inteiros, não negativos."); return; }
     const animal = animals.find((item) => item.id === animalId);
 
     try {
       await saveEvent.mutateAsync({
+        requestId,
         event: {
           animal_id: animalId,
           lot_id: animal?.lot_id ?? null,
@@ -95,14 +98,9 @@ const Treatments = () => {
           notes: notes.trim() || null,
           recorded_by: user?.id ?? null,
         },
-        animalUpdate: {
-          id: animalId,
-          status: kind === "tratamento" ? "tratamento" : "ativo",
-          health_status: days > 0 ? "carencia" : kind === "tratamento" ? "tratamento" : "saudavel",
-          withdrawal_until: withdrawalUntil,
-        },
       });
 
+      setRequestId(crypto.randomUUID());
       toast.success(t("health.treatments.saved"));
       setOpen(false);
       setProduct("");
@@ -111,8 +109,8 @@ const Treatments = () => {
       setWithdrawalDays("");
       setNotes("");
       setAnimalId("");
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 

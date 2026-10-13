@@ -20,39 +20,58 @@ export const formatInteger = (value: number | null | undefined): string => {
 
 /** Converte uma string de input ("512,4" ou "512.4") em número. */
 export const parseNumberInput = (raw: string): number | null => {
-  const normalized = raw.replace(/\s|kg|@|%/g, "").replace(",", ".");
-  if (!normalized) return null;
-  const parsed = Number(normalized);
+  let value = raw.trim().replace(/\s/g, "").replace(/(?:kg|@|%)$/i, "");
+  if (!value) return null;
+  if (value.includes(",")) {
+    if (!/^[+-]?(?:\d+|\d{1,3}(?:\.\d{3})+),\d+$/.test(value)) return null;
+    value = value.replace(/\./g, "").replace(",", ".");
+  } else if (!/^[+-]?\d+(?:\.\d+)?$/.test(value)) return null;
+  const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export const todayIso = (): string => new Date().toISOString().slice(0, 10);
+export const FARM_TIME_ZONE = import.meta.env?.VITE_FARM_TIME_ZONE || "America/Sao_Paulo";
 
-export const parseIsoDate = (iso: string): Date => new Date(`${iso}T00:00:00`);
-
-/** Diferença em dias inteiros entre duas datas ISO (b - a). */
-export const daysBetween = (fromIso: string, toIso: string): number => {
-  const from = parseIsoDate(fromIso).getTime();
-  const to = parseIsoDate(toIso).getTime();
-  return Math.round((to - from) / 86_400_000);
+export const todayIso = (now = new Date(), timeZone = FARM_TIME_ZONE): string => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
 };
 
+export const isValidIsoDate = (iso: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const date = new Date(`${iso}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === iso;
+};
+
+export const parseIsoDate = (iso: string): Date => {
+  if (!isValidIsoDate(iso)) throw new Error("Data inválida");
+  return new Date(`${iso}T00:00:00Z`);
+};
+
+/** Diferença entre datas civis: aritmética em UTC evita horário de verão. */
+export const daysBetween = (fromIso: string, toIso: string): number =>
+  Math.round((parseIsoDate(toIso).getTime() - parseIsoDate(fromIso).getTime()) / 86_400_000);
+
 export const addDays = (iso: string, days: number): string => {
+  if (!Number.isInteger(days) || days < 0) throw new Error("Número de dias inválido");
   const date = parseIsoDate(iso);
-  date.setDate(date.getDate() + days);
+  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 };
 
 /** "10/10/2026" */
 export const formatDate = (iso: string | null | undefined): string => {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(parseIsoDate(iso));
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "UTC" }).format(parseIsoDate(iso));
 };
 
 /** "10 out" */
 export const formatDateShort = (iso: string | null | undefined): string => {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" })
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" })
     .format(parseIsoDate(iso))
     .replace(".", "");
 };

@@ -67,6 +67,7 @@ const NewLot = () => {
   const [dietId, setDietId] = useState("");
   const [protocolId, setProtocolId] = useState("");
   const [applyProtocol, setApplyProtocol] = useState(true);
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const occupancy = useMemo(() => computePenOccupancy(pens, lotsQuery.data ?? []), [pens, lotsQuery.data]);
@@ -98,8 +99,8 @@ const NewLot = () => {
     if (target >= 0) {
       if (!(code || suggestion).trim()) next.code = t("toast.requiredFields");
       const head = parseNumberInput(headCount);
-      if (!head || head <= 0) next.headCount = t("toast.requiredFields");
-      if (!parseNumberInput(entryWeight)) next.entryWeight = t("toast.requiredFields");
+      if (!head || head <= 0 || !Number.isInteger(head)) next.headCount = t("toast.requiredFields");
+      if (!effectiveEntryWeight || effectiveEntryWeight <= 0) next.entryWeight = t("toast.requiredFields");
     }
 
     if (target >= 1 && mode === "individual") {
@@ -108,6 +109,10 @@ const NewLot = () => {
       if (duplicates.length > 0) next.duplicate = t("lots.new.dupEarTag", { tag: duplicates[0] });
     }
 
+    if (!entryDate || entryDate > todayIso()) next.code = "Informe uma data de entrada válida, até hoje.";
+    if (!(parseNumberInput(targetWeight) > 0)) next.entryWeight = "Informe um peso alvo positivo.";
+    if (target >= 1 && mode === "individual" && (animals.length !== parseNumberInput(headCount) || animals.some((animal) => !animal.earTag.trim() || !(parseNumberInput(animal.weight) > 0)))) next.duplicate = "Preencha um brinco e peso positivo para cada cabeça do lote.";
+    if (target >= 2 && selectedOccupancy && (parseNumberInput(headCount) ?? 0) > selectedOccupancy.free) next.code = "O curral não tem capacidade disponível para este lote.";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -120,7 +125,7 @@ const NewLot = () => {
   const submit = async () => {
     if (!validateStep(step)) return;
 
-    const payload: NewLotAnimal[] = animals
+    const payload: NewLotAnimal[] = (mode === "individual" ? animals : [])
       .filter((animal) => animal.earTag.trim())
       .map((animal) => ({
         ear_tag: animal.earTag.trim(),
@@ -132,6 +137,7 @@ const NewLot = () => {
     try {
       
       const lot = await createLot.mutateAsync({
+        requestId,
         lot: {
           code: (code || suggestion).trim(),
           origin: origin.trim() || null,
@@ -142,13 +148,14 @@ const NewLot = () => {
           entry_avg_weight_kg: effectiveEntryWeight ?? 0,
           target_weight_kg: parseNumberInput(targetWeight) ?? DEFAULT_TARGET_WEIGHT,
           pen_id: penId || null,
-          diet_id: dietId === "all" ? null : dietId,
-          protocol_id: protocolId === "all" ? null : protocolId,
+          diet_id: !dietId || dietId === "all" ? null : dietId,
+          protocol_id: !protocolId || protocolId === "all" ? null : protocolId,
         },
         animals: payload,
         applyProtocol,
       });
 
+      setRequestId(crypto.randomUUID());
       toast.success(
         t("lots.saved", { code: lot.code, head: formatNumber(lot.head_count, 0) }),
       );
@@ -484,6 +491,7 @@ const NewLot = () => {
             </>
           ) : null}
 
+          {Object.values(errors).length > 0 && <p role="alert" className="text-sm text-destructive">{Object.values(errors).join(" ")}</p>}
           <div className="flex items-center justify-between gap-2 pt-2">
             <Button
               type="button"

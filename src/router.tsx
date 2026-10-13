@@ -1,25 +1,26 @@
+import { lazy } from "react";
 import { AppShell } from "./components/app/app-shell";
 import { ProtectedRoute } from "./components/auth/protected-route";
-import Animals from "./pages/animals";
-import SettingsHome from "./pages/config";
-import SettingsDiets from "./pages/config/diets";
-import SettingsPens from "./pages/config/pens";
-import SettingsUsers from "./pages/config/users";
-import Dashboard from "./pages/dashboard";
-import Feed from "./pages/feed";
-import ReadingRound from "./pages/feed/reading";
-import Occurrences from "./pages/health/occurrences";
-import Protocols from "./pages/health/protocols";
-import Treatments from "./pages/health/treatments";
-import Login from "./pages/login";
-import Lots from "./pages/lots";
-import LotDetail from "./pages/lots/detail";
-import NewLot from "./pages/lots/new";
-import NotFound from "./pages/NotFound";
-import Pens from "./pages/pens";
-import Weighings from "./pages/weighings";
-import WeighingDetail from "./pages/weighings/detail";
-import NewWeighing from "./pages/weighings/new";
+const Animals = lazy(() => import("./pages/animals"));
+const SettingsHome = lazy(() => import("./pages/config"));
+const SettingsDiets = lazy(() => import("./pages/config/diets"));
+const SettingsPens = lazy(() => import("./pages/config/pens"));
+const SettingsUsers = lazy(() => import("./pages/config/users"));
+const Dashboard = lazy(() => import("./pages/dashboard"));
+const Feed = lazy(() => import("./pages/feed"));
+const ReadingRound = lazy(() => import("./pages/feed/reading"));
+const Occurrences = lazy(() => import("./pages/health/occurrences"));
+const Protocols = lazy(() => import("./pages/health/protocols"));
+const Treatments = lazy(() => import("./pages/health/treatments"));
+const Login = lazy(() => import("./pages/login"));
+const Lots = lazy(() => import("./pages/lots"));
+const LotDetail = lazy(() => import("./pages/lots/detail"));
+const NewLot = lazy(() => import("./pages/lots/new"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Pens = lazy(() => import("./pages/pens"));
+const Weighings = lazy(() => import("./pages/weighings"));
+const WeighingDetail = lazy(() => import("./pages/weighings/detail"));
+const NewWeighing = lazy(() => import("./pages/weighings/new"));
 
 export const routers = [
   {

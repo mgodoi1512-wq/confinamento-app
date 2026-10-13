@@ -23,6 +23,7 @@ import {
   liveWeightToArroba,
   type WeightRecord,
 } from "@/lib/domain";
+import { WeightRecordActions } from "./weight-record-actions";
 import { daysBetween, formatDate, formatNumber, todayIso } from "@/lib/format";
 
 const WeighingDetail = () => {
@@ -135,6 +136,15 @@ const WeighingDetail = () => {
       numeric: true,
       render: (record) => formatNumber(liveWeightToArroba(record.weight_kg) ?? 0, 1),
     },
+    ...(weighing.kind === "individual" ? [{
+      key: "actions",
+      headerKey: "weighings.record.actions",
+      render: (record: WeightRecord) => <WeightRecordActions
+        record={record}
+        count={records.length}
+        animalLabel={animals.find((animal) => animal.id === record.animal_id)?.ear_tag ?? "—"}
+      />,
+    }] : []),
   ];
 
   const remove = async () => {
@@ -233,6 +243,7 @@ const WeighingDetail = () => {
           rows={records}
           columns={recordColumns}
           getRowKey={(record) => record.id}
+          loading={recordsQuery.isLoading}
           emptyState={<EmptyState titleKey="weighings.detail.noRecords" />}
         />
       </div>

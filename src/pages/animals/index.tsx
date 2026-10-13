@@ -17,6 +17,7 @@ import {
   animalGain,
   animalStatusTone,
   healthTone,
+  currentHealthStatus,
   isUnderWithdrawal,
   liveWeightToArroba,
   type Animal,
@@ -24,6 +25,14 @@ import {
 import { formatNumber, todayIso } from "@/lib/format";
 import { AnimalDetailSheet } from "./animal-detail-sheet";
 import { AnimalFormDialog } from "./animal-form-dialog";
+
+const MOVEMENT_FILTER_OPTIONS = [
+  { value: SELECT_ALL, labelKey: "animals.filter.all" },
+  { value: "presentes", labelKey: "animals.filter.present" },
+  { value: "saidos", labelKey: "animals.filter.exited" },
+];
+
+const isPresent = (animal: Animal) => animal.status === "ativo" || animal.status === "tratamento";
 
 const HEALTH_FILTER_OPTIONS = [
   { value: "saudavel", labelKey: "status.health.saudavel" },
@@ -40,6 +49,7 @@ const Animals = () => {
   const pensQuery = usePens();
   const lotsQuery = useLots();
 
+  const [movementFilter, setMovementFilter] = useState(SELECT_ALL);
   const [search, setSearch] = useState("");
   const [penFilter, setPenFilter] = useState(SELECT_ALL);
   const [lotFilter, setLotFilter] = useState(SELECT_ALL);
@@ -53,6 +63,11 @@ const Animals = () => {
     const term = search.trim().toLowerCase();
 
     return (animalsQuery.data ?? []).filter((animal) => {
+      const present = isPresent(animal);
+      if (movementFilter === "presentes" && !present) return false;
+      if (movementFilter === "saidos" && present) return false;
+      // O filtro sanitário se refere aos animais que ainda estão na fazenda.
+      if (healthFilter !== SELECT_ALL && !present) return false;
       if (term && !`${animal.ear_tag} ${animal.sisbov ?? ""}`.toLowerCase().includes(term)) {
         return false;
       }
@@ -62,13 +77,13 @@ const Animals = () => {
       if (
         healthFilter !== SELECT_ALL &&
         healthFilter !== "carencia" &&
-        animal.health_status !== healthFilter
+        currentHealthStatus(animal, today) !== healthFilter
       ) {
         return false;
       }
       return true;
     });
-  }, [animalsQuery.data, search, penFilter, lotFilter, healthFilter, today]);
+  }, [animalsQuery.data, search, penFilter, lotFilter, movementFilter, healthFilter, today]);
 
   const columns: Column<Animal>[] = [
     {
@@ -113,23 +128,26 @@ const Animals = () => {
       },
     },
     {
-      key: "status",
-      headerKey: "field.status",
-      render: (row) => (
+  key: "status",
+  headerKey: "field.status",
+  className: "w-[240px] min-w-[240px] max-w-[240px]",
+  render: (row) => (
         <div className="flex flex-wrap items-center gap-1.5">
           <StatusBadge
             tone={animalStatusTone(row.status)}
             label={t(`status.animal.${row.status}`)}
             size="sm"
           />
-          <StatusBadge
-            tone={healthTone(row.health_status)}
-            label={t(`status.health.${row.health_status}`)}
-            size="sm"
-          />
-          {isUnderWithdrawal(row, today) ? (
-            <StatusBadge tone="agro" label={t("status.health.carencia")} size="sm" />
-          ) : null}
+          <span
+  className={isPresent(row) ? undefined : "invisible"}
+  aria-hidden={!isPresent(row)}
+>
+  <StatusBadge
+    tone={healthTone(currentHealthStatus(row, today))}
+    label={t(`status.health.${currentHealthStatus(row, today)}`)}
+    size="sm"
+  />
+</span>
         </div>
       ),
     },
@@ -152,7 +170,16 @@ const Animals = () => {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <SelectField
+          label={t("animals.filter.movement")}
+          value={movementFilter}
+          onChange={(value) => {
+            setMovementFilter(value);
+            setHealthFilter(SELECT_ALL);
+          }}
+          options={MOVEMENT_FILTER_OPTIONS}
+        />
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -178,6 +205,7 @@ const Animals = () => {
         />
         <SelectField
           value={healthFilter}
+          disabled={movementFilter === "saidos"}
           onChange={setHealthFilter}
           allowEmpty
           emptyLabel={t("field.healthStatus")}
@@ -208,6 +236,7 @@ const Animals = () => {
                   variant="outline"
                   className="h-10"
                   onClick={() => {
+                    setMovementFilter(SELECT_ALL);
                     setSearch("");
                     setPenFilter(SELECT_ALL);
                     setLotFilter(SELECT_ALL);
@@ -239,11 +268,20 @@ const Animals = () => {
                   {pens.find((pen) => pen.id === row.pen_id)?.code ?? "—"}
                 </p>
               </div>
-              <StatusBadge
-                tone={healthTone(row.health_status)}
-                label={t(`status.health.${row.health_status}`)}
-                size="sm"
-              />
+              <div className="flex flex-wrap justify-end gap-1.5">
+                <StatusBadge
+                  tone={animalStatusTone(row.status)}
+                  label={t(`status.animal.${row.status}`)}
+                  size="sm"
+                />
+                {isPresent(row) && (
+                  <StatusBadge
+                    tone={healthTone(currentHealthStatus(row, today))}
+                    label={t(`status.health.${currentHealthStatus(row, today)}`)}
+                    size="sm"
+                  />
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-sm">
               <div>

@@ -40,11 +40,12 @@ const NewWeighing = () => {
   const [headCount, setHeadCount] = useState("");
   const [avgWeight, setAvgWeight] = useState("");
   const [weights, setWeights] = useState<Record<string, string>>({});
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
 
   const lot = activeLots.find((item) => item.id === lotId) ?? null;
   const lotAnimals = useMemo(
-    () => (animalsQuery.data ?? []).filter((animal) => animal.lot_id === lotId),
+    () => (animalsQuery.data ?? []).filter((animal) => animal.lot_id === lotId && (animal.status === "ativo" || animal.status === "tratamento")),
     [animalsQuery.data, lotId],
   );
 
@@ -88,14 +89,21 @@ const NewWeighing = () => {
       return;
     }
 
+    const head = kind === "individual" ? individualEntries.length : parseNumberInput(headCount);
+    if (!head || !Number.isInteger(head) || head > lot.head_count ||
+      (kind === "individual" && individualEntries.some((entry) => entry.weight <= 0)) ||
+      (kind === "lote_completo" && head !== lot.head_count) || !date || date < lot.entry_date || date > todayIso()) {
+      setError("Confira a data, a quantidade de cabeças e os pesos informados."); return;
+    }
     try {
       await saveWeighing.mutateAsync({
+        requestId,
         weighing: {
           lot_id: lot.id,
           pen_id: lot.pen_id,
           date,
           kind,
-          head_count_weighed: parseNumberInput(headCount) ?? individualEntries.length,
+          head_count_weighed: kind === "individual" ? individualEntries.length : parseNumberInput(headCount) ?? 0,
           avg_weight_kg: effectiveAverage,
         },
         records:
@@ -107,12 +115,13 @@ const NewWeighing = () => {
             : [],
       });
 
+      setRequestId(crypto.randomUUID());
       toast.success(
         t("weighings.saved", { weight: formatNumber(effectiveAverage, 1) }),
       );
       navigate("/pesagens");
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 

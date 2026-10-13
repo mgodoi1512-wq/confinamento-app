@@ -132,10 +132,10 @@ const pen = lot
 
   const closeLot = async () => {
     try {
-      await updateLot.mutateAsync({ id: lot.id, status: "encerrado" });
+      await updateLot.mutateAsync({ id: lot.id, status: "encerrado", requestId: crypto.randomUUID() });
       toast.success(t("lots.detail.closed"));
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 
@@ -238,7 +238,7 @@ const pen = lot
               {t("action.back")}
             </Button>
             <TransferDialog lot={lot} />
-            <ExitDialog lot={lot} readyHead={readyAnimals.length || lot.head_count} />
+            <ExitDialog lot={lot} readyHead={readyAnimals.length} />
             {lot.status === "ativo" ? (
               <Button variant="secondary" className="h-10" onClick={() => void closeLot()}>
                 <CheckCircle2 />
@@ -309,7 +309,7 @@ const pen = lot
             onScenarioChange={setScenario}
             saving={updateLot.isPending}
             onTargetChange={(weight) => {
-              void updateLot.mutateAsync({ id: lot.id, target_weight_kg: weight });
+              void updateLot.mutateAsync({ id: lot.id, target_weight_kg: weight, requestId: crypto.randomUUID() }).catch((error) => toast.error(error instanceof Error ? error.message : t("toast.error.generic")));
             }}
           />
         </CardContent>

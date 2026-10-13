@@ -21,7 +21,7 @@ import {
 import { useAnimals } from "@/hooks/use-animals";
 import { useAuth } from "@/hooks/use-auth";
 import { useHealthEvents, useSaveHealthEvent } from "@/hooks/use-health";
-import { useLots, useUpdateLot } from "@/hooks/use-lots";
+import { useLots } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
 import { healthEventTone, type HealthEvent } from "@/lib/domain";
 import { formatDate, formatNumber, todayIso } from "@/lib/format";
@@ -36,7 +36,6 @@ const Occurrences = () => {
   const lotsQuery = useLots();
   const pensQuery = usePens();
   const saveEvent = useSaveHealthEvent();
-  const updateLot = useUpdateLot();
 
   const events = useMemo(() => eventsQuery.data ?? [], [eventsQuery.data]);
   const animals = useMemo(() => animalsQuery.data ?? [], [animalsQuery.data]);
@@ -51,15 +50,17 @@ const Occurrences = () => {
     [events],
   );
 
-  const deaths = events.filter((event) => event.kind === "obito");
-  const totalHead = lots.reduce((sum, lot) => sum + lot.head_count, 0) + deaths.length;
-  const mortalityRate = totalHead > 0 ? (deaths.length / totalHead) * 100 : null;
+  const deaths = events.filter((event) => event.kind === "obito" && lots.some((lot) => lot.id === event.lot_id));
+  const deathHead = deaths.reduce((sum, event) => sum + (event.head_count ?? 1), 0);
+  const totalHead = lots.reduce((sum, lot) => sum + (lot.initial_head_count ?? lot.head_count), 0);
+  const mortalityRate = totalHead > 0 ? (deathHead / totalHead) * 100 : null;
 
   const [open, setOpen] = useState(false);
   const [animalId, setAnimalId] = useState("");
   const [cause, setCause] = useState("");
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
 
   const animalOptions = animals
@@ -76,10 +77,10 @@ const Occurrences = () => {
     }
 
     const animal = animals.find((item) => item.id === animalId);
-    const lot = lots.find((item) => item.id === animal?.lot_id);
 
     try {
       await saveEvent.mutateAsync({
+        requestId,
         event: {
           animal_id: animalId,
           lot_id: animal?.lot_id ?? null,
@@ -90,20 +91,17 @@ const Occurrences = () => {
           notes: notes.trim() || null,
           recorded_by: user?.id ?? null,
         },
-        animalUpdate: { id: animalId, status: "morto" },
       });
 
-      if (lot && lot.head_count > 0) {
-        await updateLot.mutateAsync({ id: lot.id, head_count: lot.head_count - 1 });
-      }
 
+      setRequestId(crypto.randomUUID());
       toast.success(t("health.occurrences.saved"));
       setOpen(false);
       setAnimalId("");
       setCause("");
       setNotes("");
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 
@@ -164,7 +162,7 @@ const Occurrences = () => {
         />
         <StatCard
           labelKey="dashboard.kpi.mortality"
-          value={formatNumber(deaths.length, 0)}
+          value={formatNumber(deathHead, 0)}
           unitKey="common.unit.head"
           icon={AlertTriangle}
           variant="agro"
@@ -176,7 +174,7 @@ const Occurrences = () => {
         />
         <StatCard
           labelKey="dashboard.kpi.confined"
-          value={formatNumber(totalHead, 0)}
+          value={formatNumber(lots.filter((lot) => lot.status === "ativo").reduce((sum, lot) => sum + lot.head_count, 0), 0)}
           unitKey="common.unit.head"
         />
       </div>

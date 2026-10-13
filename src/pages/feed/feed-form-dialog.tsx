@@ -92,8 +92,8 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
       toast.success(t("feed.saved"));
       setOpen(false);
       setNotes("");
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { LogOut, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
@@ -81,7 +82,7 @@ export const Topbar = ({
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void signOut()} className="gap-2">
+            <DropdownMenuItem onSelect={() => void signOut().catch((error) => toast.error(error instanceof Error ? error.message : "Não foi possível sair."))} className="gap-2">
               <LogOut className="size-4" />
               {t("action.signOut")}
             </DropdownMenuItem>

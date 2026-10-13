@@ -108,8 +108,8 @@ const Protocols = () => {
       });
       toast.success(t("health.protocols.saved"));
       setOpen(false);
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 
@@ -117,8 +117,8 @@ const Protocols = () => {
     try {
       await deleteProtocol.mutateAsync(protocol.id);
       toast.success(t("health.protocols.deleted"));
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 

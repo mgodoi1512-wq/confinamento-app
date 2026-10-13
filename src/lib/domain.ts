@@ -61,7 +61,7 @@ export const latestWeighingOfLot = (
 ): Weighing | null => {
   const list = weighings
     .filter((w) => w.lot_id === lotId)
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.created_at ?? "").localeCompare(a.created_at ?? "") || b.id.localeCompare(a.id));
   return list[0] ?? null;
 };
 
@@ -113,15 +113,16 @@ export const computeLotMetrics = (
   weighings: Weighing[],
   today = todayIso(),
 ): LotMetrics => {
-  const latest = latestWeighingOfLot(weighings, lot.id);
+  const latest = latestWeighingOfLot(weighings.filter((w) => w.date <= today && w.date >= lot.entry_date), lot.id);
   const entryAvgWeight = lot.entry_avg_weight_kg;
   const currentAvgWeight = latest ? latest.avg_weight_kg : entryAvgWeight;
   const daysOnFeed = Math.max(daysBetween(lot.entry_date, today), 0);
   const daysSinceWeighing = latest ? Math.max(daysBetween(latest.date, today), 0) : null;
 
-  // GMD acumulado do lote: ganho desde a entrada dividido pelos dias de confinamento.
-  const gmd =
-    daysOnFeed > 0 ? (currentAvgWeight - entryAvgWeight) / daysOnFeed : null;
+  // O ganho observado corresponde ao intervalo até a pesagem, não até hoje.
+  const gmd = latest
+    ? computeGmd(entryAvgWeight, currentAvgWeight, daysBetween(lot.entry_date, latest.date))
+    : null;
 
   const totalGain =
     currentAvgWeight && entryAvgWeight ? currentAvgWeight - entryAvgWeight : null;
@@ -257,6 +258,13 @@ export const isUnderWithdrawal = (
   today = todayIso(),
 ): boolean => withdrawalDaysLeft(entity, today) > 0;
 
+/** Estado exibido acompanha prazo, sem alterar o histórico persistido. */
+export const currentHealthStatus = (animal: Pick<Animal, "status" | "health_status" | "withdrawal_until">, today = todayIso()): string => {
+  if (isUnderWithdrawal(animal, today)) return "carencia";
+  if (animal.status === "tratamento") return "tratamento";
+  return animal.health_status === "carencia" ? "saudavel" : animal.health_status;
+};
+
 export const animalGain = (animal: Animal): number | null => {
   if (!animal.entry_weight_kg || !animal.current_weight_kg) return null;
   return animal.current_weight_kg - animal.entry_weight_kg;
@@ -299,23 +307,26 @@ export const computeHerdSummary = (
 
   const gmdEntries = metrics
     .map((metric, index) => ({ gmd: metric.gmd, head: activeLots[index].head_count }))
-    .filter((entry): entry is { gmd: number; head: number } => entry.gmd !== null && entry.gmd > 0);
+    .filter((entry): entry is { gmd: number; head: number } => entry.gmd !== null && Number.isFinite(entry.gmd));
 
   const gmdHead = gmdEntries.reduce((sum, entry) => sum + entry.head, 0);
 
-  const deaths = healthEvents.filter((event) => event.kind === "obito").length;
-  const totalEntered = lots.reduce((sum, lot) => sum + lot.head_count, 0) + deaths;
+  const deaths = healthEvents.filter((event) => event.kind === "obito" && lots.some((lot) => lot.id === event.lot_id))
+    .reduce((sum, event) => sum + (event.head_count ?? 1), 0);
+  const totalEntered = lots.reduce((sum, lot) => sum + (lot.initial_head_count ?? lot.head_count), 0);
 
   const capacity = pens.reduce((sum, pen) => sum + pen.capacity_head, 0);
 
-  const inTreatment = animals.filter((animal) => animal.health_status === "tratamento").length;
-  const underWithdrawal = animals.filter((animal) => isUnderWithdrawal(animal, today)).length;
+  const presentAnimals = animals.filter((animal) => animal.status === "ativo" || animal.status === "tratamento");
+  const inTreatment = presentAnimals.filter((animal) => animal.status === "tratamento" || animal.health_status === "tratamento").length;
+  const underWithdrawal = presentAnimals.filter((animal) => isUnderWithdrawal(animal, today)).length;
 
-  const readyForSlaughter = activeLots.reduce((sum, lot) => {
-    const metric = metrics[activeLots.indexOf(lot)];
-    if (!metric.currentAvgWeight) return sum;
-    return metric.currentAvgWeight >= lot.target_weight_kg ? sum + lot.head_count : sum;
-  }, 0);
+  // Só animais individualmente verificados são apresentados como aptos.
+  const readyForSlaughter = presentAnimals.filter((animal) => {
+    const lot = activeLots.find((item) => item.id === animal.lot_id);
+    return lot && animal.status === "ativo" &&
+      (animal.current_weight_kg ?? 0) >= lot.target_weight_kg && !isUnderWithdrawal(animal, today);
+  }).length;
 
   const avgWeight = confinedHead > 0 && weightSum > 0 ? weightSum / confinedHead : null;
 
@@ -353,7 +364,7 @@ export const lotsWithoutRecentWeighing = (
 ): Lot[] =>
   lots.filter((lot) => {
     if (lot.status !== "ativo") return false;
-    const latest = latestWeighingOfLot(weighings, lot.id);
+    const latest = latestWeighingOfLot(weighings.filter((w) => w.date <= today && w.date >= lot.entry_date), lot.id);
     if (!latest) return daysBetween(lot.entry_date, today) >= 7;
     return daysBetween(latest.date, today) > HEAVY_ANIMAL_DAYS_WITHOUT_WEIGHING;
   });

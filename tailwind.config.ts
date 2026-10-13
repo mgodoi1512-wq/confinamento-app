@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
-	darkMode: ["class"],
+	darkMode: "class",
 	content: [
 		"./pages/**/*.{ts,tsx}",
 		"./components/**/*.{ts,tsx}",
@@ -11,13 +11,6 @@ export default {
 	],
 	prefix: "",
 	theme: {
-		container: {
-			center: true,
-			padding: '2rem',
-			screens: {
-				'2xl': '1400px'
-			}
-		},
 		extend: {
 			fontFamily: {
 				sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -90,9 +83,9 @@ export default {
 				surface: 'var(--gradient-surface)'
 			},
 			boxShadow: {
-				xs: 'var(--shadow-xs)',
-				md: 'var(--shadow-md)',
-				lg: 'var(--shadow-lg)'
+				xs: 'var(--app-shadow-xs)',
+				md: 'var(--app-shadow-md)',
+				lg: 'var(--app-shadow-lg)'
 			},
 			borderRadius: {
 				xl: 'calc(var(--radius) + 4px)',

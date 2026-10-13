@@ -76,8 +76,8 @@ const SettingsPens = () => {
       });
       toast.success(t("pens.saved"));
       setOpen(false);
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 
@@ -85,8 +85,8 @@ const SettingsPens = () => {
     try {
       await deletePen.mutateAsync(pen.id);
       toast.success(t("pens.deleted"));
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 

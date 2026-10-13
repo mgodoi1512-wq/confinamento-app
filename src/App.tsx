@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { PageLoading } from "@/components/app/page-loading";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
@@ -27,7 +29,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner position="top-right" richColors />
-          <RouterProvider router={router} />
+          <Suspense fallback={<PageLoading fullScreen />}><RouterProvider router={router} /></Suspense>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>

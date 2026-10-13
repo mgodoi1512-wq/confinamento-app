@@ -24,9 +24,6 @@ import { parseNumberInput } from "@/lib/format";
 const STATUS_OPTIONS = [
   { value: "ativo", labelKey: "status.animal.ativo" },
   { value: "tratamento", labelKey: "status.animal.tratamento" },
-  { value: "abatido", labelKey: "status.animal.abatido" },
-  { value: "vendido", labelKey: "status.animal.vendido" },
-  { value: "morto", labelKey: "status.animal.morto" },
 ];
 
 const HEALTH_OPTIONS = [
@@ -134,10 +131,10 @@ toast.error(
           <SelectField
             label={t("field.lot")}
             value={lotId}
-            onChange={setLotId}
+            onChange={(value) => { setLotId(value); setPenId(lots.find((lot) => lot.id === value)?.pen_id ?? ""); }}
             allowEmpty
             emptyLabel={t("common.noData")}
-            options={lots.map((lot) => ({ value: lot.id, labelKey: lot.code }))}
+            options={lots.filter((lot) => lot.status === "ativo").map((lot) => ({ value: lot.id, labelKey: lot.code }))}
           />
           <SelectField
             label={t("field.pen")}
@@ -187,6 +184,7 @@ toast.error(
           />
         </div>
 
+        <p className="text-xs text-muted-foreground">Baixas devem ser registradas em saída de lote ou ocorrência sanitária. O curral acompanha o lote e carências vigentes não podem ser reduzidas por edição.</p>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             {t("action.cancel")}

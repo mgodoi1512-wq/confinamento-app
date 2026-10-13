@@ -1,94 +1,97 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { AuthContext, type AuthValue } from "@/components/auth/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import type { Profile, Role } from "@/lib/domain";
 
-/**
- * Sessão (não apenas o usuário) e perfil de acesso.
- * O listener é registrado antes do getSession para não perder a restauração inicial,
- * o callback não é async e as chamadas ao cliente são adiadas com setTimeout.
- */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [approved, setApproved] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const identity = useRef<string | null>(null);
+  const generation = useRef(0);
+  const mounted = useRef(false);
 
   const loadProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Falha ao carregar o perfil do usuário:", error.message);
-      return;
+    const request = ++generation.current;
+    try {
+      const [profileResult, accessResult] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+        supabase.rpc("has_app_access"),
+      ]);
+      if (!mounted.current || identity.current !== userId || request !== generation.current) return;
+      if (profileResult.error || accessResult.error) throw new Error("Não foi possível verificar seu acesso. Tente novamente.");
+      setProfile(profileResult.data);
+      setApproved(accessResult.data === true);
+      setAuthError(null);
+    } catch (error) {
+      if (!mounted.current || identity.current !== userId || request !== generation.current) return;
+      setApproved(false);
+      setAuthError(error instanceof Error ? error.message : "Falha ao verificar acesso.");
+    } finally {
+      if (mounted.current && identity.current === userId && request === generation.current) setLoading(false);
     }
-
-    setProfile(data ?? null);
   }, []);
 
   useEffect(() => {
-    let active = true;
-
+    mounted.current = true;
+    generation.current++;
+    let receivedEvent = false;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const applySession = (next: Session | null) => {
+      if (!mounted.current) return;
+      const nextId = next?.user.id ?? null;
+      const changed = identity.current !== nextId;
+      if (changed) {
+        generation.current++;
+        queryClient.clear();
+        setProfile(null);
+        setApproved(false);
+        setAuthError(null);
+        identity.current = nextId;
+      }
+      setSession(next);
+      if (!nextId) { setLoading(false); return; }
+      if (changed) setLoading(true);
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+        if (mounted.current && identity.current === nextId) void loadProfile(nextId);
+      }, 0);
+      timers.add(timer);
+    };
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!active) return;
-      queryClient.clear();
-      setProfile(null);
-      setSession(nextSession);
-      setLoading(false);
-
-      if (nextSession?.user) {
-        setTimeout(() => {
-          void loadProfile(nextSession.user.id);
-        }, 0);
-        return;
-      }
-
-      setProfile(null);
+      receivedEvent = true;
+      applySession(nextSession);
     });
-
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-
-      setSession(data.session);
-      setLoading(false);
-
-      if (data.session?.user) {
-        void loadProfile(data.session.user.id);
-      }
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted.current || receivedEvent) return;
+      if (error) { setAuthError(error.message); setLoading(false); return; }
+      applySession(data.session);
+    }).catch(() => {
+      if (mounted.current && !receivedEvent) { setAuthError("Falha ao restaurar a sessão."); setLoading(false); }
     });
-
     return () => {
-      active = false;
+      mounted.current = false;
+      timers.forEach(clearTimeout);
       listener.subscription.unsubscribe();
     };
-}, [loadProfile, queryClient]);
+  }, [loadProfile, queryClient]);
 
-  const value = useMemo<AuthValue>(
-    () => ({
-      user: session?.user ?? null,
-      session,
-      profile,
-      role: (profile?.role as Role | undefined) ?? null,
-      isGestor: profile?.role === "gestor",
-      loading,
-      signOut: async () => {
-  queryClient.clear();
-
-  await supabase.auth.signOut();
-
-  setProfile(null);
-},
-      refreshProfile: async () => {
-        if (session?.user) await loadProfile(session.user.id);
-      },
-    }),
-    [session, profile, loading, loadProfile, queryClient],
-  );
-
+  const value = useMemo<AuthValue>(() => ({
+    user: session?.user ?? null, session, profile, approved, authError,
+    role: (profile?.role as Role | undefined) ?? null,
+    isGestor: approved && profile?.role === "gestor", loading,
+    signOut: async () => {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw new Error(error.message);
+    },
+    refreshProfile: async () => {
+      if (session?.user) { setLoading(true); await loadProfile(session.user.id); }
+    },
+  }), [session, profile, approved, authError, loading, loadProfile]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

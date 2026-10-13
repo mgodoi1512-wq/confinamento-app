@@ -1,10 +1,10 @@
+import { fetchAll } from "@/lib/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import type { Weighing, WeightRecord } from "@/lib/domain";
 import type { Database } from "@/integrations/supabase/types";
-import { animalsQueryKey } from "@/hooks/use-animals";
-import { lotsQueryKey } from "@/hooks/use-lots";
+import { mutateApp } from "@/lib/mutations";
 
 type WeighingInsert = Database["public"]["Tables"]["weighings"]["Insert"];
 
@@ -14,78 +14,63 @@ export const weightRecordsQueryKey = ["weight-records"] as const;
 export const useWeighings = () =>
   useQuery({
     queryKey: weighingsQueryKey,
-    queryFn: async (): Promise<Weighing[]> => {
-      const { data, error } = await supabase
+    queryFn: () => fetchAll<Weighing>(() => supabase
         .from("weighings")
         .select("*")
-        .order("date", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
+        .order("date", { ascending: false }).order("id")),
   });
 
 export const useWeightRecords = () =>
   useQuery({
     queryKey: weightRecordsQueryKey,
-    queryFn: async (): Promise<WeightRecord[]> => {
-      const { data, error } = await supabase.from("weight_records").select("*");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => fetchAll<WeightRecord>(() => supabase.from("weight_records").select("*").order("id")),
   });
 
 export const useSaveWeighing = () => {
-  const queryClient = useQueryClient();
-
+  const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      weighing,
-      records,
-    }: {
-      weighing: WeighingInsert;
-      records: { animal_id: string; weight_kg: number }[];
-    }) => {
-      const created = await supabase.from("weighings").insert(weighing).select().single();
-      if (created.error) throw created.error;
-
-      if (records.length > 0) {
-        const inserted = await supabase
-          .from("weight_records")
-          .insert(records.map((record) => ({ ...record, weighing_id: created.data.id })));
-        if (inserted.error) throw inserted.error;
-
-        for (const record of records) {
-          const updated = await supabase
-            .from("animals")
-            .update({ current_weight_kg: record.weight_kg })
-            .eq("id", record.animal_id);
-          if (updated.error) throw updated.error;
-        }
-      }
-
-      return created.data;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: weighingsQueryKey });
-      void queryClient.invalidateQueries({ queryKey: weightRecordsQueryKey });
-      void queryClient.invalidateQueries({ queryKey: animalsQueryKey });
-      void queryClient.invalidateQueries({ queryKey: lotsQueryKey });
-    },
+    mutationFn: (payload: { weighing: WeighingInsert; records: { animal_id: string; weight_kg: number }[]; requestId: string }) =>
+      mutateApp<Weighing>("save_weighing", payload, payload.requestId),
+    onSuccess: () => { void client.invalidateQueries(); },
+  });
+};
+export const useDeleteWeighing = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => mutateApp("delete_weighing", { id }, crypto.randomUUID()),
+    onSuccess: () => { void client.invalidateQueries(); },
   });
 };
 
-export const useDeleteWeighing = () => {
-  const queryClient = useQueryClient();
-
+export type WeightCorrectionResult = {
+  weighingId: string;
+  weighingDeleted: boolean;
+  headCount: number;
+  avgWeight: number | null;
+};
+export type WeightCorrectionPayload = {
+  record: WeightRecord;
+  count: number;
+  weight: number;
+  requestId: string;
+};
+export const useCorrectWeightRecord = () => {
+  const client = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("weighings").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async (payload: WeightCorrectionPayload): Promise<WeightCorrectionResult> => {
+      const { data, error } = await supabase.rpc("app_correct_weight_record", {
+        p_record_id: payload.record.id,
+        p_weight: payload.weight,
+        p_delete: false,
+        p_remove_empty: false,
+        p_expected_weight: payload.record.weight_kg,
+        p_expected_count: payload.count,
+        p_request_id: payload.requestId,
+      });
+      if (error) throw new Error(error.message);
+      return data as WeightCorrectionResult;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: weighingsQueryKey });
-      void queryClient.invalidateQueries({ queryKey: weightRecordsQueryKey });
-      void queryClient.invalidateQueries({ queryKey: lotsQueryKey });
-    },
+    // Erro também pode indicar dados alterados por outro operador; atualizar a tela.
+    onSettled: () => { void client.invalidateQueries(); },
   });
 };

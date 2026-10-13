@@ -1,0 +1,12 @@
+alter table public.pens enable row level security;
+alter table public.diets enable row level security;
+alter table public.diet_items enable row level security;
+alter table public.protocols enable row level security;
+alter table public.protocol_items enable row level security;
+alter table public.lots enable row level security;
+alter table public.animals enable row level security;
+alter table public.weighings enable row level security;
+alter table public.weight_records enable row level security;
+alter table public.feed_logs enable row level security;
+alter table public.trough_readings enable row level security;
+alter table public.health_events enable row level security;

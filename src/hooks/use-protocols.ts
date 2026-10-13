@@ -1,3 +1,5 @@
+import { fetchAll } from "@/lib/query";
+import { mutateApp } from "@/lib/mutations";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -12,67 +14,21 @@ export const protocolItemsQueryKey = ["protocol-items"] as const;
 export const useProtocols = () =>
   useQuery({
     queryKey: protocolsQueryKey,
-    queryFn: async (): Promise<Protocol[]> => {
-      const { data, error } = await supabase.from("protocols").select("*").order("name");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => fetchAll<Protocol>(() => supabase.from("protocols").select("*").order("name").order("id")),
   });
 
 export const useProtocolItems = () =>
   useQuery({
     queryKey: protocolItemsQueryKey,
-    queryFn: async (): Promise<ProtocolItem[]> => {
-      const { data, error } = await supabase.from("protocol_items").select("*").order("product");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => fetchAll<ProtocolItem>(() => supabase.from("protocol_items").select("*").order("product").order("id")),
   });
 
 export const useSaveProtocol = () => {
-  const queryClient = useQueryClient();
-
+  const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      protocol,
-      items,
-    }: {
-      protocol: ProtocolInsert & { id?: string };
-      items: {
-        kind: string;
-        product: string;
-        dose: string | null;
-        withdrawal_days: number;
-      }[];
-    }) => {
-      const saved = protocol.id
-        ? await supabase.from("protocols").update(protocol).eq("id", protocol.id).select().single()
-        : await supabase.from("protocols").insert(protocol).select().single();
-
-      if (saved.error) throw saved.error;
-
-      const protocolId = saved.data.id;
-
-      const removed = await supabase
-        .from("protocol_items")
-        .delete()
-        .eq("protocol_id", protocolId);
-      if (removed.error) throw removed.error;
-
-      const cleanItems = items.filter((item) => item.product.trim() !== "");
-      if (cleanItems.length > 0) {
-        const inserted = await supabase
-          .from("protocol_items")
-          .insert(cleanItems.map((item) => ({ ...item, protocol_id: protocolId })));
-        if (inserted.error) throw inserted.error;
-      }
-
-      return protocolId;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: protocolsQueryKey });
-      void queryClient.invalidateQueries({ queryKey: protocolItemsQueryKey });
-    },
+    mutationFn: (payload: { protocol: ProtocolInsert & { id?: string }; items: { kind: string; product: string; dose: string | null; withdrawal_days: number }[] }) =>
+      mutateApp<string>("save_protocol", payload, crypto.randomUUID()),
+    onSuccess: () => { void client.invalidateQueries(); },
   });
 };
 
@@ -80,10 +36,7 @@ export const useDeleteProtocol = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("protocols").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => mutateApp("delete_protocol", { id }, crypto.randomUUID()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: protocolsQueryKey });
       void queryClient.invalidateQueries({ queryKey: protocolItemsQueryKey });

@@ -1,3 +1,4 @@
+import { mutateApp } from "@/lib/mutations";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -24,35 +25,8 @@ export const useSaveFarm = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-  id?: string;
-  name: string;
-  city: string | null;
-  state: string | null;
-}) => {
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("User not authenticated");
-  }
-
-  const { error } = payload.id
-    ? await supabase
-        .from("farms")
-        .update(payload)
-        .eq("id", payload.id)
-    : await supabase
-    .from("farms")
-    .insert({
-      ...payload,
-      owner_id: user.id,
-    });
-
-  if (error) throw error;
-},
+    mutationFn: (payload: { id?: string; name: string; city: string | null; state: string | null }) =>
+      mutateApp("save_farm", payload, crypto.randomUUID()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: farmQueryKey });
     },

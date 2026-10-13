@@ -1,7 +1,9 @@
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "./tailwind-compat.css";
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@config "../tailwind.config.ts";
 
 @layer base {
   :root {
@@ -23,7 +25,8 @@
     --secondary-foreground: 150 22% 16%;
 
     --muted: 20 52% 26%;
-    --muted-foreground: 20 52% 26%;
+    --muted-foreground: 20 52% 0%;
+    --muted-foregroundlogin: 20 52% 90%;
 
     --accent: 40 45% 90%;
     --accent-foreground: 150 25% 16%;
@@ -61,9 +64,9 @@
     --gradient-surface: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(190, 30%, 96%) 100%);
 
     /* Sombras */
-    --shadow-xs: 0 1px 2px 0 hsl(150 20% 12% / 0.06);
-    --shadow-md: 0 2px 4px -1px hsl(150 20% 12% / 0.08), 0 4px 12px -2px hsl(150 20% 12% / 0.07);
-    --shadow-lg: 0 8px 24px -6px hsl(150 20% 12% / 0.16), 0 2px 6px -2px hsl(150 20% 12% / 0.1);
+    --app-shadow-xs: 0 1px 2px 0 hsl(150 20% 12% / 0.06);
+    --app-shadow-md: 0 2px 4px -1px hsl(150 20% 12% / 0.08), 0 4px 12px -2px hsl(150 20% 12% / 0.07);
+    --app-shadow-lg: 0 8px 24px -6px hsl(150 20% 12% / 0.16), 0 2px 6px -2px hsl(150 20% 12% / 0.1);
 
     --radius: 0.75rem;
   }
@@ -119,9 +122,9 @@
     --gradient-agro: linear-gradient(135deg, hsl(38 80% 42%) 0%, hsl(20 60% 28%) 100%);
     --gradient-surface: linear-gradient(180deg, hsl(150 12% 13%) 0%, hsl(150 12% 9%) 100%);
 
-    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
-    --shadow-md: 0 2px 4px -1px hsl(0 0% 0% / 0.5), 0 4px 12px -2px hsl(0 0% 0% / 0.4);
-    --shadow-lg: 0 10px 30px -8px hsl(0 0% 0% / 0.65), 0 2px 8px -2px hsl(0 0% 0% / 0.5);
+    --app-shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+    --app-shadow-md: 0 2px 4px -1px hsl(0 0% 0% / 0.5), 0 4px 12px -2px hsl(0 0% 0% / 0.4);
+    --app-shadow-lg: 0 10px 30px -8px hsl(0 0% 0% / 0.65), 0 2px 8px -2px hsl(0 0% 0% / 0.5);
   }
 }
 

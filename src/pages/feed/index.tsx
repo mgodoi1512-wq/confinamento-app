@@ -64,7 +64,7 @@ const Feed = () => {
       key: "total",
       headerKey: "feed.total",
       numeric: true,
-      render: (log) => `${formatNumber(log.total_kg, 0)} kg`,
+      render: (log) => `${formatNumber(log.total_kg, 2)} kg`,
     },
   ];
 
@@ -146,7 +146,7 @@ const Feed = () => {
                     </div>
                     <span className="num text-xs text-muted-foreground">
                       {perHead !== null
-                        ? `${formatNumber(perHead, 2)} kg/cab · ${formatNumber(total, 0)} kg`
+                        ? `${formatNumber(perHead, 2)} kg/cab · ${formatNumber(total, 2)} kg`
                         : "—"}
                     </span>
                   </div>
