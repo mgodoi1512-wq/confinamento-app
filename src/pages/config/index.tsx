@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
+import { LocationFields } from "@/components/form/location-fields";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import { useFarm, useSaveFarm } from "@/hooks/use-farm";
 
 const SettingsHome = () => {
   const { t } = useTranslation();
-  const { profile, isGestor, user } = useAuth();
+  const { profile, isGestor, user, tenant } = useAuth();
   const farmQuery = useFarm();
   const saveFarm = useSaveFarm();
 
@@ -59,6 +60,7 @@ const SettingsHome = () => {
     <div className="space-y-5">
       <PageHeader titleKey="config.title" subtitleKey="config.subtitle" />
 
+      {tenant?.isAdmin ? <Button asChild variant="outline"><Link to="/admin">Administração do sistema</Link></Button> : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
@@ -72,10 +74,7 @@ const SettingsHome = () => {
               disabled={!isGestor}
               required
             />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextField label={t("config.farm.city")} value={city} onChange={setCity} disabled={!isGestor} />
-              <TextField label={t("config.farm.state")} value={state} onChange={setState} disabled={!isGestor} />
-            </div>
+            <LocationFields state={state} city={city} onStateChange={setState} onCityChange={setCity} disabled={!isGestor || saveFarm.isPending} />
 
             {isGestor ? (
               <Button className="h-11" onClick={() => void submit()} disabled={saveFarm.isPending}>

@@ -1,7 +1,5 @@
 import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Beef } from "lucide-react";
-
 import { navGroups } from "@/components/app/nav-config";
 import { useAuth } from "@/hooks/use-auth";
 import { useFarm } from "@/hooks/use-farm";
@@ -14,7 +12,7 @@ export type SidebarNavProps = {
 
 export const SidebarNav = ({ onNavigate, className }: SidebarNavProps) => {
   const { t } = useTranslation();
-  const { isGestor } = useAuth();
+  const { isGestor, tenant } = useAuth();
   const { data: farm } = useFarm();
 
   return (
@@ -25,9 +23,19 @@ export const SidebarNav = ({ onNavigate, className }: SidebarNavProps) => {
       )}
     >
       <div className="flex items-center gap-3 px-4 py-4">
-        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-          <Beef className="size-5" />
-        </span>
+        <>
+  <img
+    src="/logo-liben-2.png"
+    alt="LiBen Agronegócios"
+    className="size-20 shrink-0 rounded-md object-contain dark:hidden"
+  />
+
+  <img
+    src="/logo-liben-dark.png"
+    alt="LiBen Agronegócios"
+    className="hidden size-20 shrink-0 rounded-md object-contain dark:block"
+  />
+</>
         <div className="min-w-0">
           <p className="truncate font-display text-sm font-semibold tracking-tight">
             {t("common.appName")}
@@ -41,6 +49,7 @@ export const SidebarNav = ({ onNavigate, className }: SidebarNavProps) => {
       </div>
 
       <nav className="scrollbar-thin flex-1 overflow-y-auto px-2 pb-4">
+        {tenant?.isAdmin ? <NavLink to="/admin" onClick={onNavigate} className="mb-2 block rounded-lg border border-sidebar-border px-3 py-3 text-sm font-semibold">Administração do sistema</NavLink> : null}
         {navGroups.map((group) => {
           const items = group.items.filter((item) => !item.gestorOnly || isGestor);
           if (items.length === 0) return null;
@@ -77,7 +86,7 @@ export const SidebarNav = ({ onNavigate, className }: SidebarNavProps) => {
       </nav>
 
       <div className="border-t border-sidebar-border px-4 py-3 text-[11px] text-sidebar-foreground/50">
-        {t("common.appSubtitle")}
+  LiBen Agronegócios - V.1 - BETA - 2026
       </div>
     </aside>
   );

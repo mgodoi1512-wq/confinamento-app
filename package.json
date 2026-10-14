@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "pInstall": "npm install",
     "test": "node --test tests/domain.test.mjs",
-    "test:db": "node tests/database.test.mjs"
+    "test:db": "node tests/database.test.mjs && node tests/database.test.mjs --text-profiles",
+    "test:tenancy": "node tests/tenancy.test.mjs && node tests/tenancy.test.mjs --text-profiles"
   },
   "dependencies": {
     "@enter-pro/analytics-sdk": "^0.0.10",

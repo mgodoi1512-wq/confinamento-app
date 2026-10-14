@@ -20,6 +20,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+
       graphql: {
         Args: {
           extensions?: Json
@@ -786,6 +787,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      app_tenant: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
       app_apply_readings: {
         Args: { p_date: string; p_request_id: string }
         Returns: Json

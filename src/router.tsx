@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { AppShell } from "./components/app/app-shell";
 import { ProtectedRoute } from "./components/auth/protected-route";
+const Administration = lazy(() => import("./pages/admin"));
 const Animals = lazy(() => import("./pages/animals"));
 const SettingsHome = lazy(() => import("./pages/config"));
 const SettingsDiets = lazy(() => import("./pages/config/diets"));
@@ -12,6 +13,8 @@ const ReadingRound = lazy(() => import("./pages/feed/reading"));
 const Occurrences = lazy(() => import("./pages/health/occurrences"));
 const Protocols = lazy(() => import("./pages/health/protocols"));
 const Treatments = lazy(() => import("./pages/health/treatments"));
+const PasswordRecovery = lazy(() => import("./pages/password-recovery"));
+const ResetPassword = lazy(() => import("./pages/password-recovery/reset"));
 const Login = lazy(() => import("./pages/login"));
 const Lots = lazy(() => import("./pages/lots"));
 const LotDetail = lazy(() => import("./pages/lots/detail"));
@@ -23,6 +26,8 @@ const WeighingDetail = lazy(() => import("./pages/weighings/detail"));
 const NewWeighing = lazy(() => import("./pages/weighings/new"));
 
 export const routers = [
+  { path: "/recuperar-senha", name: "passwordRecovery", element: <PasswordRecovery /> },
+  { path: "/redefinir-senha", name: "resetPassword", element: <ResetPassword /> },
   {
     path: "/login",
     name: "login",
@@ -33,6 +38,7 @@ export const routers = [
     name: "protected",
     element: <ProtectedRoute />,
     children: [
+      { path: "admin", name: "administration", element: <Administration /> },
       {
         path: "",
         name: "app",

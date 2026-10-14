@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { BarChart3, Beef, Leaf, ShieldCheck, UtensilsCrossed } from "lucide-react";
 import logoLiben from "@/assets/logo-liben-2.png";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
-
+import { Link, useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 const Login = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { session, loading } = useAuth();
+  const { session, loading, passwordRecovery } = useAuth();
 
   const [mode, setMode] = useState("login");
   const [fullName, setFullName] = useState("");
@@ -24,8 +24,8 @@ const Login = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && session) navigate("/", { replace: true });
-  }, [loading, session, navigate]);
+    if (!loading && session) navigate(passwordRecovery ? "/redefinir-senha" : "/", { replace: true });
+  }, [loading, session, navigate, passwordRecovery]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -48,7 +48,7 @@ const Login = () => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/login`,
           data: { full_name: fullName },
         },
       });
@@ -62,7 +62,7 @@ const Login = () => {
         return;
       }
       if (!data.session) {
-        setNotice("Confira seu e-mail para confirmar o cadastro. Depois do login, aguarde a liberação de um gestor.");
+        setNotice("Confira seu e-mail para confirmar o cadastro. Depois do login, aguarde a aprovação do administrador do sistema.");
         return;
       }
       navigate("/", { replace: true });
@@ -88,39 +88,52 @@ const Login = () => {
   return (
     <div className="flex min-h-dvh w-full bg-background">
       {/* Painel de marca */}
-      <aside className="hidden w-[46%] flex-col justify-between bg-brand p-10 text-primary-foreground lg:flex">
-<div className="flex flex-col items-center text-center">
-            <span>
-            <img
-  src={logoLiben}
-  alt="LiBen"
-  style={{
-    width: "260px",
-    height: "260px",
-  }}></img>
+
+      <div className="fixed right-4 top-4 z-50 rounded-lg bg-background text-foreground">
+  <ThemeToggle />
+</div>
+      <aside className="hidden w-[46%] flex-col justify-between bg-brand p-10 text-white/50 lg:flex">
+<div className="mt-10 flex flex-col items-center text-center">            <span>
+            <>
+  <img
+    src="/logo-liben-2.png"
+    alt="LiBen Agronegócios"
+    className="h-96 w-auto object-contain dark:hidden"
+  />
+
+  <img
+    src="/logo-liben-dark.png"
+    alt="LiBen Agronegócios"
+    className="hidden h-96 w-auto object-contain dark:block"
+  />
+</>
           </span>
           
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6" >
           <h1 className="font-display text-4xl font-semibold leading-tight tracking-tight">
             {t("auth.title")}
           </h1>
-          <p className="max-w-md text-sm text-primary-foreground/80">{t("auth.subtitle")}</p>
+          <p className="max-w-md text-sm text-white/50">{t("auth.subtitle")}</p>
           <ul className="grid grid-cols-2 gap-3">
             {highlights.map((item) => (
               <li
                 key={item.key}
-                className="flex items-center gap-2 rounded-lg bg-primary-foreground/10 px-3 py-2 text-sm"
+                className="flex items-center gap-2 rounded-lg bg-primary-foreground/30 px-3 py-2 text-sm"
               >
+
+                
                 <item.icon className="size-4" />
                 {t(item.key)}
               </li>
+
+              
             ))}
           </ul>
         </div>
-
-        <p className="text-xs text-primary-foreground/60">
+ 
+        <p className="text-xs text-white/40">
           {t("auth.signupHint")}
         </p>
       </aside>
@@ -197,6 +210,8 @@ const Login = () => {
                     className="h-11"
                   />
                 </div>
+
+                {mode === "login" ? <div className="text-right"><Link to="/recuperar-senha" className="text-sm font-medium text-primary underline underline-offset-4">Esqueci minha senha</Link></div> : null}
 
                 {notice && <p role="status" className="rounded-md bg-muted p-3 text-sm">{notice}</p>}
                 {error ? (

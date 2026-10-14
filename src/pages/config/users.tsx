@@ -1,113 +1,47 @@
-import { useTranslation } from "react-i18next";
-import { Users } from "lucide-react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
-import { DataTable, type Column } from "@/components/app/data-table";
-import { EmptyState } from "@/components/app/empty-state";
-import { PageHeader } from "@/components/app/page-header";
-import { SelectField } from "@/components/form/select-field";
 import { useAuth } from "@/hooks/use-auth";
-import { useProfiles, useUpdateProfile, useMembers } from "@/hooks/use-users";
-import { ROLE_OPTIONS } from "@/lib/constants";
-import type { Profile, Role } from "@/lib/domain";
-import { formatDate } from "@/lib/format";
+import { tenantRpc, type TeamMember, type TeamInvite } from "@/lib/tenant";
+import { Button } from "@/components/ui/button";
+import { TextField } from "@/components/form/text-field";
 
-const SettingsUsers = () => {
-  const { t } = useTranslation();
-  const { isGestor, profile: currentProfile } = useAuth();
-
-  const profilesQuery = useProfiles();
-  const membersQuery = useMembers();
-  const updateProfile = useUpdateProfile();
-
-  const profiles = profilesQuery.data ?? [];
-
-  const changeRole = async (target: Profile, role: Role) => {
-    try {
-      await updateProfile.mutateAsync({ id: target.id, role });
-      toast.success(
-        t("config.users.roleUpdated", {
-          name: target.full_name ?? target.id,
-          role: t(`status.role.${role}`),
-        }),
-      );
-    } catch {
-      toast.error(t("toast.error.generic"));
-    }
-  };
-
-  const columns: Column<Profile>[] = [
-    {
-      key: "access", headerKey: "config.users.access",
-      render: (row) => <button
-        className="rounded border px-3 py-2 text-sm"
-        disabled={row.id === currentProfile?.id || updateProfile.isPending || membersQuery.isLoading || membersQuery.isError}
-        onClick={() => void updateProfile.mutateAsync({ id: row.id, enabled: !membersQuery.data?.some((member) => member.user_id === row.id && member.enabled) })
-          .then(() => toast.success("Acesso atualizado."))
-          .catch((error) => toast.error(error instanceof Error ? error.message : "Falha ao atualizar acesso."))}
-      >{membersQuery.data?.some((member) => member.user_id === row.id && member.enabled) ? "Revogar acesso" : "Liberar acesso"}</button>,
-    },
-    {
-      key: "name",
-      headerKey: "field.fullName",
-      render: (row) => (
-        <div className="min-w-0">
-          <p className="font-display text-sm font-semibold">{row.full_name ?? "—"}</p>
-          {row.id === currentProfile?.id ? (
-            <p className="text-xs text-muted-foreground">{t("config.users.you")}</p>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      key: "role",
-      headerKey: "field.role",
-      render: (row) =>
-        isGestor ? (
-          <SelectField
-            className="w-40"
-            value={row.role}
-            onChange={(value) => void changeRole(row, value as Role)}
-            triggerClassName="h-9"
-            options={ROLE_OPTIONS}
-          />
-        ) : (
-          t(`status.role.${row.role}`)
-        ),
-    },
-    {
-      key: "created",
-      headerKey: "field.date",
-      numeric: true,
-      render: (row) => formatDate(row.created_at.slice(0, 10)),
-    },
-  ];
-
-  if (!isGestor) {
-    return (
-      <EmptyState
-        icon={Users}
-        titleKey="empty.permission.title"
-        descriptionKey="empty.permission.description"
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-5">
-      <PageHeader titleKey="config.users.title" subtitleKey="config.users.subtitle" />
-
-      <DataTable
-        rows={profiles}
-        columns={columns}
-        getRowKey={(row) => row.id}
-        loading={profilesQuery.isLoading}
-        emptyState={
-          <EmptyState icon={Users} titleKey="empty.title" descriptionKey="empty.description" />
-        }
-      />
-    </div>
-  );
-};
-
-export default SettingsUsers;
+export default function SettingsUsers() {
+  const { isGestor, user } = useAuth(); const client = useQueryClient();
+  const [email, setEmail] = useState(""); const [role, setRole] = useState("operador");
+  const team = useQuery({ queryKey: ["farm-team"], queryFn: () => tenantRpc<TeamMember[]>("list_team"), enabled: isGestor });
+  const invites = useQuery({ queryKey: ["farm-invites"], queryFn: () => tenantRpc<TeamInvite[]>("list_invites"), enabled: isGestor });
+  const change = useMutation({ mutationFn: ({ action, payload }: { action: string; payload: Record<string, string | boolean> }) => tenantRpc(action, payload),
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ["farm-team"] }); void client.invalidateQueries({ queryKey: ["farm-invites"] }); toast.success("Equipe atualizada."); },
+    onError: error => toast.error(error.message) });
+  if (!isGestor) return <p>Somente gestores da fazenda podem administrar a equipe.</p>;
+  return <div className="space-y-6">
+    <header><h1 className="text-2xl font-semibold">Usuários da fazenda</h1><p className="text-muted-foreground">Convide operadores ou outros gestores. Cada integrante utiliza sua própria conta.</p></header>
+    <form className="space-y-4 rounded-xl border bg-card p-5 text-card-foreground" onSubmit={event => { event.preventDefault(); change.mutate({ action: "invite_team", payload: { email, role } }, { onSuccess: () => setEmail("") }); }}>
+      <h2 className="font-semibold">Convidar integrante</h2>
+      <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto]"><TextField label="E-mail do convidado" value={email} onChange={setEmail} required />
+        <label className="space-y-2 text-sm"><span>Perfil</span><select className="h-11 w-full rounded-md border bg-background px-3 text-foreground" value={role} onChange={event => setRole(event.target.value)}><option value="operador">Operador</option><option value="gestor">Gestor</option></select></label>
+        <Button
+  type="submit"
+  className="h-11 w-fit px-5"
+  disabled={change.isPending || !email.trim()}
+>
+  Criar convite
+</Button></div>
+      <p className="text-sm text-muted-foreground">Após criar o convite, informe ao convidado que deve acessar {window.location.origin}/login, cadastrar-se com esse e-mail, confirmar o cadastro e aceitar o convite. O sistema não envia e-mail de convite automaticamente. O convite vale por 14 dias.</p>
+    </form>
+    {team.isError || invites.isError ? <p role="alert">{team.error?.message ?? invites.error?.message}</p> : null}
+    <section className="space-y-3"><h2 className="text-lg font-semibold">Equipe</h2>
+      {team.isLoading ? <p>Carregando equipe...</p> : null}
+      {team.data?.map(member => <article key={member.userId} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-card p-4 text-card-foreground">
+        <div><p className="font-semibold">{member.name}{member.userId === user?.id ? " (você)" : ""}</p><p className="break-all text-sm">{member.email}</p><p className="text-sm text-muted-foreground">{member.isOwner ? "Responsável da fazenda · " : ""}{member.enabled ? "Acesso ativo" : "Acesso revogado"}</p></div>
+        <div className="flex flex-wrap gap-2"><select aria-label={`Perfil de ${member.name}`} className="rounded-md border bg-background px-3 py-2 text-foreground" value={member.role} disabled={change.isPending || member.isOwner || member.userId === user?.id} onChange={event => change.mutate({ action: "update_member", payload: { userId: member.userId, role: event.target.value } })}><option value="operador">Operador</option><option value="gestor">Gestor</option></select>
+          <Button variant="outline" disabled={change.isPending || member.isOwner || member.userId === user?.id} onClick={() => { if (!member.enabled || window.confirm(`Revogar acesso de ${member.name}?`)) change.mutate({ action: "update_member", payload: { userId: member.userId, enabled: !member.enabled } }); }}>{member.enabled ? "Revogar acesso" : "Reativar acesso"}</Button></div>
+      </article>)}
+    </section>
+    <section className="space-y-3"><h2 className="text-lg font-semibold">Convites pendentes</h2>
+      {invites.data?.length === 0 ? <p>Nenhum convite pendente.</p> : null}
+      {invites.data?.map(invite => <div key={invite.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4"><p>{invite.email} · {invite.role} · até {new Date(invite.expiresAt).toLocaleDateString("pt-BR")}</p><Button variant="outline" disabled={change.isPending} onClick={() => change.mutate({ action: "cancel_invite", payload: { invitationId: invite.id } })}>Cancelar convite</Button></div>)}
+    </section>
+  </div>;
+}

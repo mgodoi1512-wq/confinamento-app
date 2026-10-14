@@ -1,8 +1,15 @@
 -- Instalação de uma única fazenda. Aplicar após backup e revisão de CORRECOES.md.
+-- Revisão 2: profiles.id pode ser UUID ou TEXT; preserva os tipos e registros existentes.
 -- Todo o arquivo deve ser aplicado em uma transação.
 begin;
 do $$
 begin
+  if to_regclass('public.app_members') is not null or to_regclass('public.app_requests') is not null or to_regclass('public.lot_exits') is not null or to_regclass('public.reading_applications') is not null then
+    raise exception 'A atualização parece já ter sido aplicada, ou existem tabelas de uma execução parcial. Não reaplique nem exclua tabelas; confira o estado antes de continuar.';
+  end if;
+  if (select atttypid from pg_attribute where attrelid='public.profiles'::regclass and attname='id' and not attisdropped) not in ('uuid'::regtype, 'text'::regtype) then
+    raise exception 'profiles.id precisa ser UUID ou TEXT para esta atualização.';
+  end if;
   if (select count(*) from public.farms) > 1 then
     raise exception 'Esta correção atende uma fazenda por instalação. Revise a separação de fazendas antes de migrar.';
   end if;
@@ -37,11 +44,18 @@ begin
   end loop;
 end $$;
 
-create table public.app_members (
-  user_id uuid primary key references public.profiles(id) on delete cascade,
-  enabled boolean not null default false,
-  created_at timestamptz not null default now()
-);
+-- O vínculo precisa ter exatamente o tipo da chave de profiles, sem converter seus dados.
+do $$
+declare profile_id_type text;
+begin
+  select format_type(atttypid,atttypmod) into profile_id_type from pg_attribute
+  where attrelid='public.profiles'::regclass and attname='id' and not attisdropped;
+  execute format('create table public.app_members (
+    user_id %s primary key references public.profiles(id) on delete cascade,
+    enabled boolean not null default false,
+    created_at timestamptz not null default now()
+  )',profile_id_type);
+end $$;
 -- Apenas gestores existentes são inicialmente liberados. Operadores precisam de aprovação.
 insert into public.app_members(user_id, enabled) select id, true from public.profiles where role = 'gestor';
 create table public.app_requests (
@@ -52,6 +66,12 @@ create table public.app_requests (
   result jsonb not null,
   created_at timestamptz not null default now()
 );
+do $$
+declare profile_id_type text;
+begin
+  select format_type(atttypid,atttypmod) into profile_id_type from pg_attribute
+  where attrelid='public.profiles'::regclass and attname='id' and not attisdropped;
+  execute format($ddl$
 create table public.lot_exits (
   id uuid primary key default gen_random_uuid(),
   lot_id uuid not null references public.lots(id),
@@ -61,9 +81,11 @@ create table public.lot_exits (
   weight_kg numeric(7,2) check (weight_kg > 0 and weight_kg::text <> 'NaN'),
   destination text,
   date date not null,
-  recorded_by uuid not null references public.profiles(id),
+  recorded_by %s not null references public.profiles(id),
   created_at timestamptz not null default now()
 );
+$ddl$,profile_id_type);
+end $$;
 create index lot_exits_lot_date_idx on public.lot_exits(lot_id, date);
 create table public.reading_applications (
   reading_id uuid primary key references public.trough_readings(id),
@@ -73,11 +95,11 @@ create table public.reading_applications (
 
 create or replace function public.has_app_access() returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
-  select exists(select 1 from public.app_members where user_id = auth.uid() and enabled);
+  select exists(select 1 from public.app_members where user_id::text = auth.uid()::text and enabled);
 $$;
 create or replace function public.is_gestor() returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
-  select public.has_app_access() and exists(select 1 from public.profiles where id = auth.uid() and role = 'gestor');
+  select public.has_app_access() and exists(select 1 from public.profiles where id::text = auth.uid()::text and role = 'gestor');
 $$;
 -- Cadastro não concede autorização nem escolhe automaticamente um gestor.
 create or replace function public.handle_new_user() returns trigger
@@ -119,8 +141,8 @@ alter table public.app_requests enable row level security;
 revoke all on public.app_requests from anon, authenticated;
 revoke all on public.app_members, public.profiles from anon, authenticated;
 grant select on public.app_members, public.profiles to authenticated;
-create policy profile_read on public.profiles for select to authenticated using(id = auth.uid() or public.is_gestor());
-create policy member_read on public.app_members for select to authenticated using(user_id = auth.uid() or public.is_gestor());
+create policy profile_read on public.profiles for select to authenticated using(id::text = auth.uid()::text or public.is_gestor());
+create policy member_read on public.app_members for select to authenticated using(user_id::text = auth.uid()::text or public.is_gestor());
 
 -- Data civil deve corresponder a VITE_FARM_TIME_ZONE. Padrão: São Paulo.
 create or replace function public.app_today() returns date
@@ -145,6 +167,7 @@ declare
   j jsonb;
   arr jsonb;
   ident uuid;
+  v_profile_id text;
   v_lot_id uuid;
   v_reading_id uuid;
   animal_ids uuid[] := '{}';
@@ -383,15 +406,15 @@ begin
 
   elsif p_operation='update_profile' then
     if not public.is_gestor() then raise exception 'Somente gestor altera usuários.'; end if;
-    ident:=(p_payload->>'id')::uuid;
-    if not exists(select 1 from public.profiles where id=ident) then raise exception 'Usuário não encontrado.'; end if;
+    v_profile_id:=p_payload->>'id';
+    if not exists(select 1 from public.profiles where id::text=v_profile_id) then raise exception 'Usuário não encontrado.'; end if;
     target_role:=p_payload->>'role';enabled:=(p_payload->>'enabled')::boolean;
     if target_role is not null and target_role not in ('gestor','operador') then raise exception 'Perfil inválido.'; end if;
-    if (target_role='operador' or enabled=false) and exists(select 1 from public.profiles where id=ident and role='gestor') and exists(select 1 from public.app_members where user_id=ident and public.app_members.enabled) and
+    if (target_role='operador' or enabled=false) and exists(select 1 from public.profiles where id::text=v_profile_id and role='gestor') and exists(select 1 from public.app_members where user_id::text=v_profile_id and public.app_members.enabled) and
       (select count(*) from public.profiles p2 join public.app_members m on m.user_id=p2.id where p2.role='gestor' and m.enabled)<=1 then raise exception 'Mantenha pelo menos um gestor autorizado.'; end if;
-    if target_role is not null then update public.profiles set role=target_role where id=ident; end if;
-    if p_payload ? 'fullName' then update public.profiles set full_name=p_payload->>'fullName' where id=ident; end if;
-    if enabled is not null then insert into public.app_members(user_id,enabled) values(ident,enabled) on conflict(user_id) do update set enabled=excluded.enabled; end if;
+    if target_role is not null then update public.profiles set role=target_role where id::text=v_profile_id; end if;
+    if p_payload ? 'fullName' then update public.profiles set full_name=p_payload->>'fullName' where id::text=v_profile_id; end if;
+    if enabled is not null then insert into public.app_members(user_id,enabled) select id, enabled from public.profiles where id::text=v_profile_id on conflict(user_id) do update set enabled=excluded.enabled; end if;
 
   elsif p_operation='save_animal' then
     a:=jsonb_populate_record(null::public.animals,p_payload);

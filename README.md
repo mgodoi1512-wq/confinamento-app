@@ -1,3 +1,7 @@
+# Atualização para vários clientes e fazendas
+
+Para instalar esta versão no banco existente, siga **LEIA-PRIMEIRO-MULTIFAZENDAS.md**. Execute apenas a nova migração e a configuração de administrador; não reaplique o esquema antigo.
+
 # Gestão de Confinamento — versão corrigida
 
 Leia **CORRECOES.md** antes de substituir a versão existente. O frontend depende da nova migração do banco.

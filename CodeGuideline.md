@@ -34,7 +34,7 @@ project-root/
 - **Shell**: `components/app/app-shell.tsx` (sidebar on `lg+`, `Sheet` drawer plus `BottomNav` below `lg`). `components/app/nav-config.ts` owns navigation groups, role gating and route titles.
 - **Primitives**: `stat-card`, `status-badge`, `data-table` (desktop table + mobile card list), `numeric-field`, `trough-score-selector`, `weight-chart`, `occupancy-bar`, `empty-state`, `page-header`, `page-loading`, `tone.ts` (tone → literal Tailwind classes).
 - **Domain rules** (`src/lib/domain.ts`): GMD, arroba (carcaça, rendimento 52%), projeção de abate, carência, ocupação de curral, indicadores do rebanho. **No privilege or authorization logic here** — profiles are enforced by database row level security.
-- **Data hooks** (`src/hooks/`): `use-auth`, `use-farm`, `use-pens`, `use-diets`, `use-protocols`, `use-lots`, `use-animals`, `use-weighings`, `use-feed`, `use-trough`, `use-health`, `use-users`. Each exports its query key plus read/mutation hooks built on TanStack Query.
+- **Data hooks** (`src/hooks/`): `use-auth`, `use-farm`, `use-pens`, `use-diets`, `use-protocols`, `use-lots`, `use-animals`, `use-weighings`, `use-feed`, `use-trough`, `use-health`. Each exports its query key plus read/mutation hooks built on TanStack Query.
 - **Routes** (`src/router.tsx`): `/login` público; `/` protegido por `components/auth/protected-route.tsx` e renderizado por `AppShell` — `/currais`, `/lotes`, `/lotes/novo`, `/lotes/:id`, `/animais`, `/pesagens`, `/pesagens/nova`, `/pesagens/:id`, `/trato`, `/trato/leitura`, `/sanidade/protocolos`, `/sanidade/tratamentos`, `/sanidade/ocorrencias`, `/config`, `/config/usuarios`, `/config/currais`, `/config/dietas`.
 - **Perfis de acesso**: `gestor` e `operador` vivem em `profiles.role`; a UI apenas esconde itens (`gestorOnly` em `nav-config.ts`) — a autorização real é RLS (`public.is_gestor()`).
 
@@ -169,3 +169,33 @@ Revisão 2: `EXECUTAR-NO-SUPABASE.sql` copia a migração para acesso rápido; `
 Revisão somente edição: `supabase/migrations/20261013020000_edit_weight_only.sql` substitui a função de correção e bloqueia exclusão individual no banco. A exclusão da pesagem completa permanece em `useDeleteWeighing`.
 
 Feedback de aplicação de cocho: `supabase/migrations/20261013030000_trough_application_feedback.sql` adiciona `app_apply_readings`. O hook `useApplyReadings` devolve contagens de registros criados, já aplicados e leituras sem ajuste. A página diferencia sucesso, repetição e ausência de ajustes pendentes.
+
+
+## Múltiplos clientes e fazendas (14/10/2026)
+
+- `src/lib/tenant.ts`: contrato da RPC de contexto, aprovação e equipe.
+- `src/pages/admin/index.tsx`: página exclusiva de aprovação de clientes, recusa e suspensão; RLS/RPC conferem administrador.
+- `src/pages/onboarding/index.tsx`: espera de aprovação, cadastro da fazenda e aceite de convite com e-mail confirmado.
+- `src/pages/config/users.tsx`: equipe e convites da fazenda; substitui o antigo hook `use-users.ts`, removido.
+- `supabase/migrations/20261014010000_multi_farm.sql`: isolamento por fazenda inclusive nas funções de gravação, executor sem bypass de RLS, referências compostas e registro de decisões.
+- `tests/tenancy.test.mjs`: isolamento entre clientes, operador/gestor/admin, convites, suspensão e compatibilidade TEXT/UUID.
+
+Substitui o modelo de aprovação global por aprovação de clientes (`account_access`) e papéis em `farm_members`. `profiles.role` é legado; o contexto do front-end usa o papel da equipe. Cada conta pertence a uma fazenda nesta versão, com número de clientes sem limite fixo. Convites não enviam mensagens automaticamente: a equipe informa ao convidado o endereço público do login.
+
+O fluxo não envia convites por e-mail automaticamente. Os gestores criam convites vinculados ao e-mail e comunicam o endereço do login por conta própria. E-mail confirmado é exigido antes de aceitar convite ou aprovar novo cliente. Não colocar service_role no front-end. A conta de administrador é configurada por SQL separado, sem cadastro automático por metadata.
+
+
+## Seleção de localização
+
+- `src/components/form/location-fields.tsx`: estados brasileiros e municípios por UF consultados na API pública do IBGE, com cache, cancelamento e feedback de falha.
+- Usado no cadastro inicial e nas configurações da fazenda. Valores antigos são preservados; trocar estado limpa a cidade anterior.
+- Não altera esquema, permissões ou RPCs do Supabase.
+
+
+## E-mail e recuperação de senha
+
+- `src/pages/password-recovery/index.tsx`: solicitação pública de link com resposta sem revelar existência de conta e intervalo de reenvio.
+- `src/pages/password-recovery/reset.tsx`: valida sessão de recuperação e troca a senha pelo Supabase Auth; trata link ausente/expirado.
+- `/recuperar-senha` e `/redefinir-senha` são rotas fora do bloqueio de aprovação de fazenda.
+- AuthProvider mantém estado de PASSWORD_RECOVERY por aba, inclusive após F5, e limpa ao concluir ou encerrar sessão.
+- Supabase Auth: habilitar confirmação de e-mail, URLs autorizadas e SMTP para clientes externos. Não colocar senha SMTP no código.

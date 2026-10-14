@@ -9,7 +9,10 @@ export type AuthValue = {
   role: Role | null;
   isGestor: boolean;
   loading: boolean;
+  passwordRecovery: boolean;
+  finishPasswordRecovery: () => void;
   approved: boolean;
+  tenant: import("@/lib/tenant").TenantContext | null;
   authError: string | null;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;

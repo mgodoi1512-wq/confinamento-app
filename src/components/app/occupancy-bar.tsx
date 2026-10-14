@@ -17,7 +17,7 @@ export const OccupancyBar = ({ percent, overCapacity, className }: OccupancyBarP
         : "bg-muted-foreground/40";
 
   return (
-    <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-muted", className)}>
+    <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-primary/15", className)}>
       <div
         className={cn("h-full rounded-full transition-[width] duration-300", tone)}
         style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }}

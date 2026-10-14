@@ -24,3 +24,8 @@ reports
 *.sln
 *.sw?
 code_template.zip
+
+# Credenciais locais
+.env
+.env.*
+!.env.example
