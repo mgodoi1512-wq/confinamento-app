@@ -86,61 +86,29 @@ const Login = () => {
   ];
 
   return (
-    <div className="flex min-h-dvh w-full bg-background">
-      {/* Painel de marca */}
+<div className="login-background min-h-dvh w-full pt-16 pb-10 lg:grid lg:grid-cols-[46%_54%] lg:items-start lg:pt-20">
+        {/* Painel de marca */}
 
       <div className="fixed right-4 top-4 z-50 rounded-lg bg-background text-foreground">
   <ThemeToggle />
 </div>
-      <aside className="hidden w-[46%] flex-col justify-between bg-brand p-10 text-white/50 lg:flex">
-<div className="mt-10 flex flex-col items-center text-center">            <span>
-            <>
+      <aside className="hidden justify-center p-10 lg:flex lg:pl-28 lg:pt-40">
   <img
     src="/logo-liben-2.png"
     alt="LiBen Agronegócios"
-    className="h-96 w-auto object-contain dark:hidden"
+    className="h-96 max-w-full rounded-3xl object-contain dark:hidden"
   />
 
   <img
     src="/logo-liben-dark.png"
     alt="LiBen Agronegócios"
-    className="hidden h-96 w-auto object-contain dark:block"
+    className="hidden h-96 max-w-full rounded-3xl object-contain dark:block"
   />
-</>
-          </span>
-          
-        </div>
-
-        <div className="space-y-6" >
-          <h1 className="font-display text-4xl font-semibold leading-tight tracking-tight">
-            {t("auth.title")}
-          </h1>
-          <p className="max-w-md text-sm text-white/50">{t("auth.subtitle")}</p>
-          <ul className="grid grid-cols-2 gap-3">
-            {highlights.map((item) => (
-              <li
-                key={item.key}
-                className="flex items-center gap-2 rounded-lg bg-primary-foreground/30 px-3 py-2 text-sm"
-              >
-
-                
-                <item.icon className="size-4" />
-                {t(item.key)}
-              </li>
-
-              
-            ))}
-          </ul>
-        </div>
- 
-        <p className="text-xs text-white/40">
-          {t("auth.signupHint")}
-        </p>
-      </aside>
+</aside>
 
       {/* Formulário */}
-      <main className="flex flex-1 items-center justify-center p-5 md:p-10">
-        <div className="w-full max-w-md space-y-6">
+      <main className="flex items-start justify-center p-5 md:p-10">
+        <div className="w-full space-y-6">
           <div className="flex items-center gap-3 lg:hidden">
             <span className="grid size-10 place-items-center rounded-md bg-brand text-primary-foreground">
               <Leaf className="size-5" />
@@ -153,7 +121,7 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5 shadow-xs md:p-6">
+          <div className="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xs md:p-6">
             <Tabs
               value={mode}
               onValueChange={(value) => {
@@ -163,7 +131,12 @@ const Login = () => {
             >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">{t("auth.loginTab")}</TabsTrigger>
-                <TabsTrigger value="signup">{t("auth.signupTab")}</TabsTrigger>
+                <TabsTrigger
+  value="signup"
+  className="data-[state=inactive]:text-[#D7B49A]"
+>
+  {t("auth.signupTab")}
+</TabsTrigger>
               </TabsList>
 
               <form onSubmit={submit} className="mt-5 space-y-4">
@@ -226,9 +199,32 @@ const Login = () => {
               </form>
             </Tabs>
 
-            {mode === "signup" ? (
-              <p className="mt-4 text-xs text-stone-200">{t("auth.signupHint")}</p>
-            ) : null}
+                      </div>
+
+          <div className="space-y-8 pt-6 text-white/50">
+            <h1 className="relative -top-10 pl-85 font-display text-4xl font-semibold leading-tight tracking-tight">
+  {t("auth.title")}
+</h1>
+
+            <p className="max-w-md text-sm text-white/50">
+              {t("auth.subtitle")}
+            </p>
+
+            <ul className="grid grid-cols-2 gap-3">
+              {highlights.map((item) => (
+                <li
+                  key={item.key}
+                  className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-sm text-white/40"
+                >
+                  <item.icon className="size-4 shrink-0" />
+                  {t(item.key)}
+                </li>
+              ))}
+            </ul>
+
+            <p className="text-xs text-white/40">
+              {t("auth.signupHint")}
+            </p>
           </div>
         </div>
       </main>
