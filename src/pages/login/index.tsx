@@ -109,7 +109,19 @@ const Login = () => {
       {/* Formulário */}
       <main className="flex items-start justify-center p-5 md:p-10">
         <div className="w-full space-y-6">
-          <div className="flex items-center gap-3 lg:hidden">
+          <div className="flex justify-center pb-4 lg:hidden">
+  <img
+    src="/logo-liben-2.png"
+    alt="LiBen Agronegócios"
+    className="h-40 w-40 rounded-2xl object-contain dark:hidden"
+  />
+
+  <img
+    src="/logo-liben-dark.png"
+    alt="LiBen Agronegócios"
+    className="hidden h-40 w-40 rounded-2xl object-contain dark:block"
+  />
+
             <span className="grid size-10 place-items-center rounded-md bg-brand text-primary-foreground">
               <Leaf className="size-5" />
             </span>
