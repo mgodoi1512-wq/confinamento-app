@@ -123,7 +123,7 @@ const Login = () => {
   />
 
             <span className="grid size-10 place-items-center rounded-md bg-brand text-primary-foreground">
-              <Leaf className="size-5" />
+             
             </span>
             <div>
               <p className="font-display text-lg font-semibold tracking-tight">
@@ -214,11 +214,11 @@ const Login = () => {
                       </div>
 
           <div className="space-y-8 pt-6 text-white/50">
-            <h1 className="relative -top-10 pl-85 font-display text-4xl font-semibold leading-tight tracking-tight">
+            <h1 className="font-display text-center text-2xl font-semibold leading-tight tracking-tight lg:relative lg:-top-4 lg:pl-8 lg:text-left lg:text-4xl">
   {t("auth.title")}
 </h1>
 
-            <p className="max-w-md text-sm text-white/50">
+            <p className="max-w-md text-center text-sm text-white/50 lg:text-left">
               {t("auth.subtitle")}
             </p>
 
