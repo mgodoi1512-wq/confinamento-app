@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart3, Beef, Leaf, ShieldCheck, UtensilsCrossed } from "lucide-react";
-import logoLiben from "@/assets/logo-liben-2.png";
+import { BarChart3, Beef, ShieldCheck, UtensilsCrossed } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/app/theme-toggle";
@@ -86,51 +85,39 @@ const Login = () => {
   ];
 
   return (
-<div className="login-background min-h-dvh w-full pt-16 pb-10 lg:grid lg:grid-cols-[46%_54%] lg:items-start lg:pt-20">
-        {/* Painel de marca */}
-
+    <div className="login-background min-h-dvh w-full px-4 pb-8 pt-20 sm:px-6 lg:grid lg:grid-cols-[minmax(0,46fr)_minmax(0,54fr)] lg:items-center lg:gap-8 lg:px-10 lg:py-20">
       <div className="fixed right-4 top-4 z-50 rounded-lg bg-background text-foreground">
-  <ThemeToggle />
-</div>
-      <aside className="hidden justify-center p-10 lg:flex lg:pl-28 lg:pt-40">
-  <img
-    src="/logo-liben-2.png"
-    alt="LiBen Agronegócios"
-    className="h-96 max-w-full rounded-3xl object-contain dark:hidden"
-  />
+        <ThemeToggle />
+      </div>
 
-  <img
-    src="/logo-liben-dark.png"
-    alt="LiBen Agronegócios"
-    className="hidden h-96 max-w-full rounded-3xl object-contain dark:block"
-  />
-</aside>
+      {/* Marca no computador */}
+      <aside className="hidden min-w-0 items-center justify-center lg:flex">
+        <img
+          src="/logo-liben-2.png"
+          alt="LiBen Agronegócios"
+          className="h-auto w-full max-w-sm rounded-3xl object-contain dark:hidden"
+        />
+        <img
+          src="/logo-liben-dark.png"
+          alt="LiBen Agronegócios"
+          className="hidden h-auto w-full max-w-sm rounded-3xl object-contain dark:block"
+        />
+      </aside>
 
-      {/* Formulário */}
-      <main className="flex items-start justify-center p-5 md:p-10">
-        <div className="w-full space-y-6">
-          <div className="flex justify-center pb-4 lg:hidden">
-  <img
-    src="/logo-liben-2.png"
-    alt="LiBen Agronegócios"
-    className="h-40 w-40 rounded-2xl object-contain dark:hidden"
-  />
-
-  <img
-    src="/logo-liben-dark.png"
-    alt="LiBen Agronegócios"
-    className="hidden h-40 w-40 rounded-2xl object-contain dark:block"
-  />
-
-            <span className="grid size-10 place-items-center rounded-md bg-brand text-primary-foreground">
-             
-            </span>
-            <div>
-              <p className="font-display text-lg font-semibold tracking-tight">
-                {t("common.appName")}
-              </p>
-              <p className="text-xs text-stone-200">{t("common.appSubtitle")}</p>
-            </div>
+      {/* Logo e formulário compartilham o mesmo eixo no celular. */}
+      <main className="flex min-w-0 items-center justify-center">
+        <div className="mx-auto w-full max-w-md space-y-6">
+          <div className="flex justify-center lg:hidden">
+            <img
+              src="/logo-liben-2.png"
+              alt="LiBen Agronegócios"
+              className="h-40 w-40 rounded-2xl object-contain dark:hidden"
+            />
+            <img
+              src="/logo-liben-dark.png"
+              alt="LiBen Agronegócios"
+              className="hidden h-40 w-40 rounded-2xl object-contain dark:block"
+            />
           </div>
 
           <div className="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xs md:p-6">
@@ -144,11 +131,11 @@ const Login = () => {
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">{t("auth.loginTab")}</TabsTrigger>
                 <TabsTrigger
-  value="signup"
-  className="data-[state=inactive]:text-[#D7B49A]"
->
-  {t("auth.signupTab")}
-</TabsTrigger>
+                  value="signup"
+                  className="data-[state=inactive]:text-[#D7B49A]"
+                >
+                  {t("auth.signupTab")}
+                </TabsTrigger>
               </TabsList>
 
               <form onSubmit={submit} className="mt-5 space-y-4">
@@ -211,22 +198,22 @@ const Login = () => {
               </form>
             </Tabs>
 
-                      </div>
+          </div>
 
-          <div className="space-y-8 pt-6 text-white/50">
-            <h1 className="font-display text-center text-2xl font-semibold leading-tight tracking-tight lg:relative lg:-top-4 lg:pl-8 lg:text-left lg:text-4xl">
+          <div className="space-y-4 text-center text-white/50">
+            <h1 className="font-display text-2xl font-semibold leading-tight tracking-tight lg:text-3xl">
   {t("auth.title")}
 </h1>
 
-            <p className="max-w-md text-center text-sm text-white/50 lg:text-left">
+            <p className="text-sm text-white/50">
               {t("auth.subtitle")}
             </p>
 
-            <ul className="grid grid-cols-2 gap-3">
+            <ul className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
               {highlights.map((item) => (
                 <li
                   key={item.key}
-                  className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-sm text-white/40"
+                  className="flex min-w-0 items-center gap-2 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-sm text-white/40"
                 >
                   <item.icon className="size-4 shrink-0" />
                   {t(item.key)}
