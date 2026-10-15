@@ -33,7 +33,7 @@ export const TroughScoreSelector = ({ value, onChange, className }: TroughScoreS
                 "flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-center transition-[background-color,transform,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.97] md:min-h-14",
                 selected
                   ? toneClasses[tone].solid
-                  : "text-muted-foreground hover:bg-background",
+                  : "text-muted-foreground hover:bg-background hover:text-foreground",
               )}
             >
               <span className="font-display text-lg font-semibold num">{score}</span>

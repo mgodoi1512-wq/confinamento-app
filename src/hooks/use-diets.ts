@@ -28,8 +28,13 @@ export type DietWithItems = Diet & { items: DietItem[] };
 export const useSaveDiet = () => {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { diet: DietInsert & { id?: string }; items: { ingredient: string; kg_per_head_day: number }[] }) =>
-      mutateApp<string>("save_diet", payload, crypto.randomUUID()),
+    mutationFn: (payload: { diet: DietInsert & { id?: string }; items: { ingredient: string; kg_per_head_day: number; body_weight_pct?: number | null }[] }) =>
+      mutateApp<string>("save_diet", payload, crypto.randomUUID()).catch((error: unknown) => {
+        if (error instanceof Error && error.message.includes("diets_farm_normalized_name_unique")) {
+          throw new Error("Já existe uma dieta com esse nome, ativa ou inativa. Use outro nome ou edite a dieta existente.");
+        }
+        throw error;
+      }),
     onSuccess: () => { void client.invalidateQueries(); },
   });
 };

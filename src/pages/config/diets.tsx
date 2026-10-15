@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { NumericField } from "@/components/app/numeric-field";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
+import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,12 +21,21 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useDeleteDiet, useDietItems, useDiets, useSaveDiet } from "@/hooks/use-diets";
 import { INGREDIENT_SUGGESTIONS } from "@/lib/constants";
-import { dietTotalKg, type Diet } from "@/lib/domain";
+import { normalizeDietName, type Diet } from "@/lib/domain";
 import { formatNumber, parseNumberInput } from "@/lib/format";
 
-type ItemDraft = { key: string; ingredient: string; kg: string };
+type ItemDraft = { key: string; ingredient: string; kg: string; unit: "kg" | "percent_bw" };
 
-const emptyItem = (): ItemDraft => ({ key: crypto.randomUUID(), ingredient: "", kg: "" });
+const emptyItem = (): ItemDraft => ({ key: crypto.randomUUID(), ingredient: "", kg: "", unit: "percent_bw" });
+
+const quantitySummary = (items: { kg_per_head_day: number; body_weight_pct?: number | null }[]) => {
+  const percentages = items.filter(item => item.body_weight_pct != null);
+  const fixed = items.filter(item => item.body_weight_pct == null);
+  const parts: string[] = [];
+  if (percentages.length) parts.push(`${formatNumber(percentages.reduce((sum, item) => sum + (item.body_weight_pct ?? 0), 0), 4)}% PV`);
+  if (fixed.length) parts.push(`${formatNumber(fixed.reduce((sum, item) => sum + item.kg_per_head_day, 0), 3)} kg/cab/dia`);
+  return parts.join(" + ") || "0% PV";
+};
 
 const SettingsDiets = () => {
   const { t } = useTranslation();
@@ -70,7 +80,8 @@ const SettingsDiets = () => {
             .map((item) => ({
               key: item.id,
               ingredient: item.ingredient,
-              kg: String(item.kg_per_head_day),
+              kg: String(item.body_weight_pct ?? item.kg_per_head_day),
+              unit: item.body_weight_pct != null ? "percent_bw" : "kg",
             }))
         : [emptyItem()],
     );
@@ -84,18 +95,28 @@ const SettingsDiets = () => {
       return;
     }
 
+    if (diets.some(diet => diet.id !== editing?.id && normalizeDietName(diet.name) === normalizeDietName(name))) {
+      setError("Já existe uma dieta com esse nome, ativa ou inativa. Use outro nome ou edite a dieta existente.");
+      return;
+    }
+    const filled = drafts.filter(draft => draft.ingredient.trim() || draft.kg.trim());
+    if (!filled.length || filled.some(draft => !draft.ingredient.trim() || parseNumberInput(draft.kg) === null || (parseNumberInput(draft.kg) ?? -1) < 0 || (draft.unit === "percent_bw" && (parseNumberInput(draft.kg) ?? 101) > 100))) {
+      setError("Preencha os ingredientes e quantidades. O percentual do peso vivo deve estar entre 0 e 100.");
+      return;
+    }
     try {
       await saveDiet.mutateAsync({
         diet: {
           id: editing?.id,
-          name: name.trim(),
+          name: name.trim().replace(/\s+/g, " "),
           dry_matter_pct: parseNumberInput(dryMatter),
           notes: notes.trim() || null,
           is_active: isActive,
         },
-        items: drafts.map((draft) => ({
+        items: filled.map((draft) => ({
           ingredient: draft.ingredient.trim(),
-          kg_per_head_day: parseNumberInput(draft.kg) ?? 0,
+          kg_per_head_day: draft.unit === "kg" ? parseNumberInput(draft.kg) ?? 0 : 0,
+          body_weight_pct: draft.unit === "percent_bw" ? parseNumberInput(draft.kg) : null,
         })),
       });
       toast.success(t("config.diets.saved"));
@@ -159,7 +180,7 @@ const SettingsDiets = () => {
                     <p className="text-xs text-muted-foreground">
                       {t("config.diets.totalOffered")}:{" "}
                       <span className="num font-medium">
-                        {formatNumber(dietTotalKg(dietItems), 2)} kg/cab/dia
+                        {quantitySummary(dietItems)}
                       </span>
                       {diet.dry_matter_pct
                         ? ` · ${t("field.dryMatter")} ${formatNumber(diet.dry_matter_pct, 1)}%`
@@ -182,7 +203,9 @@ const SettingsDiets = () => {
                     >
                       <span className="truncate">{item.ingredient}</span>
                       <span className="num shrink-0 text-muted-foreground">
-                        {formatNumber(item.kg_per_head_day, 3)} kg
+                        {item.body_weight_pct != null
+                          ? `${formatNumber(item.body_weight_pct, 4)}% PV`
+                          : `${formatNumber(item.kg_per_head_day, 3)} kg`}
                       </span>
                     </li>
                   ))}
@@ -259,10 +282,11 @@ const SettingsDiets = () => {
           </label>
 
           <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">Informe o percentual do peso vivo ou os kg fixos de cada ingrediente. A conversão para kg será feita no trato, pelo peso médio do lote.</p>
             {drafts.map((draft) => (
-              <div key={draft.key} className="flex items-start gap-3">
+              <div key={draft.key} className="flex flex-wrap items-start gap-3">
                 <TextField
-                  className="min-w-0 flex-1 [&_input]:h-12 [&_label]:text-xs [&_label]:text-muted-foreground"
+                  className="min-w-0 basis-full sm:basis-0 sm:flex-1 [&_input]:h-12 [&_label]:text-xs [&_label]:text-muted-foreground"
                   label={t("field.ingredient")}
                   value={draft.ingredient}
                   onChange={(value) =>
@@ -273,10 +297,14 @@ const SettingsDiets = () => {
                     )
                   }
                 />
+                <div className="w-28 shrink-0 sm:w-32">
+                  <SelectField className="[&_label]:text-xs [&_label]:text-muted-foreground" triggerClassName="h-12" label="Unidade" value={draft.unit} onChange={value => setDrafts(current => current.map(item => item.key === draft.key ? { ...item, unit: value as ItemDraft["unit"], kg: "" } : item))}
+                    options={[{ value: "percent_bw", labelKey: "% peso vivo" }, { value: "kg", labelKey: "kg/cab/dia" }]} />
+                </div>
                 <NumericField
-                  className="w-28 shrink-0 sm:w-36"
+                  className="w-28 shrink-0 sm:w-32"
                   label={t("field.inclusion")}
-                  unit="kg"
+                  unit={draft.unit === "percent_bw" ? "% PV" : "kg"}
                   value={draft.kg}
                   onValueChange={(value) =>
                     setDrafts((current) =>
@@ -316,11 +344,10 @@ const SettingsDiets = () => {
             <p className="text-right text-sm text-muted-foreground">
               {t("config.diets.totalOffered")}:{" "}
               <span className="num font-medium text-foreground">
-                {formatNumber(
-                  drafts.reduce((sum, draft) => sum + (parseNumberInput(draft.kg) ?? 0), 0),
-                  2,
-                )}{" "}
-                kg/cab/dia
+                {quantitySummary(drafts.filter(draft => draft.kg.trim()).map(draft => ({
+                  kg_per_head_day: draft.unit === "kg" ? parseNumberInput(draft.kg) ?? 0 : 0,
+                  body_weight_pct: draft.unit === "percent_bw" ? parseNumberInput(draft.kg) ?? 0 : null,
+                })))}
               </span>
             </p>
           </div>

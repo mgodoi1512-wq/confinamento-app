@@ -1,0 +1,306 @@
+{
+  "source": "GESTÃO DE CONFINAMENTO ATUALIZADA 10-10-26.xlsm / ADAPTAÇÃO",
+  "method": "Fórmulas reais lidas e avaliadas com entradas sintéticas; não usa valores em cache. H5 = peso total do lote.",
+  "formulas": {
+    "F13": "=$H$5*D13",
+    "G13": "=$H$5*E13",
+    "H13": "=F13*3",
+    "I13": "=G13*3",
+    "J13": "=(H13*$H$7)+(I13*$H$9)",
+    "F14": "=$H$5*D14",
+    "G14": "=$H$5*E14",
+    "H14": "=F14*3",
+    "I14": "=G14*3",
+    "J14": "=(H14*$H$7)+(I14*$H$9)",
+    "F15": "=$H$5*D15",
+    "G15": "=$H$5*E15",
+    "H15": "=F15*3",
+    "I15": "=G15*3",
+    "J15": "=(H15*$H$7)+(I15*$H$9)",
+    "F16": "=$H$5*D16",
+    "G16": "=$H$5*E16",
+    "H16": "=F16*3",
+    "I16": "=G16*3",
+    "J16": "=(H16*$H$7)+(I16*$H$9)",
+    "F17": "=$H$5*D17",
+    "G17": "=$H$5*E17",
+    "H17": "=F17*3",
+    "I17": "=G17*3",
+    "J17": "=(H17*$H$7)+(I17*$H$9)",
+    "F18": "=SUM(F13:F17)",
+    "G18": "=SUM(G13:G17)",
+    "H18": "=SUM(H13:H17)",
+    "I18": "=SUM(I13:I17)",
+    "J18": "=SUM(J13:J17)",
+    "F22": "=IFERROR(E22/H3,\"\")",
+    "H22": "=(G22-15)*C22+H18",
+    "I22": "=(G22-15)*D22+I18",
+    "J22": "=(H22*H7)+I22*H9"
+  },
+  "cases": [
+    {
+      "input": {
+        "headCount": 10,
+        "averageWeightKg": 400,
+        "feedPriceKg": 1.87,
+        "roughagePriceKg": 0.8,
+        "totalDays": 75,
+        "startDate": "2026-10-14",
+        "phases": [
+          {
+            "days": 3,
+            "feedPct": 0.3,
+            "roughagePct": 3.0
+          },
+          {
+            "days": 3,
+            "feedPct": 0.8,
+            "roughagePct": 2.5
+          },
+          {
+            "days": 3,
+            "feedPct": 1.3,
+            "roughagePct": 2.0
+          },
+          {
+            "days": 3,
+            "feedPct": 1.7999999999999998,
+            "roughagePct": 1.5
+          },
+          {
+            "days": 3,
+            "feedPct": 2.3,
+            "roughagePct": 1.0
+          }
+        ],
+        "postFeedPct": 2.3,
+        "postRoughagePct": 0.8
+      },
+      "phases": [
+        {
+          "feedDailyKg": 12.0,
+          "roughageDailyKg": 120.0,
+          "feedPeriodKg": 36.0,
+          "roughagePeriodKg": 360.0,
+          "cost": 355.32
+        },
+        {
+          "feedDailyKg": 32.0,
+          "roughageDailyKg": 100.0,
+          "feedPeriodKg": 96.0,
+          "roughagePeriodKg": 300.0,
+          "cost": 419.52
+        },
+        {
+          "feedDailyKg": 52.0,
+          "roughageDailyKg": 80.0,
+          "feedPeriodKg": 156.0,
+          "roughagePeriodKg": 240.0,
+          "cost": 483.72
+        },
+        {
+          "feedDailyKg": 72.0,
+          "roughageDailyKg": 60.0,
+          "feedPeriodKg": 216.0,
+          "roughagePeriodKg": 180.0,
+          "cost": 547.9200000000001
+        },
+        {
+          "feedDailyKg": 92.0,
+          "roughageDailyKg": 40.0,
+          "feedPeriodKg": 276.0,
+          "roughagePeriodKg": 120.0,
+          "cost": 612.12
+        }
+      ],
+      "totals": {
+        "adaptationFeedKg": 780.0,
+        "adaptationRoughageKg": 1200.0,
+        "adaptationCost": 2418.6,
+        "postFeedDailyKg": 92.0,
+        "postRoughageDailyKg": 32.0,
+        "postDailyCost": 197.64000000000001,
+        "postDailyCostPerHead": 19.764000000000003,
+        "totalFeedKg": 6300.0,
+        "totalRoughageKg": 3120.0,
+        "totalCost": 14277.0
+      }
+    },
+    {
+      "input": {
+        "headCount": 1,
+        "averageWeightKg": 450,
+        "feedPriceKg": 2.15,
+        "roughagePriceKg": 0.65,
+        "totalDays": 15,
+        "startDate": "2026-10-14",
+        "phases": [
+          {
+            "days": 3,
+            "feedPct": 0.3,
+            "roughagePct": 3.0
+          },
+          {
+            "days": 3,
+            "feedPct": 0.8,
+            "roughagePct": 2.5
+          },
+          {
+            "days": 3,
+            "feedPct": 1.3,
+            "roughagePct": 2.0
+          },
+          {
+            "days": 3,
+            "feedPct": 1.7999999999999998,
+            "roughagePct": 1.5
+          },
+          {
+            "days": 3,
+            "feedPct": 2.3,
+            "roughagePct": 1.0
+          }
+        ],
+        "postFeedPct": 2.3,
+        "postRoughagePct": 0.8
+      },
+      "phases": [
+        {
+          "feedDailyKg": 1.35,
+          "roughageDailyKg": 13.5,
+          "feedPeriodKg": 4.050000000000001,
+          "roughagePeriodKg": 40.5,
+          "cost": 35.0325
+        },
+        {
+          "feedDailyKg": 3.6,
+          "roughageDailyKg": 11.25,
+          "feedPeriodKg": 10.8,
+          "roughagePeriodKg": 33.75,
+          "cost": 45.1575
+        },
+        {
+          "feedDailyKg": 5.85,
+          "roughageDailyKg": 9.0,
+          "feedPeriodKg": 17.549999999999997,
+          "roughagePeriodKg": 27.0,
+          "cost": 55.2825
+        },
+        {
+          "feedDailyKg": 8.1,
+          "roughageDailyKg": 6.75,
+          "feedPeriodKg": 24.299999999999997,
+          "roughagePeriodKg": 20.25,
+          "cost": 65.40749999999998
+        },
+        {
+          "feedDailyKg": 10.35,
+          "roughageDailyKg": 4.5,
+          "feedPeriodKg": 31.049999999999997,
+          "roughagePeriodKg": 13.5,
+          "cost": 75.5325
+        }
+      ],
+      "totals": {
+        "adaptationFeedKg": 87.75,
+        "adaptationRoughageKg": 135.0,
+        "adaptationCost": 276.41249999999997,
+        "postFeedDailyKg": 10.35,
+        "postRoughageDailyKg": 3.6,
+        "postDailyCost": 24.592499999999998,
+        "postDailyCostPerHead": 24.592499999999998,
+        "totalFeedKg": 87.75,
+        "totalRoughageKg": 135.0,
+        "totalCost": 276.4125
+      }
+    },
+    {
+      "input": {
+        "headCount": 23,
+        "averageWeightKg": 375.5,
+        "feedPriceKg": 0,
+        "roughagePriceKg": 0,
+        "totalDays": 30,
+        "startDate": "2026-10-14",
+        "phases": [
+          {
+            "days": 3,
+            "feedPct": 0.3,
+            "roughagePct": 3.0
+          },
+          {
+            "days": 3,
+            "feedPct": 0.8,
+            "roughagePct": 2.5
+          },
+          {
+            "days": 3,
+            "feedPct": 1.3,
+            "roughagePct": 2.0
+          },
+          {
+            "days": 3,
+            "feedPct": 1.7999999999999998,
+            "roughagePct": 1.5
+          },
+          {
+            "days": 3,
+            "feedPct": 2.3,
+            "roughagePct": 1.0
+          }
+        ],
+        "postFeedPct": 2.3,
+        "postRoughagePct": 0.8
+      },
+      "phases": [
+        {
+          "feedDailyKg": 25.9095,
+          "roughageDailyKg": 259.09499999999997,
+          "feedPeriodKg": 77.7285,
+          "roughagePeriodKg": 777.2849999999999,
+          "cost": 0.0
+        },
+        {
+          "feedDailyKg": 69.092,
+          "roughageDailyKg": 215.91250000000002,
+          "feedPeriodKg": 207.276,
+          "roughagePeriodKg": 647.7375000000001,
+          "cost": 0.0
+        },
+        {
+          "feedDailyKg": 112.27449999999999,
+          "roughageDailyKg": 172.73,
+          "feedPeriodKg": 336.82349999999997,
+          "roughagePeriodKg": 518.1899999999999,
+          "cost": 0.0
+        },
+        {
+          "feedDailyKg": 155.457,
+          "roughageDailyKg": 129.54749999999999,
+          "feedPeriodKg": 466.371,
+          "roughagePeriodKg": 388.6424999999999,
+          "cost": 0.0
+        },
+        {
+          "feedDailyKg": 198.6395,
+          "roughageDailyKg": 86.365,
+          "feedPeriodKg": 595.9185,
+          "roughagePeriodKg": 259.09499999999997,
+          "cost": 0.0
+        }
+      ],
+      "totals": {
+        "adaptationFeedKg": 1684.1174999999998,
+        "adaptationRoughageKg": 2590.95,
+        "adaptationCost": 0.0,
+        "postFeedDailyKg": 198.6395,
+        "postRoughageDailyKg": 69.092,
+        "postDailyCost": 0.0,
+        "postDailyCostPerHead": 0.0,
+        "totalFeedKg": 4663.709999999999,
+        "totalRoughageKg": 3627.33,
+        "totalCost": 0.0
+      }
+    }
+  ]
+}

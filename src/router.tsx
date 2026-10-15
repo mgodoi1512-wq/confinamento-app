@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { AppShell } from "./components/app/app-shell";
 import { ProtectedRoute } from "./components/auth/protected-route";
+const Adaptation = lazy(() => import("./pages/feed/adaptation"));
 const Administration = lazy(() => import("./pages/admin"));
 const Animals = lazy(() => import("./pages/animals"));
 const SettingsHome = lazy(() => import("./pages/config"));
@@ -54,6 +55,7 @@ export const routers = [
           { path: "pesagens/nova", name: "weighingNew", element: <NewWeighing /> },
           { path: "pesagens/:id", name: "weighingDetail", element: <WeighingDetail /> },
           { path: "trato", name: "feed", element: <Feed /> },
+          { path: "nutricao/adaptacao", name: "adaptation", element: <Adaptation /> },
           { path: "trato/leitura", name: "feedReading", element: <ReadingRound /> },
           { path: "sanidade/protocolos", name: "protocols", element: <Protocols /> },
           { path: "sanidade/tratamentos", name: "treatments", element: <Treatments /> },

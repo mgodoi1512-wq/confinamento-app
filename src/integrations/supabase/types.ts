@@ -40,6 +40,20 @@ export type Database = {
   }
   public: {
     Tables: {
+      beta_feedback: {
+        Row: { id: string; user_id: string; farm_id: string; author: string; kind: string; description: string; page: string; screenshot: string | null; has_screenshot: boolean; status: string; notes: string; created_at: string; updated_at: string };
+        Insert: { id: string; user_id: string; farm_id: string; author: string; kind: string; description: string; page: string; screenshot?: string | null; status?: string; notes?: string };
+        Update: { status?: string; notes?: string };
+        Relationships: [];
+      };
+
+      adaptation_plans: {
+        Row: { id: string; farm_id: string; lot_id: string; parameters: Json; created_at: string; updated_at: string }
+        Insert: { id?: string; farm_id?: string; lot_id: string; parameters: Json; created_at?: string; updated_at?: string }
+        Update: { parameters?: Json; updated_at?: string }
+        Relationships: []
+      }
+
       app_members: {
         Row: { user_id: string; enabled: boolean; created_at: string }
         Insert: { user_id: string; enabled?: boolean; created_at?: string }
@@ -121,6 +135,7 @@ export type Database = {
           diet_id: string
           id: string
           ingredient: string
+          body_weight_pct: number | null
           kg_per_head_day: number
           owner_id: string | null
         }
@@ -128,6 +143,7 @@ export type Database = {
           diet_id: string
           id?: string
           ingredient: string
+          body_weight_pct?: number | null
           kg_per_head_day?: number
           owner_id?: string | null
         }
@@ -135,6 +151,7 @@ export type Database = {
           diet_id?: string
           id?: string
           ingredient?: string
+          body_weight_pct?: number | null
           kg_per_head_day?: number
           owner_id?: string | null
         }
@@ -787,6 +804,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      app_submit_feedback: { Args: { p_id: string; p_kind: string; p_description: string; p_page: string; p_screenshot?: string | null }; Returns: string };
+      app_review_feedback: { Args: { p_id: string; p_status: string; p_notes: string; p_expected_updated_at: string }; Returns: Json };
+      app_delete_adaptation: { Args: { p_id: string; p_expected_updated_at: string }; Returns: Json };
+      app_save_adaptation: {
+        Args: { p_lot_id: string; p_parameters: Json; p_expected_updated_at?: string | null }
+        Returns: Json
+      }
+
       app_tenant: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
       app_apply_readings: {
         Args: { p_date: string; p_request_id: string }

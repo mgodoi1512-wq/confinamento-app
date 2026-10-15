@@ -50,3 +50,26 @@ test('GMD negativo não desaparece do indicador agregado', () => {
   const summary=domain.computeHerdSummary([lot],[],[{...weighing,avg_weight_kg:390}],[],[],'2026-10-21');
   assert.equal(summary.avgGmd,-1);
 });
+
+
+test('ingredientes percentuais calculam individualmente sobre o peso vivo', () => {
+  assert.equal(domain.dietItemKg({kg_per_head_day:0,body_weight_pct:1.6},450),7.2);
+  assert.equal(domain.dietItemKg({kg_per_head_day:0,body_weight_pct:0.1},450),0.45);
+  assert.equal(domain.dietItemKg({kg_per_head_day:0,body_weight_pct:1.6},500),8);
+  assert.equal(domain.dietItemKg({kg_per_head_day:2,body_weight_pct:null},450),2);
+});
+test('dieta soma kg fixos e percentuais; sem peso não inventa quantidade', () => {
+  const items=[{kg_per_head_day:0,body_weight_pct:1},{kg_per_head_day:0,body_weight_pct:0.1},{kg_per_head_day:2}];
+  assert.equal(domain.dietTotalKg(items,400),6.4);
+  assert.equal(domain.dietTotalKg(items),null);
+  assert.equal(domain.dietTotalKg([{kg_per_head_day:2}]),2);
+  assert.equal(domain.dietItemKg({kg_per_head_day:0,body_weight_pct:0},null),0);
+  assert.equal(domain.dietItemKg({kg_per_head_day:0,body_weight_pct:101},400),null);
+  assert.equal(domain.dietItemKg({kg_per_head_day:0,body_weight_pct:-1},400),null);
+});
+
+test('nomes de dietas normalizam caixa e espaços sem remover palavras ou acentos', () => {
+  assert.equal(domain.normalizeDietName('  DIETA   Inicial  '),'dieta inicial');
+  assert.equal(domain.normalizeDietName('Dieta\tInicial'),'dieta inicial');
+  assert.equal(domain.normalizeDietName('Ração 01'),'ração 01');
+});

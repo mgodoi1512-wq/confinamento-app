@@ -12,7 +12,7 @@ export type SidebarNavProps = {
 
 export const SidebarNav = ({ onNavigate, className }: SidebarNavProps) => {
   const { t } = useTranslation();
-  const { isGestor, tenant } = useAuth();
+  const { isGestor } = useAuth();
   const { data: farm } = useFarm();
 
   return (
@@ -47,7 +47,6 @@ export const SidebarNav = ({ onNavigate, className }: SidebarNavProps) => {
       </div>
 
       <nav className="scrollbar-thin flex-1 overflow-y-auto px-2 pb-4">
-        {tenant?.isAdmin ? <NavLink to="/admin" onClick={onNavigate} className="mb-2 block rounded-lg border border-sidebar-border px-3 py-3 text-sm font-semibold">Administração do sistema</NavLink> : null}
         {navGroups.map((group) => {
           const items = group.items.filter((item) => !item.gestorOnly || isGestor);
           if (items.length === 0) return null;

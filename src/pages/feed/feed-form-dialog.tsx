@@ -18,8 +18,12 @@ import { useDietItems, useDiets } from "@/hooks/use-diets";
 import { useSaveFeedLog } from "@/hooks/use-feed";
 import { useLots } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
-import { FEED_SHIFT_OPTIONS } from "@/lib/constants";
+import { computeLotMetrics, dietTotalKg } from "@/lib/domain";
+import { useWeighings } from "@/hooks/use-weighings";
+import { FEED_SHIFT_OPTIONS, SELECT_ALL } from "@/lib/constants";
 import { formatNumber, parseNumberInput, todayIso } from "@/lib/format";
+
+const nameOrder = new Intl.Collator("pt-BR", { numeric: true, sensitivity: "base" });
 
 export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
   const { t } = useTranslation();
@@ -29,43 +33,47 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
   const pensQuery = usePens();
   const dietsQuery = useDiets();
   const dietItemsQuery = useDietItems();
+  const weighingsQuery = useWeighings();
   const saveFeedLog = useSaveFeedLog();
 
-  const activeLots = (lotsQuery.data ?? []).filter((lot) => lot.status === "ativo");
   const pens = pensQuery.data ?? [];
-  const diets = dietsQuery.data ?? [];
+  const penCodes = new Map(pens.map(pen => [pen.id, pen.code]));
+  const activeLots = (lotsQuery.data ?? [])
+    .filter(lot => lot.status === "ativo")
+    .sort((a, b) =>
+      nameOrder.compare(penCodes.get(a.pen_id ?? "") ?? "", penCodes.get(b.pen_id ?? "") ?? "")
+      || nameOrder.compare(a.code, b.code)
+      || a.id.localeCompare(b.id),
+    );
+  const allDiets = dietsQuery.data ?? [];
+  const diets = allDiets.filter(diet => diet.is_active);
   const dietItems = useMemo(() => dietItemsQuery.data ?? [], [dietItemsQuery.data]);
 
   const [penId, setPenId] = useState("");
   const [shift, setShift] = useState("manha");
   const [dietId, setDietId] = useState("");
   const [headCount, setHeadCount] = useState("");
-  const [kgPerHead, setKgPerHead] = useState("");
+  const [kgOverride, setKgOverride] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const lot = activeLots.find((item) => item.pen_id === penId) ?? null;
 
-  const dietTotal = useMemo(
-    () =>
-      dietItems
-        .filter((item) => item.diet_id === (dietId || lot?.diet_id))
-        .reduce((sum, item) => sum + item.kg_per_head_day, 0),
-    [dietItems, dietId, lot?.diet_id],
-  );
+  const activeDietId = diets.find(diet => diet.id === dietId)?.id ?? "";
+  const lotHasInactiveDiet = Boolean(lot?.diet_id && allDiets.some(diet => diet.id === lot.diet_id && !diet.is_active));
+  const referenceWeight = lot && weighingsQuery.isSuccess
+    ? computeLotMetrics(lot, weighingsQuery.data ?? []).currentAvgWeight : null;
+  const selectedItems = dietItems.filter(item => item.diet_id === activeDietId);
+  const dietTotal = dietTotalKg(selectedItems, referenceWeight);
+  const kgPerHead = kgOverride ?? (dietTotal !== null && dietTotal > 0 ? String(Math.round(dietTotal * 1000) / 1000) : "");
 
   const selectPen = (value: string) => {
     setPenId(value);
     setError(null);
-    const selectedLot = activeLots.find((item) => item.pen_id === value);
-    if (selectedLot) {
-      setHeadCount(String(selectedLot.head_count));
-      setDietId(selectedLot.diet_id ?? "");
-      const total = dietItems
-        .filter((item) => item.diet_id === selectedLot.diet_id)
-        .reduce((sum, item) => sum + item.kg_per_head_day, 0);
-      setKgPerHead(total > 0 ? String(total) : "");
-    }
+    setKgOverride(null);
+    const selectedLot = activeLots.find(item => item.pen_id === value);
+    setHeadCount(selectedLot ? String(selectedLot.head_count) : "");
+    setDietId(diets.find(diet => diet.id === selectedLot?.diet_id)?.id ?? "");
   };
 
   const perHead = parseNumberInput(kgPerHead) ?? 0;
@@ -77,13 +85,17 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
       return;
     }
 
+    if ((dietId && !activeDietId) || (lotHasInactiveDiet && !activeDietId)) {
+      setError("A dieta do lote está inativa. Selecione uma dieta ativa antes de salvar.");
+      return;
+    }
     try {
       await saveFeedLog.mutateAsync({
         pen_id: penId,
         lot_id: lot?.id ?? null,
         date: todayIso(),
         shift,
-        diet_id: dietId || lot?.diet_id || null,
+        diet_id: activeDietId || null,
         head_count: head,
         kg_per_head: perHead,
         total_kg: Math.round(perHead * head * 100) / 100,
@@ -124,11 +136,13 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
           />
           <SelectField
             label={t("feed.dietUsed")}
-            value={dietId}
-            onChange={setDietId}
+            value={activeDietId || SELECT_ALL}
+            onChange={value => { setDietId(value === SELECT_ALL ? "" : value); setKgOverride(null); }}
             allowEmpty
             emptyLabel={t("common.noData")}
             options={diets.map((diet) => ({ value: diet.id, labelKey: diet.name }))}
+            disabled={dietsQuery.isLoading || dietsQuery.isError}
+            error={lotHasInactiveDiet && !activeDietId ? "A dieta vinculada ao lote está inativa. Escolha uma dieta ativa." : undefined}
           />
           <NumericField
             label={t("field.headCount")}
@@ -142,8 +156,12 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
             label={t("feed.kgPerHead")}
             unit="kg"
             value={kgPerHead}
-            onValueChange={setKgPerHead}
-            helper={dietTotal > 0 ? `${t("config.diets.totalOffered")}: ${formatNumber(dietTotal, 2)} kg` : undefined}
+            onValueChange={setKgOverride}
+            helper={dietTotal === null
+              ? "A dieta percentual precisa de um peso médio válido para calcular a sugestão. Você pode informar a oferta manualmente."
+              : dietTotal > 0
+                ? `Referência diária: ${formatNumber(dietTotal, 3)} kg/cab/dia${referenceWeight ? ` · Peso médio: ${formatNumber(referenceWeight, 1)} kg` : ""}. Confira a parcela deste turno.`
+                : undefined}
           />
           <NumericField
             label={t("feed.total")}
@@ -164,7 +182,7 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
           <Button variant="outline" onClick={() => setOpen(false)}>
             {t("action.cancel")}
           </Button>
-          <Button onClick={() => void submit()} disabled={saveFeedLog.isPending}>
+          <Button onClick={() => void submit()} disabled={saveFeedLog.isPending || dietsQuery.isLoading || dietsQuery.isError || (lotHasInactiveDiet && !activeDietId)}>
             {t("action.save")}
           </Button>
         </DialogFooter>

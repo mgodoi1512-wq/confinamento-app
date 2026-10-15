@@ -381,5 +381,29 @@ export const findWeightOutliers = (
     .map((entry) => entry.key);
 };
 
-export const dietTotalKg = (items: Pick<DietItem, "kg_per_head_day">[]): number =>
-  items.reduce((sum, item) => sum + item.kg_per_head_day, 0);
+type DietQuantity = Pick<DietItem, "kg_per_head_day"> & { body_weight_pct?: number | null };
+
+/** Percentuais são do peso vivo, sem conversão implícita por matéria seca. */
+export const dietItemKg = (item: DietQuantity, liveWeightKg?: number | null): number | null => {
+  if (item.body_weight_pct != null) {
+    if (!Number.isFinite(item.body_weight_pct) || item.body_weight_pct < 0 || item.body_weight_pct > 100) return null;
+    if (item.body_weight_pct === 0) return 0;
+    if (!liveWeightKg || !Number.isFinite(liveWeightKg) || liveWeightKg <= 0) return null;
+    return liveWeightKg * item.body_weight_pct / 100;
+  }
+  return Number.isFinite(item.kg_per_head_day) && item.kg_per_head_day >= 0 ? item.kg_per_head_day : null;
+};
+
+export const dietTotalKg = (items: DietQuantity[], liveWeightKg?: number | null): number | null => {
+  let total = 0;
+  for (const item of items) {
+    const quantity = dietItemKg(item, liveWeightKg);
+    if (quantity === null) return null;
+    total += quantity;
+  }
+  return total;
+};
+
+/** Mesmo nome com caixa ou espaços diferentes continua sendo o mesmo cadastro. */
+export const normalizeDietName = (name: string): string =>
+  name.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");

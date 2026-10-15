@@ -72,6 +72,8 @@ test('PDF real pagina tabelas extensas e repete o cabeçalho', async () => {
   const report=reportFor();
   report.rows=Array.from({length:180},(_,index)=>[String(index).padStart(6,'0'),...report.rows[0].slice(1)]);
   const save=jsPDF.API.save;
+  const originalFetch=globalThis.fetch;
+  globalThis.fetch=async () => new Response(fs.readFileSync(new URL('../public/logo-liben-2.png',import.meta.url)), {status:200});
   let document;
   jsPDF.API.save=function(){ document=this; return this; };
   try {
@@ -79,11 +81,12 @@ test('PDF real pagina tabelas extensas e repete o cabeçalho', async () => {
     assert.ok(document.getNumberOfPages()>1);
     const text=document.output();
     assert.ok(text.includes('GMD'));
+    assert.ok(text.includes('/Subtype /Image'), 'Logo incorporada ao PDF');
     assert.ok(text.includes('000179'));
     // Optional local QA outputs; never include real farm data in fixtures.
     if(process.env.EXPORT_QA_DIR){
       fs.mkdirSync(process.env.EXPORT_QA_DIR,{recursive:true});
       fs.writeFileSync(`${process.env.EXPORT_QA_DIR}/animais-exemplo.pdf`,Buffer.from(document.output('arraybuffer')));
     }
-  } finally { jsPDF.API.save=save; }
+  } finally { jsPDF.API.save=save; globalThis.fetch=originalFetch; }
 });

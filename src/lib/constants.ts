@@ -30,12 +30,14 @@ export const SEX_OPTIONS: Option[] = [
 
 export const BREED_OPTIONS: Option[] = [
   { value: "Nelore", labelKey: "Nelore" },
+  { value: "Mestiço", labelKey: "Mestiço" },
   { value: "Cruzamento Angus x Nelore", labelKey: "Cruzamento Angus x Nelore" },
   { value: "Cruzamento Hereford x Nelore", labelKey: "Cruzamento Hereford x Nelore" },
   { value: "Senepol", labelKey: "Senepol" },
   { value: "Brahman", labelKey: "Brahman" },
   { value: "Tabapuã", labelKey: "Tabapuã" },
   { value: "Girolando", labelKey: "Girolando" },
+  { value: "Outros", labelKey: "Outros" },
 ];
 
 export const PEN_STATUS_OPTIONS: Option[] = [

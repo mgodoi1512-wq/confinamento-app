@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { DataTable, type Column } from "@/components/app/data-table";
 import { EmptyState } from "@/components/app/empty-state";
-import { OccupancyBar } from "@/components/app/occupancy-bar";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +34,27 @@ const Feed = () => {
   const pensWithLot = occupancy.filter((item) => item.lot);
 
   const todayLogs = feedLogs.filter((log) => log.date === today);
+  const todayRows = pensWithLot.map(item => {
+    const logs = todayLogs.filter(log => log.pen_id === item.pen.id);
+    return {
+      id: item.pen.id,
+      penCode: item.pen.code,
+      lotCode: item.lot?.code ?? "—",
+      hasFeed: logs.length > 0,
+      total: logs.reduce((sum, log) => sum + log.total_kg, 0),
+      perHead: logs.length > 0
+        ? logs.reduce((sum, log) => sum + log.kg_per_head, 0) / logs.length
+        : null,
+    };
+  });
+  const todayLoading = [pensQuery, lotsQuery, feedQuery].some(query => query.isLoading);
+  const feedStatus = (hasFeed: boolean) => (
+    <StatusBadge
+      tone={hasFeed ? "success" : "muted"}
+      label={hasFeed ? "Trato registrado" : "Sem trato hoje"}
+      size="sm"
+    />
+  );
 
   const columns: Column<FeedLog>[] = [
     { key: "date", headerKey: "field.date", render: (log) => formatDate(log.date) },
@@ -107,58 +127,59 @@ const Feed = () => {
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="font-display text-lg">{t("feed.today")}</CardTitle>
             <span className="text-sm num text-muted-foreground">
-              {t("feed.todayProgress", {
+              {todayLoading ? "—" : t("feed.todayProgress", {
                 done: new Set(todayLogs.map((log) => log.pen_id)).size,
                 total: pensWithLot.length,
               })}
             </span>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {pensWithLot.length === 0 ? (
-            <EmptyState
-              icon={UtensilsCrossed}
-              titleKey="feed.empty.title"
-              descriptionKey="feed.empty.description"
-            />
-          ) : (
-            pensWithLot.map((item) => {
-              const logs = todayLogs.filter((log) => log.pen_id === item.pen.id);
-              const total = logs.reduce((sum, log) => sum + log.total_kg, 0);
-              const perHead =
-                logs.length > 0
-                  ? logs.reduce((sum, log) => sum + log.kg_per_head, 0) / logs.length
-                  : null;
-
-              return (
-                <div key={item.pen.id} className="space-y-1.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="font-display font-semibold">{item.pen.code}</span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {item.lot?.code}
-                      </span>
-                      {logs.length > 0 ? (
-                        <StatusBadge tone="success" label={t("feed.today")} size="sm" />
-                      ) : (
-                        <StatusBadge tone="muted" label={t("feed.empty.title")} size="sm" />
-                      )}
-                    </div>
-                    <span className="num text-xs text-muted-foreground">
-                      {perHead !== null
-                        ? `${formatNumber(perHead, 2)} kg/cab · ${formatNumber(total, 2)} kg`
-                        : "—"}
-                    </span>
+        <CardContent>
+          <DataTable
+            rows={todayRows}
+            columns={[
+              {
+                key: "pen", headerKey: "feed.pen", className: "w-1/5",
+                render: row => <span className="font-display font-semibold">{row.penCode}</span>,
+              },
+              { key: "lot", headerKey: "field.lot", className: "w-1/5", render: row => row.lotCode },
+              { key: "status", headerKey: "field.status", className: "w-1/5", render: row => feedStatus(row.hasFeed) },
+              {
+                key: "perHead", headerKey: "feed.kgPerHead", numeric: true, className: "w-1/5",
+                render: row => row.perHead !== null ? `${formatNumber(row.perHead, 2)} kg/cab` : "—",
+              },
+              {
+                key: "total", headerKey: "feed.total", numeric: true, className: "w-1/5",
+                render: row => row.hasFeed ? `${formatNumber(row.total, 2)} kg` : "—",
+              },
+            ]}
+            getRowKey={row => row.id}
+            loading={todayLoading}
+            emptyState={
+              <EmptyState icon={UtensilsCrossed} titleKey="feed.empty.title" descriptionKey="feed.empty.description" />
+            }
+            renderCard={row => (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="break-words font-display text-base font-semibold">{row.penCode}</p>
+                    <p className="break-words text-xs text-muted-foreground">{t("field.lot")}: {row.lotCode}</p>
                   </div>
-                  <OccupancyBar
-                    percent={item.percent}
-                    overCapacity={item.overCapacity}
-                    className="h-1"
-                  />
+                  {feedStatus(row.hasFeed)}
                 </div>
-              );
-            })
-          )}
+                <div className="grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("feed.kgPerHead")}</p>
+                    <p className="num font-medium">{row.perHead !== null ? `${formatNumber(row.perHead, 2)} kg/cab` : "—"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">{t("feed.total")}</p>
+                    <p className="num font-medium">{row.hasFeed ? `${formatNumber(row.total, 2)} kg` : "—"}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          />
         </CardContent>
       </Card>
 

@@ -48,7 +48,7 @@ export const DataTable = <T,>({
       <div className="hidden overflow-hidden rounded-lg border border-border bg-card md:block">
         <table className="w-full caption-bottom text-sm">
           <thead>
-            <tr className="h-10 border-b border-border bg-muted/60">
+            <tr className="h-10 border-b border-border bg-muted">
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -69,7 +69,7 @@ export const DataTable = <T,>({
                 key={getRowKey(row)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 className={cn(
-                  "h-11 border-b border-border transition-colors duration-100 last:border-0 hover:bg-muted/50",
+                  "h-11 border-b border-border transition-colors duration-100 last:border-0 hover:bg-primary/5",
                   onRowClick && "cursor-pointer",
                 )}
               >
@@ -99,7 +99,7 @@ export const DataTable = <T,>({
             onClick={onRowClick ? () => onRowClick(row) : undefined}
             className={cn(
               "rounded-lg border border-border bg-card p-3 shadow-xs transition-colors",
-              onRowClick && "cursor-pointer active:bg-muted/50",
+              onRowClick && "cursor-pointer active:bg-primary/5",
             )}
           >
             {renderCard ? (

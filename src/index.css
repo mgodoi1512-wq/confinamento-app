@@ -24,7 +24,9 @@
     --secondary-foreground: 150 22% 16%;
 
     --muted: 20 52% 26%;
-    --muted-foreground: 20 52% 0%;
+    --muted-page-foreground: 20 52% 0%;
+    --muted-foreground: var(--muted-page-foreground);
+    --muted-surface-foreground: 27 45% 80%;
     --muted-foregroundlogin: 20 52% 90%;
 
     --accent: 40 45% 90%;
@@ -103,7 +105,9 @@
     --secondary-foreground: 40 18% 94%;
 
     --muted: 150 10% 16%;
-    --muted-foreground: 40 12% 64%;
+    --muted-page-foreground: 40 12% 64%;
+    --muted-foreground: var(--muted-page-foreground);
+    --muted-surface-foreground: 40 18% 85%;
 
     --accent: 150 10% 18%;
     --accent-foreground: 40 18% 96%;
@@ -190,6 +194,18 @@ body,
   width: 100%;
   min-height: 100%;
 }
+/* Reserva o espaço da barra para evitar deslocamento entre páginas. */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Compatibilidade com navegadores sem suporte a scrollbar-gutter. */
+@supports not (scrollbar-gutter: stable) {
+  html {
+    overflow-y: scroll;
+  }
+}
+
 /* Barras de rolagem discretas */
 * {
   scrollbar-width: thin;
@@ -234,4 +250,16 @@ body,
 .dark .login-background {
   background-color: #090909;
   background-image: url("/bg-dark.png");
+}
+
+/* Texto claro apenas nas superfícies muted (marrom escuro no tema claro).
+   A variável local também corrige filhos com text-muted-foreground. */
+.bg-muted {
+  --muted-foreground: var(--muted-surface-foreground);
+  color: hsl(var(--muted-surface-foreground));
+}
+
+/* Abas e opções selecionadas voltam a usar texto escuro no fundo claro. */
+:where(.bg-muted) :where(.bg-background, .bg-card) {
+  --muted-foreground: var(--muted-page-foreground);
 }

@@ -16,12 +16,15 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useAuth } from "@/hooks/use-auth";
 import { useDietItems } from "@/hooks/use-diets";
 import { useFeedLogs } from "@/hooks/use-feed";
+import { useWeighings } from "@/hooks/use-weighings";
 import { useLots } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
 import { useSaveTroughReading, useTroughReadings, useApplyReadings } from "@/hooks/use-trough";
 import {
   TROUGH_ADJUSTMENT,
   computePenOccupancy,
+  computeLotMetrics,
+  dietTotalKg,
   troughScoreTone,
   type PenOccupancy,
 } from "@/lib/domain";
@@ -37,6 +40,7 @@ const ReadingRound = () => {
   const pensQuery = usePens();
   const lotsQuery = useLots();
   const dietItemsQuery = useDietItems();
+  const weighingsQuery = useWeighings();
   const feedQuery = useFeedLogs();
 
   const saveReading = useSaveTroughReading();
@@ -69,15 +73,14 @@ const ReadingRound = () => {
     const lastLog = feedLogs.find((log) => log.pen_id === penId && log.shift === "manha" && log.date < today);
     if (lastLog) return lastLog.kg_per_head;
     const lot = pensWithLot.find((item) => item.pen.id === penId)?.lot;
-    const dietTotal = dietItems
-      .filter((diet) => diet.diet_id === lot?.diet_id)
-      .reduce((sum, diet) => sum + diet.kg_per_head_day, 0);
-    return dietTotal;
+    const weight = lot && weighingsQuery.isSuccess ? computeLotMetrics(lot, weighingsQuery.data ?? [], today).currentAvgWeight : null;
+    return dietTotalKg(dietItems.filter(item => item.diet_id === lot?.diet_id), weight);
   };
 
   const openPen = (item: PenOccupancy) => {
     setActivePen(item);
-    setBaseInput(String(basePerHead(item.pen.id)));
+    const base = basePerHead(item.pen.id);
+    setBaseInput(base === null ? "" : String(base));
     setScore(null);
     setLeftover("");
     setAdjustmentPct("");
@@ -310,7 +313,7 @@ const ReadingRound = () => {
               </SheetHeader>
 
               <NumericField label="Oferta base da manhã (confira antes de aplicar)" unit="kg/cab" value={baseInput} onValueChange={setBaseInput} />
-              <p className="text-xs text-muted-foreground">Sem trato anterior da manhã, a referência vem da soma diária da dieta. Informe aqui apenas a oferta prevista para a manhã. Cada leitura gera o trato uma única vez.</p>
+              <p className="text-xs text-muted-foreground">Sem trato anterior da manhã, a referência vem da soma diária da dieta, com os percentuais calculados sobre o peso médio do lote. Sem peso válido, informe a oferta manualmente. Informe aqui apenas a parcela prevista para a manhã. Cada leitura gera o trato uma única vez.</p>
               <TroughScoreSelector value={score} onChange={selectScore} />
 
               <NumericField

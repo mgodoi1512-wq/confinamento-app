@@ -1,3 +1,4 @@
+import { FeedbackWidget } from "@/components/app/feedback-widget";
 import { PageLoading } from "@/components/app/page-loading";
 import { QueryErrors } from "@/components/app/query-errors";
 import { useState, Suspense } from "react";
@@ -36,6 +37,7 @@ export const AppShell = () => {
           <QueryErrors /><Suspense fallback={<PageLoading />}><Outlet /></Suspense>
         </main>
         <BottomNav />
+        <FeedbackWidget />
       </div>
     </div>
   );

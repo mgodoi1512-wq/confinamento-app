@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ArrowRight, Beef, Check, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { NumericField } from "@/components/app/numeric-field";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { StatusBadge } from "@/components/app/status-badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCreateLot, useLots, type NewLotAnimal } from "@/hooks/use-lots";
@@ -51,6 +52,7 @@ const NewLot = () => {
     return `L-${year}-${sequential}`;
   }, [lotsQuery.data]);
 
+  const [penNoticeDismissed, setPenNoticeDismissed] = useState(false);
   const [step, setStep] = useState(0);
   const [code, setCode] = useState("");
   const [origin, setOrigin] = useState("");
@@ -66,13 +68,16 @@ const NewLot = () => {
   const [penId, setPenId] = useState("");
   const [dietId, setDietId] = useState("");
   const [protocolId, setProtocolId] = useState("");
-  const [applyProtocol, setApplyProtocol] = useState(true);
+  const [applyProtocol, setApplyProtocol] = useState(false);
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const occupancy = useMemo(() => computePenOccupancy(pens, lotsQuery.data ?? []), [pens, lotsQuery.data]);
 
   const availablePens = occupancy.filter((item) => item.pen.status !== "manutencao");
+  const requiredQueries = [pensQuery, lotsQuery];
+  const canAdvance = requiredQueries.every(query => query.isSuccess) && availablePens.length > 0 && !dietsQuery.isLoading && !protocolsQuery.isLoading;
+  const activeDiets = diets.filter(diet => diet.is_active);
   const selectedOccupancy = occupancy.find((item) => item.pen.id === penId);
 
   const individualWeights = animals
@@ -95,6 +100,13 @@ const NewLot = () => {
 
   const validateStep = (target: number) => {
     const next: Record<string, string> = {};
+    if (!requiredQueries.every(query => query.isSuccess)) next.pen = "Aguarde a verificação dos currais. Se houver erro, tente carregar novamente.";
+    else if (pens.length === 0) next.pen = "Cadastre pelo menos um curral antes de criar o lote.";
+    else if (availablePens.length === 0) next.pen = "Nenhum curral disponível: os currais estão em manutenção.";
+    if (dietsQuery.isLoading || protocolsQuery.isLoading) next.setup = "Aguarde a verificação de dietas e protocolos.";
+    if (target >= 2 && !selectedOccupancy) next.pen = "Selecione o curral em que o lote ficará.";
+    if (target >= 2 && selectedOccupancy?.pen.status === "manutencao") next.pen = "Escolha um curral que não esteja em manutenção.";
+    if (target >= 2 && applyProtocol && !protocols.some(protocol => protocol.id === protocolId)) next.protocol = "Selecione um protocolo para aplicá-lo ao lote.";
 
     if (target >= 0) {
       if (!(code || suggestion).trim()) next.code = t("toast.requiredFields");
@@ -147,7 +159,7 @@ const NewLot = () => {
           head_count: parseNumberInput(headCount) ?? 0,
           entry_avg_weight_kg: effectiveEntryWeight ?? 0,
           target_weight_kg: parseNumberInput(targetWeight) ?? DEFAULT_TARGET_WEIGHT,
-          pen_id: penId || null,
+          pen_id: penId,
           diet_id: !dietId || dietId === "all" ? null : dietId,
           protocol_id: !protocolId || protocolId === "all" ? null : protocolId,
         },
@@ -167,7 +179,7 @@ const NewLot = () => {
         toast.error(t("lots.new.dupEarTag", { tag: (code || suggestion).trim() }));
         return;
       }
-      toast.error(t("toast.error.generic"));
+      toast.error(message || t("toast.error.generic"));
     }
   };
 
@@ -183,6 +195,33 @@ const NewLot = () => {
           </Button>
         }
       />
+
+      <Dialog open={pensQuery.isSuccess && pens.length===0 && !penNoticeDismissed} onOpenChange={open=>setPenNoticeDismissed(!open)}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Cadastre um curral para continuar</DialogTitle>
+            <DialogDescription className="pt-2 leading-relaxed">Sua fazenda ainda não possui currais cadastrados. O lote precisa de pelo menos um curral para ficar. Cadastre o curral antes de continuar.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={()=>navigate("/lotes")}>Voltar aos lotes</Button>
+            <Button onClick={()=>navigate("/config/currais")}>Cadastrar curral</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="space-y-3">
+        {requiredQueries.some(query=>query.isLoading) && <p role="status" className="text-sm text-muted-foreground">Verificando currais disponíveis...</p>}
+        {requiredQueries.some(query=>query.isError) && <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">Não foi possível verificar os currais. <Button variant="outline" onClick={()=>void Promise.all(requiredQueries.map(query=>query.refetch()))}>Tentar novamente</Button></div>}
+        {pensQuery.isSuccess && pens.length===0 && <div className="flex flex-wrap items-center gap-3 text-sm"><p>Cadastre um curral para liberar o cadastro do lote.</p><Button variant="outline" onClick={()=>setPenNoticeDismissed(false)}>Ver aviso</Button></div>}
+        {pensQuery.isSuccess && pens.length>0 && availablePens.length===0 && <p role="alert" className="rounded-lg border border-destructive p-4 text-sm">Todos os currais estão em manutenção. Disponibilize um curral antes de avançar.</p>}
+        {(dietsQuery.isLoading || protocolsQuery.isLoading) && <p role="status" className="text-sm text-muted-foreground">Verificando dietas e protocolos...</p>}
+        {(dietsQuery.isError || protocolsQuery.isError) && <div role="status" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p>Não foi possível verificar {dietsQuery.isError && protocolsQuery.isError ? "dietas e protocolos" : dietsQuery.isError ? "as dietas" : "os protocolos"}. Você pode continuar e configurar depois.</p><Button variant="outline" onClick={()=>void Promise.all([dietsQuery.refetch(),protocolsQuery.refetch()])}>Verificar novamente</Button></div>}
+        {((dietsQuery.isSuccess && activeDiets.length===0) || (protocolsQuery.isSuccess && protocols.length===0)) && <div role="status" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p className="font-semibold">Antes de criar o lote</p>
+          {dietsQuery.isSuccess && activeDiets.length===0 && <p>Nenhuma dieta ativa cadastrada. Cadastre uma dieta para planejar o trato do lote. <Link className="underline" to="/config/dietas">Cadastrar dieta</Link></p>}
+          {protocolsQuery.isSuccess && protocols.length===0 && <p>Nenhum protocolo cadastrado. Cadastre um protocolo para organizar o manejo sanitário. <Link className="underline" to="/sanidade/protocolos">Cadastrar protocolo</Link></p>}
+          <p>Você pode continuar agora e configurar esses itens depois.</p>
+        </div>}
+      </div>
 
       {/* Passos */}
       <ol className="flex flex-wrap items-center gap-2">
@@ -292,7 +331,7 @@ const NewLot = () => {
                       "h-10 rounded-md text-sm font-medium transition-colors",
                       mode === option
                         ? "bg-card text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground",
+                        : "text-muted-foreground hover:text-[hsl(var(--muted-surface-foreground))]",
                     )}
                   >
                     {option === "avg" ? t("lots.new.modeAvg") : t("lots.new.modeIndividual")}
@@ -425,7 +464,8 @@ const NewLot = () => {
                 value={penId}
                 onChange={setPenId}
                 placeholder={t("field.pen")}
-                options={availablePens.map((item) => ({
+                error={errors.pen}
+                options={availablePens.slice().sort((a,b)=>a.pen.code.localeCompare(b.pen.code,"pt-BR",{numeric:true})).map((item) => ({
                   value: item.pen.id,
                   labelKey: `${item.pen.code} · ${item.free} ${t("common.unit.head")} livres`,
                 }))}
@@ -457,7 +497,7 @@ const NewLot = () => {
                 onChange={setDietId}
                 allowEmpty
                 emptyLabel={t("common.noData")}
-                options={diets.map((diet) => ({ value: diet.id, labelKey: diet.name }))}
+                options={activeDiets.map((diet) => ({ value: diet.id, labelKey: diet.name }))}
               />
 
               {dietId ? (
@@ -470,6 +510,7 @@ const NewLot = () => {
                 <input
                   type="checkbox"
                   checked={applyProtocol}
+                  disabled={protocols.length===0}
                   onChange={(event) => setApplyProtocol(event.target.checked)}
                   className="size-4 rounded border-input accent-primary"
                 />
@@ -504,7 +545,7 @@ const NewLot = () => {
             </Button>
 
             {step < STEPS.length - 1 ? (
-              <Button type="button" className="h-11" onClick={goNext}>
+              <Button type="button" className="h-11" onClick={goNext} disabled={!canAdvance || createLot.isPending}>
                 {t("action.next")}
                 <ArrowRight />
               </Button>
@@ -513,7 +554,7 @@ const NewLot = () => {
                 type="button"
                 className="h-11"
                 onClick={() => void submit()}
-                disabled={createLot.isPending}
+                disabled={createLot.isPending || !canAdvance}
               >
                 <Beef />
                 {t("lots.new.create")}

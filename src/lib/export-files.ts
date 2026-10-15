@@ -46,16 +46,25 @@ export async function exportPdf(report: ExportReport) {
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const doc = new jsPDF({ orientation: "landscape", format: "a3" });
   const width = doc.internal.pageSize.getWidth();
+  const logoResponse = await fetch(`${import.meta.env?.BASE_URL ?? "/"}logo-liben-2.png`);
+  if (!logoResponse.ok) throw new Error("Não foi possível carregar a logo do relatório.");
+  const logo = new Uint8Array(await logoResponse.arrayBuffer());
+  const image = doc.getImageProperties(logo);
+  const logoSize = 26;
+  const scale = Math.min(logoSize / image.width, logoSize / image.height);
+  const logoWidth = image.width * scale;
+  const logoHeight = image.height * scale;
+  doc.addImage(logo, "PNG", 12 + (logoSize - logoWidth) / 2, 10 + (logoSize - logoHeight) / 2, logoWidth, logoHeight);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(17);
-  doc.text(`LiBen | ${report.title}`, 12, 16);
+  doc.text(report.title, 44, 21);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`Emitido em ${new Date().toLocaleString("pt-BR")} | ${report.rows.length} registros`, 12, 23);
+  doc.text(`Emitido em ${new Date().toLocaleString("pt-BR")} | ${report.rows.length} registros`, 44, 29);
   const filterLines = doc.splitTextToSize(`Filtros: ${report.filters}`, width - 24);
-  doc.text(filterLines, 12, 30);
+  doc.text(filterLines, 12, 43);
   const noteLines = doc.splitTextToSize(report.note, width - 24);
-  const noteY = 32 + filterLines.length * 4;
+  const noteY = 45 + filterLines.length * 4;
   doc.text(noteLines, 12, noteY);
   autoTable(doc, {
     startY: noteY + noteLines.length * 4 + 4,

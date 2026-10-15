@@ -6,6 +6,7 @@ import {
   Leaf,
   Package,
   Scale,
+  Sprout,
   ShieldAlert,
   Syringe,
   Users,
@@ -44,6 +45,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { to: "/trato", labelKey: "nav.feed", icon: UtensilsCrossed, end: true },
       { to: "/trato/leitura", labelKey: "nav.reading", icon: Wheat },
+      { to: "/nutricao/adaptacao", labelKey: "nav.adaptation", icon: Sprout },
       { to: "/config/dietas", labelKey: "nav.diets", icon: BarChart3, gestorOnly: true },
     ],
   },
@@ -72,6 +74,7 @@ export const routeTitles: { pattern: RegExp; labelKey: string }[] = [
   { pattern: /^\/lotes/, labelKey: "nav.lots" },
   { pattern: /^\/animais/, labelKey: "nav.animals" },
   { pattern: /^\/pesagens/, labelKey: "nav.weighings" },
+  { pattern: /^\/nutricao\/adaptacao/, labelKey: "nav.adaptation" },
   { pattern: /^\/trato\/leitura/, labelKey: "nav.reading" },
   { pattern: /^\/trato/, labelKey: "nav.feed" },
   { pattern: /^\/sanidade\/protocolos/, labelKey: "nav.protocols" },

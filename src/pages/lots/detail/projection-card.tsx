@@ -56,7 +56,7 @@ export const ProjectionCard = ({
                 "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                 scenario === option.value
                   ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
+                  : "text-muted-foreground hover:text-[hsl(var(--muted-surface-foreground))]",
               )}
             >
               {t(option.labelKey)}

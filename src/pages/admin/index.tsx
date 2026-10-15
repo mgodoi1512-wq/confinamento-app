@@ -1,3 +1,4 @@
+import { FeedbackAdmin } from "@/components/app/feedback-admin";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,6 +34,7 @@ export default function Administration() {
         </div> : <p className="text-sm">Conta administrativa</p>}
       </article>)}</div>
       {!query.isLoading && query.data?.filter(row => filter === "all" || row.status === filter).length === 0 ? <p>Nenhum cadastro nesta situação.</p> : null}
+      <FeedbackAdmin />
     </div>
   </main>;
 }

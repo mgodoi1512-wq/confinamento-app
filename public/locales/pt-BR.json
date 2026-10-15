@@ -464,5 +464,6 @@
   "weighings.record.recalculate": "A média e o peso atual do animal serão recalculados. A quantidade de animais pesados permanece igual.",
   "feed.reading.applied": "Ajuste aplicado: {{count}} registro(s) de trato criado(s).",
   "feed.reading.alreadyApplied": "Ajuste já aplicado; nenhum novo trato foi criado.",
-  "feed.reading.nothingToApply": "Não há ajustes pendentes para aplicar hoje."
+  "feed.reading.nothingToApply": "Não há ajustes pendentes para aplicar hoje.",
+  "nav.adaptation": "Adaptação"
 }
