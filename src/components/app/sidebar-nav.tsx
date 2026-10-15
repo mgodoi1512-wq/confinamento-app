@@ -40,10 +40,8 @@ export const SidebarNav = ({ onNavigate, className }: SidebarNavProps) => {
           <p className="truncate font-display text-sm font-semibold tracking-tight">
             {t("common.appName")}
           </p>
-          <p className="truncate text-xs text-sidebar-foreground/60">
-            {farm === undefined
-  ? "Carregando..."
-  : farm?.name ?? t("common.appSubtitle")}
+          <p className="min-h-4 truncate text-xs text-sidebar-foreground/60">
+            {farm === undefined ? " " : farm?.name ?? t("common.appSubtitle")}
           </p>
         </div>
       </div>

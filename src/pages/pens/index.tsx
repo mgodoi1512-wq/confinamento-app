@@ -46,7 +46,7 @@ const Pens = () => {
 
   const occupancy = useMemo(() => computePenOccupancy(pens, lots), [pens, lots]);
 
-  if (pensQuery.isLoading) return <PageLoading rows={4} />;
+  if ([pensQuery, lotsQuery, dietsQuery, troughQuery, feedQuery].some(query => query.isLoading)) return <PageLoading rows={4} />;
 
   return (
     <div className="space-y-5">

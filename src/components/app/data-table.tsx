@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { PageLoading } from "@/components/app/page-loading";
 import { cn } from "@/lib/utils";
 
 export type Column<T> = {
@@ -36,13 +37,7 @@ export const DataTable = <T,>({
   const { t } = useTranslation();
 
   if (loading) {
-    return (
-      <div className={cn("space-y-2", className)}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <div key={index} className="h-10 animate-pulse rounded-md bg-muted" />
-        ))}
-      </div>
-    );
+    return <div className={className}><PageLoading /></div>;
   }
 
   if (rows.length === 0) return <>{emptyState}</>;

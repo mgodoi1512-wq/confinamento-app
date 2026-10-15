@@ -53,9 +53,7 @@ export const Topbar = ({
           <p className="truncate font-display text-base font-semibold tracking-tight">
             {t(titleKey)}
           </p>
-          {farmName ? (
-            <p className="hidden truncate text-xs text-muted-foreground sm:block">{farmName}</p>
-          ) : null}
+          <p className="hidden min-h-4 truncate text-xs text-muted-foreground sm:block">{farmName || " "}</p>
         </div>
       </div>
 
