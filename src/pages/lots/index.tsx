@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Beef, Plus } from "lucide-react";
 
+import { ExportButtons } from "@/components/app/export-buttons";
+import { lotReport } from "@/lib/export-data";
 import { DataTable, type Column } from "@/components/app/data-table";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -148,12 +150,18 @@ const Lots = () => {
         titleKey="lots.title"
         subtitleKey="lots.subtitle"
         actions={
+          <>
+          <ExportButtons
+            disabled={[lotsQuery, pensQuery, weighingsQuery].some(query => query.isFetching || query.isPending || query.isError) || !rows.length}
+            getReport={() => lotReport(rows.map(row => row.lot), pens, weighings, key => t(key), `Status: ${statusFilter === SELECT_ALL ? "Todos" : t(`status.lot.${statusFilter}`)}`, today)}
+          />
           <Button asChild className="h-10">
             <Link to="/lotes/novo">
               <Plus />
               {t("lots.new")}
             </Link>
           </Button>
+          </>
         }
       />
 

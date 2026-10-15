@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, Beef, CheckCircle2, Scale, TrendingUp, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 
+import { ExportButtons } from "@/components/app/export-buttons";
+import { animalReport } from "@/lib/export-data";
 import { DataTable, type Column } from "@/components/app/data-table";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -19,7 +21,7 @@ import { useFeedLogs } from "@/hooks/use-feed";
 import { useHealthEvents } from "@/hooks/use-health";
 import { useLots, useUpdateLot } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
-import { useWeighings } from "@/hooks/use-weighings";
+import { useWeighings, useWeightRecords } from "@/hooks/use-weighings";
 import type { WeightScenario } from "@/lib/constants";
 import {
   animalStatusTone,
@@ -50,6 +52,7 @@ const LotDetail = () => {
   const pensQuery = usePens();
   const animalsQuery = useAnimals();
   const weighingsQuery = useWeighings();
+  const recordsQuery = useWeightRecords();
   const feedQuery = useFeedLogs();
   const healthQuery = useHealthEvents();
   const updateLot = useUpdateLot();
@@ -334,7 +337,13 @@ const pen = lot
           <TabsTrigger value="feed">{t("lots.detail.feed")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="animals" className="pt-4">
+        <TabsContent value="animals" className="space-y-4 pt-4">
+          <div className="flex flex-wrap justify-end gap-2">
+            <ExportButtons
+              disabled={[animalsQuery, lotsQuery, pensQuery, weighingsQuery, recordsQuery].some(query => query.isFetching || query.isPending || query.isError) || !animals.length}
+              getReport={() => animalReport(animals, lotsQuery.data ?? [], pensQuery.data ?? [], weighingsQuery.data ?? [], recordsQuery.data ?? [], key => t(key), `Lote: ${lot.code} | Todos os animais vinculados`, today)}
+            />
+          </div>
           <DataTable
             rows={animals}
             columns={animalColumns}

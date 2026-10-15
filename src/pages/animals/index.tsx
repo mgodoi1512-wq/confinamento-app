@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ClipboardList, Plus, Search } from "lucide-react";
 
+import { ExportButtons } from "@/components/app/export-buttons";
+import { animalReport } from "@/lib/export-data";
+import { useWeighings, useWeightRecords } from "@/hooks/use-weighings";
 import { DataTable, type Column } from "@/components/app/data-table";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -48,6 +51,8 @@ const Animals = () => {
   const animalsQuery = useAnimals();
   const pensQuery = usePens();
   const lotsQuery = useLots();
+  const weighingsQuery = useWeighings();
+  const recordsQuery = useWeightRecords();
 
   const [movementFilter, setMovementFilter] = useState(SELECT_ALL);
   const [search, setSearch] = useState("");
@@ -159,6 +164,17 @@ const Animals = () => {
         titleKey="animals.title"
         subtitleKey="animals.subtitle"
         actions={
+          <>
+          <ExportButtons
+            disabled={[animalsQuery, lotsQuery, pensQuery, weighingsQuery, recordsQuery].some(query => query.isFetching || query.isPending || query.isError) || !rows.length}
+            getReport={() => animalReport(rows, lots, pens, weighingsQuery.data ?? [], recordsQuery.data ?? [], key => t(key), [
+              `Movimentação: ${t(MOVEMENT_FILTER_OPTIONS.find(option => option.value === movementFilter)?.labelKey ?? "common.all")}`,
+              `Busca: ${search.trim() || "Todas"}`,
+              `Curral: ${pens.find(pen => pen.id === penFilter)?.code ?? "Todos"}`,
+              `Lote: ${lots.find(lot => lot.id === lotFilter)?.code ?? "Todos"}`,
+              `Sanitário: ${healthFilter === SELECT_ALL ? "Todos" : t(`status.health.${healthFilter}`)}`,
+            ].join(" | "), today)}
+          />
           <AnimalFormDialog
             trigger={
               <Button className="h-10">
@@ -167,6 +183,7 @@ const Animals = () => {
               </Button>
             }
           />
+          </>
         }
       />
 
