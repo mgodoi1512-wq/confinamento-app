@@ -17,7 +17,6 @@ backups/
 # Não são necessários para compilar o frontend.
 tests/
 docs/
-supabase/
 .enter/
 
 ATUALIZAR_SUPABASE.sql
