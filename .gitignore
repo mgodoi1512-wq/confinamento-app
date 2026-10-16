@@ -29,3 +29,11 @@ code_template.zip
 .env
 .env.*
 !.env.example
+
+# Artefatos locais e backups
+.vercel/
+coverage/
+backups/
+.cache/
+*.tsbuildinfo
+*backup*.zip

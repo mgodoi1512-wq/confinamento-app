@@ -44,8 +44,25 @@ export async function exportExcel(report: ExportReport) {
 
 export async function exportPdf(report: ExportReport) {
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-  const doc = new jsPDF({ orientation: "landscape", format: "a3" });
+  const doc = new jsPDF({ orientation: "landscape", format: report.pdf?.format ?? "a3", compress: !!report.pdf?.embeddedFont });
   const width = doc.internal.pageSize.getWidth();
+  let reportFont="helvetica";
+  if(report.pdf?.embeddedFont){
+    const toBase64=(bytes:Uint8Array)=>{
+      let text="";for(let i=0;i<bytes.length;i+=8192)text+=String.fromCharCode(...bytes.subarray(i,i+8192));
+      return btoa(text);
+    };
+    const fonts=await Promise.all(["regular","bold"].map(async style=>{
+      const response=await fetch(`${import.meta.env?.BASE_URL??"/"}fonts/liben-report-${style}.ttf`);
+      if(!response.ok)throw new Error("Não foi possível carregar a fonte do relatório.");
+      return {style,bytes:new Uint8Array(await response.arrayBuffer())};
+    }));
+    for(const font of fonts){
+      const name=`liben-report-${font.style}.ttf`;
+      doc.addFileToVFS(name,toBase64(font.bytes));doc.addFont(name,"liben",font.style==="regular"?"normal":"bold");
+    }
+    reportFont="liben";
+  }
   const logoResponse = await fetch(`${import.meta.env?.BASE_URL ?? "/"}logo-liben-2.png`);
   if (!logoResponse.ok) throw new Error("Não foi possível carregar a logo do relatório.");
   const logo = new Uint8Array(await logoResponse.arrayBuffer());
@@ -55,12 +72,12 @@ export async function exportPdf(report: ExportReport) {
   const logoWidth = image.width * scale;
   const logoHeight = image.height * scale;
   doc.addImage(logo, "PNG", 12 + (logoSize - logoWidth) / 2, 10 + (logoSize - logoHeight) / 2, logoWidth, logoHeight);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(reportFont, "bold");
   doc.setFontSize(17);
   doc.text(report.title, 44, 21);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(reportFont, "normal");
   doc.setFontSize(9);
-  doc.text(`Emitido em ${new Date().toLocaleString("pt-BR")} | ${report.rows.length} registros`, 44, 29);
+  doc.text(`Emitido em ${new Date().toLocaleString("pt-BR")} | ${report.recordCount??report.rows.length} registros`, 44, 29);
   const filterLines = doc.splitTextToSize(`Filtros: ${report.filters}`, width - 24);
   doc.text(filterLines, 12, 43);
   const noteLines = doc.splitTextToSize(report.note, width - 24);
@@ -71,11 +88,14 @@ export async function exportPdf(report: ExportReport) {
     head: [report.columns.map(column => column.title)],
     body: report.rows.map(row => row.map((value, index) => typeof value === "number" ? formatNumber(value, report.columns[index].decimals ?? 1) : value ?? "—")),
     margin: { top: 12, right: 12, bottom: 16, left: 12 },
-    styles: { font: "helvetica", fontSize: 8, cellPadding: 2, overflow: "linebreak" },
+    styles: { font: reportFont, fontSize: report.pdf?.fontSize ?? 8, cellPadding: 2, overflow: "linebreak" },
     headStyles: { fillColor: [101, 59, 39] },
     alternateRowStyles: { fillColor: [247, 242, 237] },
     rowPageBreak: "avoid",
-    columnStyles: Object.fromEntries(report.columns.flatMap((column, index) => column.decimals === undefined ? [] : [[index, { halign: "right" }]])),
+    columnStyles: Object.fromEntries(report.columns.map((column,index)=>[index, {
+      ...(column.decimals===undefined?{}:{halign:"right" as const}),
+      ...(report.pdf?.columnWidths?.[index] ? {cellWidth:report.pdf.columnWidths[index]} : {}),
+    }])) ,
   });
   const pages = doc.getNumberOfPages();
   for (let page = 1; page <= pages; page++) {

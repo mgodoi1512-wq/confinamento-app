@@ -14,6 +14,7 @@ export const usePens = () =>
   useQuery({
     queryKey: pensQueryKey,
     queryFn: () => fetchAll<Pen>(() => supabase.from("pens").select("*").order("code").order("id")),
+    select: (rows) => [...rows].sort((a, b) => a.code.localeCompare(b.code, "pt-BR", { numeric: true, sensitivity: "base" }) || a.id.localeCompare(b.id)),
   });
 
 export const useSavePen = () => {

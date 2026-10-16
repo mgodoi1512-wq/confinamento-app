@@ -1,9 +1,11 @@
-import { defineConfig, PluginOption } from "vite";
+import { defineConfig, loadEnv, PluginOption } from "vite";
 import { enterDevPlugin, enterProdPlugin } from 'vite-plugin-enter-dev';
 import path from "path";
+import { readSupabaseConfig } from "./src/lib/supabase-config";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  readSupabaseConfig({ ...loadEnv(mode, process.cwd(), "VITE_"), ...process.env });
   const plugins = [
     ...enterProdPlugin(),
   ];

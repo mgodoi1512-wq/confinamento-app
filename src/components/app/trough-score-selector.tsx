@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import { TroughScoreTooltip } from "@/components/app/trough-score-info";
 import { toneClasses } from "@/components/app/tone";
 import { troughScoreTone } from "@/lib/domain";
 import { cn } from "@/lib/utils";
@@ -24,8 +25,8 @@ export const TroughScoreSelector = ({ value, onChange, className }: TroughScoreS
           const tone = troughScoreTone(score);
 
           return (
+            <TroughScoreTooltip key={score} score={score}>
             <button
-              key={score}
               type="button"
               onClick={() => onChange(score)}
               aria-pressed={selected}
@@ -39,6 +40,7 @@ export const TroughScoreSelector = ({ value, onChange, className }: TroughScoreS
               <span className="font-display text-lg font-semibold num">{score}</span>
               <span className="text-[10px] leading-tight">{t(`trough.score.${score}`)}</span>
             </button>
+            </TroughScoreTooltip>
           );
         })}
       </div>

@@ -73,3 +73,18 @@ test('nomes de dietas normalizam caixa e espaços sem remover palavras ou acento
   assert.equal(domain.normalizeDietName('Dieta\tInicial'),'dieta inicial');
   assert.equal(domain.normalizeDietName('Ração 01'),'ração 01');
 });
+
+const config = await import(moduleUrl(fs.readFileSync(new URL('../src/lib/supabase-config.ts', import.meta.url), 'utf8')));
+test('Supabase usa o projeto configurado no ambiente e não um endereço fixo', () => {
+  assert.deepEqual(config.readSupabaseConfig({VITE_SUPABASE_URL:' https://exemplo.supabase.co/ ',VITE_SUPABASE_ANON_KEY:' publica '}),{url:'https://exemplo.supabase.co',key:'publica'});
+  assert.equal(config.readSupabaseConfig({VITE_SUPABASE_URL:'http://localhost:54321',VITE_SUPABASE_PUBLISHABLE_KEY:'nova'}).url,'http://localhost:54321');
+  assert.equal(config.readSupabaseConfig({VITE_SUPABASE_URL:'https://outro.supabase.co',VITE_SUPABASE_ANON_KEY:'antiga',VITE_SUPABASE_PUBLISHABLE_KEY:'nova'}).key,'nova');
+  for(const env of [{},{VITE_SUPABASE_URL:'errada',VITE_SUPABASE_ANON_KEY:'x'},{VITE_SUPABASE_URL:'https://exemplo.supabase.co',VITE_SUPABASE_ANON_KEY:'sb_secret_nao-usar'},{VITE_SUPABASE_URL:'https://exemplo.supabase.co/rest',VITE_SUPABASE_ANON_KEY:'x'}]) assert.throws(()=>config.readSupabaseConfig(env));
+});
+test('resumo do trato distingue oferta média por lançamento do total diário', () => {
+  const result=domain.summarizeFeedLogs([{kg_per_head:3,total_kg:30},{kg_per_head:3,total_kg:30}]);
+  assert.equal(result.totalKg,60);assert.equal(result.averageKgPerHeadPerLog,3);
+  assert.deepEqual(domain.summarizeFeedLogs([]),{totalKg:0,averageKgPerHeadPerLog:null});
+  const mixed=domain.summarizeFeedLogs([{kg_per_head:4,total_kg:40},{kg_per_head:5,total_kg:25}]);
+  assert.equal(mixed.totalKg,65);assert.equal(mixed.averageKgPerHeadPerLog,4.5);
+});

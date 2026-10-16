@@ -14,6 +14,7 @@ export const useAnimals = () =>
   useQuery({
     queryKey: animalsQueryKey,
     queryFn: () => fetchAll<Animal>(() => supabase.from("animals").select("*").order("ear_tag").order("id")),
+    select: (rows) => [...rows].sort((a, b) => a.ear_tag.localeCompare(b.ear_tag, "pt-BR", { numeric: true, sensitivity: "base" }) || a.id.localeCompare(b.id)),
   });
 
 export const useSaveAnimal = () => {

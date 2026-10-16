@@ -407,3 +407,55 @@ export const dietTotalKg = (items: DietQuantity[], liveWeightKg?: number | null)
 /** Mesmo nome com caixa ou espaços diferentes continua sendo o mesmo cadastro. */
 export const normalizeDietName = (name: string): string =>
   name.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+
+/** Oferta registrada, não consumo medido: média simples por lançamento do período. */
+export const summarizeFeedLogs = (logs: Pick<FeedLog, "kg_per_head" | "total_kg">[]) => ({
+  totalKg: logs.reduce((sum, log) => sum + log.total_kg, 0),
+  averageKgPerHeadPerLog: logs.length ? logs.reduce((sum, log) => sum + log.kg_per_head, 0) / logs.length : null,
+});
+
+/** Oferta registrada hoje versus referência diária da mistura; não mede ingestão. */
+export const computePenDailyFeeding = (
+  penId: string, lots: Lot[], logs: FeedLog[], diets: Diet[], items: DietItem[],
+  weighings: Weighing[], today = todayIso(),
+  plans: { lot_id: string; pen_id: string; date: string; daily_total_kg: number; meal_count?: number | null; schedule: {shift:string;percent:number}[] }[] = [],
+) => {
+  const currentLots = lots.filter(lot => lot.pen_id === penId && lot.status === "ativo" && lot.head_count > 0);
+  const todayLogs = logs.filter(log => log.pen_id === penId && log.date === today && log.total_kg > 0);
+  const shifts = (["manha", "tarde", "noite"] as const).map(shift => {
+    const plannedLots = currentLots.filter(lot => {
+      const plan=plans.find(p=>p.lot_id===lot.id&&p.pen_id===penId&&p.date===today);
+      if(plan?.meal_count){
+        const supplied=todayLogs.filter(log=>log.lot_id===lot.id&&log.total_kg>0);
+        return supplied.some(log=>log.shift===shift)||new Set(supplied.map(log=>log.shift)).size<plan.meal_count;
+      }
+      return !plan || plan.schedule.some(slot=>slot.shift===shift&&slot.percent>0);
+    });
+    const served = plannedLots.filter(lot => todayLogs.some(log => log.lot_id === lot.id && log.shift === shift)).length;
+    return { shift, served, total: plannedLots.length, complete: plannedLots.length > 0 && served === plannedLots.length };
+  });
+  const suppliedKg = todayLogs.reduce((sum, log) => sum + log.total_kg, 0);
+  let recommendedKg = 0;
+  let reason: string | null = currentLots.length ? null : "Curral sem lote ativo.";
+  for (const lot of currentLots) {
+    const plan=plans.find(p=>p.lot_id===lot.id&&p.date===today);
+    if(plan){
+      if(plan.pen_id!==penId){reason="Lote mudou de curral após o planejamento.";break;}
+      recommendedKg+=plan.daily_total_kg;continue;
+    }
+    const lotLogs = todayLogs.filter(log => log.lot_id === lot.id);
+    const dietIds = new Set(lotLogs.map(log => log.diet_id));
+    if (dietIds.size > 1 || (lotLogs.length && dietIds.has(null))) {
+      reason = "Tratos com dietas diferentes ou sem dieta: referência diária indisponível."; break;
+    }
+    const dietId = lotLogs.length ? lotLogs[0].diet_id : lot.diet_id;
+    const diet = diets.find(diet => diet.id === dietId);
+    const ingredients = items.filter(item => item.diet_id === dietId);
+    if (!diet || !ingredients.length) { reason = "Há lote sem dieta ou ingredientes para calcular a recomendação."; break; }
+    const kg = dietTotalKg(ingredients, computeLotMetrics(lot, weighings, today).currentAvgWeight);
+    if (kg === null || kg <= 0) { reason = "Confira os ingredientes e o peso médio dos lotes."; break; }
+    recommendedKg += kg * lot.head_count;
+  }
+  return { shifts, activeLots: currentLots.length, suppliedKg, recommendedKg: reason ? null : recommendedKg,
+    percent: !reason && recommendedKg > 0 ? suppliedKg / recommendedKg * 100 : null, reason };
+};

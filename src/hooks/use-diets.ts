@@ -14,7 +14,15 @@ export const dietItemsQueryKey = ["diet-items"] as const;
 export const useDiets = () =>
   useQuery({
     queryKey: dietsQueryKey,
-    queryFn: () => fetchAll<Diet>(() => supabase.from("diets").select("*").order("name").order("id")),
+    queryFn: async () => {
+      const diets = await fetchAll<Diet>(() =>
+        supabase.from("diets").select("*").order("name").order("id"),
+      );
+      return diets.sort((a, b) =>
+        a.name.localeCompare(b.name, "pt-BR", { numeric: true, sensitivity: "base" })
+        || a.id.localeCompare(b.id),
+      );
+    },
   });
 
 export const useDietItems = () =>

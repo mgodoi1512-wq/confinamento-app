@@ -1,0 +1,24 @@
+# Upload de fontes pela Vercel CLI; não usar para --prebuilt.
+node_modules/
+dist/
+dist-ssr/
+.git/
+.vercel/
+coverage/
+reports/
+backups/
+.cache/
+**/*.log
+**/*.tsbuildinfo
+**/*.zip
+.env
+.env.*
+!.env.example
+# Não são necessários para compilar o frontend.
+tests/
+docs/
+supabase/
+.enter/
+
+ATUALIZAR_SUPABASE.sql
+LEIA-ME-ATUALIZACAO.txt

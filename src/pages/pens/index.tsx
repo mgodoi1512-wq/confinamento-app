@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { OccupancyBar } from "@/components/app/occupancy-bar";
 import { PageHeader } from "@/components/app/page-header";
 import { PageLoading } from "@/components/app/page-loading";
+import { TroughScoreBadge } from "@/components/app/trough-score-info";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,7 +24,7 @@ import { useFeedLogs } from "@/hooks/use-feed";
 import { useLots } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
 import { useTroughReadings } from "@/hooks/use-trough";
-import { computePenOccupancy, penStatusTone, troughScoreTone, type PenOccupancy } from "@/lib/domain";
+import { computePenOccupancy, penStatusTone, type PenOccupancy } from "@/lib/domain";
 import { formatDate, formatInteger, formatNumber } from "@/lib/format";
 
 const Pens = () => {
@@ -125,11 +126,8 @@ const Pens = () => {
 
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     {lastReading ? (
-                      <StatusBadge
-                        tone={troughScoreTone(lastReading.score)}
-                        label={`${t("feed.reading.score")} ${lastReading.score} · ${formatDate(lastReading.date)}`}
-                        size="sm"
-                      />
+                      <TroughScoreBadge score={lastReading.score}
+                        label={`${t("feed.reading.score")} ${lastReading.score} · ${formatDate(lastReading.date)}`} />
                     ) : (
                       <span className="text-muted-foreground">{t("pens.noReading")}</span>
                     )}
@@ -176,11 +174,8 @@ const Pens = () => {
                                       className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
                                     >
                                       <span className="num">{formatDate(reading.date)}</span>
-                                      <StatusBadge
-                                        tone={troughScoreTone(reading.score)}
-                                        label={`${reading.score} · ${t(`trough.score.${reading.score}`)}`}
-                                        size="sm"
-                                      />
+                                      <TroughScoreBadge score={reading.score}
+                                        label={`${reading.score} · ${t(`trough.score.${reading.score}`)}`} />
                                       <span className="num text-muted-foreground">
                                         {formatNumber(reading.adjustment_pct, 1)}%
                                       </span>

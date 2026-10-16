@@ -124,7 +124,7 @@ const Lots = () => {
       key: "status",
       headerKey: "field.status",
       render: (row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           <StatusBadge
             tone={row.lot.status === "ativo" ? "success" : "muted"}
             label={t(`status.lot.${row.lot.status}`)}
@@ -184,7 +184,7 @@ const Lots = () => {
 
       <DataTable
         rows={rows}
-        columns={columns}
+        columns={columns.map((column) => ({ ...column, className: `${column.className ?? ""} text-center` }))}
         getRowKey={(row) => row.lot.id}
         onRowClick={(row) => navigate(`/lotes/${row.lot.id}`)}
         loading={lotsQuery.isLoading}
@@ -215,7 +215,7 @@ const Lots = () => {
                 size="sm"
               />
             </div>
-            <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-sm">
+            <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-center text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">{t("field.animalCount")}</p>
                 <p className="num font-medium">{formatInteger(row.lot.head_count)}</p>

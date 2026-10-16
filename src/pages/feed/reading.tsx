@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { NumericField } from "@/components/app/numeric-field";
 import { OccupancyBar } from "@/components/app/occupancy-bar";
 import { PageHeader } from "@/components/app/page-header";
+import { TroughScoreBadge } from "@/components/app/trough-score-info";
 import { StatusBadge } from "@/components/app/status-badge";
 import { TroughScoreSelector } from "@/components/app/trough-score-selector";
 import { TextField } from "@/components/form/text-field";
@@ -25,7 +26,6 @@ import {
   computePenOccupancy,
   computeLotMetrics,
   dietTotalKg,
-  troughScoreTone,
   type PenOccupancy,
 } from "@/lib/domain";
 import { formatDate, formatNumber, parseNumberInput, todayIso } from "@/lib/format";
@@ -228,11 +228,8 @@ const ReadingRound = () => {
                 </div>
                 {reading ? (
                   <div className="flex shrink-0 items-center gap-2">
-                    <StatusBadge
-                      tone={troughScoreTone(reading.score)}
-                      label={`${t("feed.reading.score")} ${reading.score}`}
-                      size="sm"
-                    />
+                    <TroughScoreBadge score={reading.score}
+                      label={`${t("feed.reading.score")} ${reading.score}`} />
                     <Check className="size-4 text-success" />
                   </div>
                 ) : (

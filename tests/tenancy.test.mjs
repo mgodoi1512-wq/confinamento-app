@@ -46,6 +46,10 @@ await db.exec('reset role');
 for (const schema of ['public','app_private']) assert.equal((await db.query("select has_schema_privilege('app_farm_executor',$1,'CREATE') as allowed",[schema])).rows[0].allowed,false,'executor sem CREATE permanente');
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261015060000_beta_feedback.sql',import.meta.url),'utf8'));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261015070000_require_pen_for_new_lot.sql',import.meta.url),'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261015080000_executor_auth_context.sql',import.meta.url),'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261015090000_health_event_local_date.sql',import.meta.url),'utf8'));
+await db.exec('revoke usage on schema auth from app_farm_executor');
+assert.equal((await db.query("select has_schema_privilege('app_farm_executor','auth','USAGE') as allowed")).rows[0].allowed,false);
 for(const [id,email] of [[admin,'admin@test.invalid'],[ownerB,'b@test.invalid'],[staffA,'staff@test.invalid'],[pending,'pending@test.invalid'],[fake,'fake@test.invalid']])await db.query('insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3)',[id,email,JSON.stringify({role:'gestor',isAdmin:true})]);
 await db.query('insert into public.platform_admins(user_id) values($1)',[admin]);await db.query("update public.account_access set status='approved' where user_id=$1",[admin]);
 await as(ownerA);assert.equal((await tenant('context')).farmId,farmA);assert.equal((await db.query('select count(*)::int as n from public.animals')).rows[0].n,1,'legacy preserved');
@@ -163,9 +167,32 @@ await as(ownerB);await assert.rejects(tenant('update_member',{userId:ownerB,enab
 const invites=await tenant('list_invites');await as(fake);await assert.rejects(tenant('accept_invite',{invitationId:invites[0].id}),/Confirme/);assert.equal((await tenant('context')).isAdmin,false,'metadata cannot grant admin');
 await as(admin);await tenant('decide_request',{userId:ownerB,status:'suspended'});await as(ownerB);assert.equal((await tenant('context')).farmId,null);await assert.rejects(rpc('save_pen',{code:'BLOCK',capacity_head:10,status:'vazio'}),/não autorizado/);
 await as(ownerA);assert.equal((await tenant('context')).farmId,farmA,'other customer not suspended');
+// Duas opções do mesmo curral gravam tratos com identidade, peso e dieta do lote correto.
+const sharedPen=await rpc('save_pen',{code:'COMPARTILHADO',capacity_head:30,status:'vazio'});
+const sharedA=await rpc('create_lot',{lot:{...base,code:'COMP-A',head_count:10,entry_avg_weight_kg:400,pen_id:sharedPen},animals:[],applyProtocol:false});
+const sharedB=await rpc('create_lot',{lot:{...base,code:'COMP-B',head_count:5,entry_avg_weight_kg:500,pen_id:sharedPen},animals:[],applyProtocol:false});
+for(const [shared,quantity] of [[sharedA,4],[sharedB,5]]) await rpc('save_feed',{pen_id:sharedPen,lot_id:shared.id,date:today,shift:'tarde',head_count:shared.head_count,kg_per_head:quantity});
+const sharedFeeds=(await db.query('select lot_id,head_count,kg_per_head,total_kg from public.feed_logs where pen_id=$1 order by head_count',[sharedPen])).rows;
+assert.equal(sharedFeeds.length,2);assert.equal(sharedFeeds[0].lot_id,sharedB.id);assert.equal(sharedFeeds[0].head_count,5);assert.equal(Number(sharedFeeds[0].total_kg),25);
+assert.equal(sharedFeeds[1].lot_id,sharedA.id);assert.equal(Number(sharedFeeds[1].total_kg),40);
+await assert.rejects(rpc('save_feed',{pen_id:penA,lot_id:sharedB.id,date:today,shift:'noite',head_count:1,kg_per_head:5}),/Lote não está/);
+// Animal sem lote criado às 22h de São Paulo no dia anterior ao atual (01h UTC).
+const noLot=await rpc('save_animal',{ear_tag:'DATA-LOCAL',lot_id:null,pen_id:sharedPen,status:'ativo',entry_weight_kg:400,current_weight_kg:400});
+await db.exec("reset role; set time zone 'UTC'");
+await db.query("update public.animals set created_at=$2::date+interval '1 hour' where id=$1",[noLot,today]);
+await as(ownerA);
+const previousDay=(await db.query('select ($1::date-1)::text as day',[today])).rows[0].day;
+const event=await rpc('save_health_event',{event:{animal_id:noLot,kind:'vacina',product:'Teste de data local',event_date:previousDay}});
+assert.ok(event.id);
+const beforeCreation=(await db.query('select ($1::date-2)::text as day',[today])).rows[0].day;
+await assert.rejects(rpc('save_health_event',{event:{animal_id:noLot,kind:'vacina',product:'Data anterior',event_date:beforeCreation}}),/Data do evento inválida/);
+await assert.rejects(db.query('select app_private.app_request_user_id()'),/permission denied/);
+
 await as(admin);assert.equal((await db.query('select count(*)::int as n from public.lots')).rows[0].n,0,'platform admin has no implicit herd access');
 await db.exec('reset role');await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261015020000_diet_body_weight_percentage.sql',import.meta.url),'utf8'));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261015030000_active_and_unique_diets.sql',import.meta.url),'utf8'));
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261015040000_adaptation_plans.sql',import.meta.url),'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261015080000_executor_auth_context.sql',import.meta.url),'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261015090000_health_event_local_date.sql',import.meta.url),'utf8'));
 console.log('ADAPTAÇÃO, CONCORRÊNCIA, DIETAS E RLS VALIDADOS. PASSOU:',text?'TEXT':'UUID','legado, RLS nas leituras e funções, códigos repetidos entre clientes, referências cruzadas, aprovação/admin, convites, gestor/operador, revogação e suspensão.');
 await db.close();

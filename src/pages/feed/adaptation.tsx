@@ -27,7 +27,7 @@ const draftFromInput = (input: AdaptationInput): Draft => ({
   startDate: input.startDate, headCount: String(input.headCount), averageWeightKg: String(input.averageWeightKg), feedPriceKg: String(input.feedPriceKg), roughagePriceKg: String(input.roughagePriceKg), totalDays: String(input.totalDays), postFeedPct: String(input.postFeedPct), postRoughagePct: String(input.postRoughagePct),
   phases: input.phases.map(phase => ({ feedPct: String(phase.feedPct), roughagePct: String(phase.roughagePct) })),
 });
-const initialDraft = (): Draft => draftFromInput({ startDate: todayIso(), headCount: 0, averageWeightKg: 0, feedPriceKg: 1.87, roughagePriceKg: 0.8, totalDays: 75, postFeedPct: 2.3, postRoughagePct: 0.8, phases: defaultAdaptationPhases() });
+const initialDraft = (): Draft => draftFromInput({ startDate: todayIso(), headCount: 0, averageWeightKg: 0, feedPriceKg: 1.87, roughagePriceKg: 0.8, totalDays: 90, postFeedPct: 2.5, postRoughagePct: 0.8, phases: defaultAdaptationPhases() });
 const inputFromDraft = (draft: Draft): AdaptationInput => {
   const number = (value: string) => parseNumberInput(value) ?? NaN;
   return validateAdaptation({ ...draft, headCount: number(draft.headCount), averageWeightKg: number(draft.averageWeightKg), feedPriceKg: number(draft.feedPriceKg), roughagePriceKg: number(draft.roughagePriceKg), totalDays: number(draft.totalDays), postFeedPct: number(draft.postFeedPct), postRoughagePct: number(draft.postRoughagePct), phases: draft.phases.map(phase => ({ days: 3, feedPct: number(phase.feedPct), roughagePct: number(phase.roughagePct) })) });
@@ -168,7 +168,7 @@ const Adaptation = () => {
         {!isGestor && <p className="text-xs text-muted-foreground">Você pode consultar e simular. O salvamento é feito por um gestor.</p>}
       </CardContent></Card>
 
-      <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Adaptação: 15 dias</CardTitle><Button variant="outline" size="sm" onClick={()=>setDraft(current=>({...current,phases:defaultAdaptationPhases().map(phase=>({feedPct:String(phase.feedPct),roughagePct:String(phase.roughagePct)})),postFeedPct:"2.3",postRoughagePct:"0.8"}))}>Restaurar percentuais da planilha</Button></div></CardHeader><CardContent className="space-y-4">
+      <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Adaptação: 15 dias</CardTitle><Button variant="outline" size="sm" onClick={()=>setDraft(current=>({...current,phases:defaultAdaptationPhases().map(phase=>({feedPct:String(phase.feedPct),roughagePct:String(phase.roughagePct)})),postFeedPct:"2.5",postRoughagePct:"0.8"}))}>Restaurar percentuais padrão</Button></div></CardHeader><CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{draft.phases.map((phase,index)=><div key={index} className="space-y-3 rounded-lg border border-border p-3">
           <h3 className="text-sm font-semibold">Dias {index*3+1} a {index*3+3}</h3>
           <NumericField compact label="Ração (% PV)" unit="%" value={phase.feedPct} onValueChange={value=>setDraft(current=>({...current,phases:current.phases.map((item,i)=>i===index?{...item,feedPct:value}:item)}))} />

@@ -22,7 +22,7 @@ import {
   SEX_OPTIONS,
   DEFAULT_TARGET_WEIGHT,
 } from "@/lib/constants";
-import { computePenOccupancy } from "@/lib/domain";
+import { computePenOccupancy, dietTotalKg } from "@/lib/domain";
 import { formatNumber, parseNumberInput, todayIso } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +44,7 @@ const NewLot = () => {
   const pens = useMemo(() => pensQuery.data ?? [], [pensQuery.data]);
   const diets = useMemo(() => dietsQuery.data ?? [], [dietsQuery.data]);
   const dietItems = useMemo(() => dietItemsQuery.data ?? [], [dietItemsQuery.data]);
-  const protocols = useMemo(() => protocolsQuery.data ?? [], [protocolsQuery.data]);
+  const protocols = useMemo(() => (protocolsQuery.data ?? []).filter(protocol => protocol.is_active), [protocolsQuery.data]);
 
   const suggestion = useMemo(() => {
     const year = new Date().getFullYear();
@@ -94,9 +94,9 @@ const NewLot = () => {
       ? individualAverage
       : parseNumberInput(entryWeight);
 
-  const selectedDietTotal = dietItems
-    .filter((item) => item.diet_id === dietId)
-    .reduce((sum, item) => sum + item.kg_per_head_day, 0);
+  const selectedDietTotal = dietItemsQuery.isSuccess
+    ? dietTotalKg(dietItems.filter(item => item.diet_id === dietId), effectiveEntryWeight)
+    : null;
 
   const validateStep = (target: number) => {
     const next: Record<string, string> = {};
@@ -106,6 +106,7 @@ const NewLot = () => {
     if (dietsQuery.isLoading || protocolsQuery.isLoading) next.setup = "Aguarde a verificação de dietas e protocolos.";
     if (target >= 2 && !selectedOccupancy) next.pen = "Selecione o curral em que o lote ficará.";
     if (target >= 2 && selectedOccupancy?.pen.status === "manutencao") next.pen = "Escolha um curral que não esteja em manutenção.";
+    if (target >= 2 && protocolId && protocolId!=="all" && !protocols.some(protocol => protocol.id === protocolId)) next.protocol = "O protocolo selecionado está inativo. Escolha um protocolo ativo ou deixe sem protocolo.";
     if (target >= 2 && applyProtocol && !protocols.some(protocol => protocol.id === protocolId)) next.protocol = "Selecione um protocolo para aplicá-lo ao lote.";
 
     if (target >= 0) {
@@ -218,7 +219,7 @@ const NewLot = () => {
         {(dietsQuery.isError || protocolsQuery.isError) && <div role="status" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p>Não foi possível verificar {dietsQuery.isError && protocolsQuery.isError ? "dietas e protocolos" : dietsQuery.isError ? "as dietas" : "os protocolos"}. Você pode continuar e configurar depois.</p><Button variant="outline" onClick={()=>void Promise.all([dietsQuery.refetch(),protocolsQuery.refetch()])}>Verificar novamente</Button></div>}
         {((dietsQuery.isSuccess && activeDiets.length===0) || (protocolsQuery.isSuccess && protocols.length===0)) && <div role="status" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p className="font-semibold">Antes de criar o lote</p>
           {dietsQuery.isSuccess && activeDiets.length===0 && <p>Nenhuma dieta ativa cadastrada. Cadastre uma dieta para planejar o trato do lote. <Link className="underline" to="/config/dietas">Cadastrar dieta</Link></p>}
-          {protocolsQuery.isSuccess && protocols.length===0 && <p>Nenhum protocolo cadastrado. Cadastre um protocolo para organizar o manejo sanitário. <Link className="underline" to="/sanidade/protocolos">Cadastrar protocolo</Link></p>}
+          {protocolsQuery.isSuccess && protocols.length===0 && <p>Nenhum protocolo ativo cadastrado. Cadastre ou ative um protocolo para organizar o manejo sanitário. <Link className="underline" to="/sanidade/protocolos">Cadastrar protocolo</Link></p>}
           <p>Você pode continuar agora e configurar esses itens depois.</p>
         </div>}
       </div>
@@ -449,8 +450,8 @@ const NewLot = () => {
             <>
               <SelectField
                 label={t("field.protocol")}
-                value={protocolId}
-                onChange={setProtocolId}
+                value={protocols.some(protocol=>protocol.id===protocolId) ? protocolId : ""}
+                onChange={value=>{setProtocolId(value);if(value==="all")setApplyProtocol(false);}}
                 allowEmpty
                 emptyLabel={t("common.noData")}
                 options={protocols.map((protocol) => ({
@@ -502,7 +503,7 @@ const NewLot = () => {
 
               {dietId ? (
                 <p className="text-xs text-muted-foreground">
-                  {t("config.diets.totalOffered")}: {formatNumber(selectedDietTotal, 2)} kg/cab/dia
+                  {selectedDietTotal === null ? "Carregue os ingredientes e informe um peso médio válido para calcular a oferta da dieta." : `${t("config.diets.totalOffered")}: ${formatNumber(selectedDietTotal, 2)} kg/cab/dia`}
                 </p>
               ) : null}
 
@@ -510,7 +511,7 @@ const NewLot = () => {
                 <input
                   type="checkbox"
                   checked={applyProtocol}
-                  disabled={protocols.length===0}
+                  disabled={!protocols.some(protocol=>protocol.id===protocolId)}
                   onChange={(event) => setApplyProtocol(event.target.checked)}
                   className="size-4 rounded border-input accent-primary"
                 />

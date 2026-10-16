@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Wallet,
   ClipboardList,
   Cog,
   LayoutDashboard,
@@ -60,6 +61,7 @@ export const navGroups: NavGroup[] = [
   {
     labelKey: "nav.group.management",
     items: [
+      { to: "/gestao/financeiro", labelKey: "nav.finance", icon: Wallet, gestorOnly: true },
       { to: "/config/currais", labelKey: "nav.pens", icon: Package, gestorOnly: true },
       { to: "/config/usuarios", labelKey: "nav.users", icon: Users, gestorOnly: true },
       { to: "/config", labelKey: "nav.settings", icon: Cog, end: true },
@@ -69,6 +71,7 @@ export const navGroups: NavGroup[] = [
 
 /** Título da página exibido na barra superior no mobile. */
 export const routeTitles: { pattern: RegExp; labelKey: string }[] = [
+  { pattern: /^\/gestao\/financeiro/, labelKey: "nav.finance" },
   { pattern: /^\/$/, labelKey: "nav.dashboard" },
   { pattern: /^\/currais/, labelKey: "nav.pens" },
   { pattern: /^\/lotes/, labelKey: "nav.lots" },

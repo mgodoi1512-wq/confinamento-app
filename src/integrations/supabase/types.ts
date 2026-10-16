@@ -40,6 +40,25 @@ export type Database = {
   }
   public: {
     Tables: {
+      farm_feed_settings: {
+        Row: { farm_id: string; schedule: Json; updated_at: string };
+        Insert: { farm_id: string; schedule: Json; updated_at?: string };
+        Update: { schedule?: Json; updated_at?: string };
+        Relationships: [];
+      };
+      daily_feed_plans: {
+        Row: { meal_count: number | null; id: string; farm_id: string; lot_id: string; pen_id: string; date: string; diet_id: string; diet_name: string; head_count: number; average_weight_kg: number; ingredients: Json; schedule: Json; daily_kg_per_head: number; daily_total_kg: number; created_at: string };
+        Insert: { farm_id: string; lot_id: string; pen_id: string; date: string; diet_id: string; diet_name: string; head_count: number; average_weight_kg: number; ingredients: Json; schedule: Json; daily_kg_per_head: number; daily_total_kg: number; id?: string; created_at?: string };
+        Update: { schedule?: Json };
+        Relationships: [];
+      };
+      farm_cost_sheets: {
+        Row: { farm_id: string; parameters: Json; created_at: string; updated_at: string };
+        Insert: { farm_id?: string; parameters: Json; created_at?: string; updated_at?: string };
+        Update: { parameters?: Json; updated_at?: string };
+        Relationships: [];
+      };
+
       beta_feedback: {
         Row: { id: string; user_id: string; farm_id: string; author: string; kind: string; description: string; page: string; screenshot: string | null; has_screenshot: boolean; status: string; notes: string; created_at: string; updated_at: string };
         Insert: { id: string; user_id: string; farm_id: string; author: string; kind: string; description: string; page: string; screenshot?: string | null; status?: string; notes?: string };
@@ -235,6 +254,11 @@ export type Database = {
       }
       feed_logs: {
         Row: {
+          day_plan_id?: string | null
+          planned_time?: string | null
+          ingredient_quantities?: Json | null
+          planned_request_id?: string | null
+          planned_request_payload?: Json | null
           created_at: string
           date: string
           diet_id: string | null
@@ -804,6 +828,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      app_save_feed_schedule: { Args: { p_schedule: Json; p_expected_updated_at?: string | null }; Returns: Json };
+      app_record_planned_feed: { Args: { p_payload: Json; p_request_id: string }; Returns: Json };
+      app_save_cost_sheet: { Args: { p_parameters: Json; p_expected_updated_at?: string | null }; Returns: Json };
       app_submit_feedback: { Args: { p_id: string; p_kind: string; p_description: string; p_page: string; p_screenshot?: string | null }; Returns: string };
       app_review_feedback: { Args: { p_id: string; p_status: string; p_notes: string; p_expected_updated_at: string }; Returns: Json };
       app_delete_adaptation: { Args: { p_id: string; p_expected_updated_at: string }; Returns: Json };

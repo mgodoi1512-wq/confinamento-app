@@ -137,7 +137,7 @@ const Animals = () => {
   headerKey: "field.status",
   className: "w-[240px] min-w-[240px] max-w-[240px]",
   render: (row) => (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
           <StatusBadge
             tone={animalStatusTone(row.status)}
             label={t(`status.animal.${row.status}`)}
@@ -236,7 +236,7 @@ const Animals = () => {
 
       <DataTable
         rows={rows}
-        columns={columns}
+        columns={columns.map((column) => ({ ...column, className: `${column.className ?? ""} text-center` }))}
         getRowKey={(row) => row.id}
         onRowClick={(row) => setSelected(row)}
         loading={animalsQuery.isLoading}
@@ -300,7 +300,7 @@ const Animals = () => {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-sm">
+            <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-center text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">{t("field.currentWeight")}</p>
                 <p className="num font-medium">

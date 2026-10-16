@@ -47,6 +47,7 @@ export const StatCard = ({
         "rounded-lg border border-border bg-card p-4 shadow-xs transition-shadow duration-150 hover:shadow-md md:p-6",
         variant === "brand" && "border-transparent bg-brand text-primary-foreground",
         variant === "agro" && "border-transparent bg-agro text-agro-foreground",
+        isHighlighted && "dark:text-[#E8F5EC]",
         className,
       )}
     >
