@@ -52,7 +52,7 @@ export default function MyPlan({ forceProduction = false }: { forceProduction?: 
       void refreshProfile();
     }
     if (!overview?.access?.allowed) refreshedAccess.current = false;
-  }, [real, overview?.access?.allowed, tenant?.billingRequired, tenant?.status, user?.email_confirmed_at, refreshProfile]);
+    }, [real, overview?.access?.allowed, overview?.access?.reason, tenant?.billingRequired, tenant?.status, user?.email_confirmed_at, refreshProfile]);
   const canCreate = real ? overview?.canCreate === true : overview?.canTest === true;
   const subscription = overview?.subscription;
   const active = !!subscription && subscription.status !== "CANCELLED";
