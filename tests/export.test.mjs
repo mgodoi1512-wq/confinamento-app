@@ -90,3 +90,57 @@ test('PDF real pagina tabelas extensas e repete o cabeçalho', async () => {
     }
   } finally { jsPDF.API.save=save; globalThis.fetch=originalFetch; }
 });
+
+const { computeFeedingSuggestions, feedingSuggestionReport, gradeForDay, splitDailyFeedKg }=await import(moduleUrl(read('../src/lib/feed-suggestion.ts').replace('from "./domain"',`from "${domainUrl}"`).replace('from "./format"',`from "${formatUrl}"`)));
+test('sugestão aplica todos os limites da grade e não sobrepõe dia 15',()=>{
+ for(const [day,feed,rough] of [[1,.3,3],[3,.3,3],[4,.8,2.5],[6,.8,2.5],[7,1.3,2],[9,1.3,2],[10,1.8,1.5],[12,1.8,1.5],[13,2.3,1],[15,2.3,1],[16,2.5,.8],[90,2.5,.8]]){
+  const grade=gradeForDay(day);assert.equal(grade.feedPct,feed);assert.equal(grade.roughagePct,rough);
+ }
+ assert.equal(gradeForDay(0),null);assert.equal(gradeForDay(1.5),null);
+});
+test('sugestão usa dia inclusivo e peso médio; divide o lote em três refeições',()=>{
+ const source={...lot,head_count:10,entry_date:'2026-10-01',entry_avg_weight_kg:400};
+ let row=computeFeedingSuggestions([source],[],[],'2026-10-01')[0];
+ assert.equal(row.day,1);assert.equal(row.feedDaily,12);assert.equal(row.roughageDaily,120);
+ assert.deepEqual(row.meals.map(m=>[m.feedKg,m.roughageKg]),[[4,40],[4,40],[4,40]]);
+ row=computeFeedingSuggestions([source],[],[{...weighing,date:'2026-10-01',avg_weight_kg:450},{...weighing,id:'future',date:'2026-10-20',avg_weight_kg:999}],'2026-10-01')[0];
+ assert.equal(row.weight,450);assert.equal(row.feedDaily,13.5);
+ assert.equal(computeFeedingSuggestions([source],[],[],'2026-10-16')[0].feedDaily,100);
+});
+test('arredondamento das refeições conserva os centavos do total diário',()=>{
+ for(const value of [0,.01,.02,.03,.04,31.372,98.0375,120.01,999.99]){
+  const parts=splitDailyFeedKg(value);assert.ok(parts.every(n=>n>=0));assert.equal(Math.round(parts.reduce((a,b)=>a+b,0)*100),Math.round(value*100));
+ }
+ assert.throws(()=>splitDailyFeedKg(NaN));
+});
+test('todos os lotes ativos são listados; pendências não ganham quantidades inventadas',()=>{
+ const rows=computeFeedingSuggestions([
+  {...lot,id:'b',code:'Lote 10',pen_id:'p10'},
+  {...lot,id:'a',code:'Lote 2',pen_id:'p2'},
+  {...lot,id:'invalid',code:'Sem peso',entry_avg_weight_kg:0},
+  {...lot,id:'future',entry_date:'2026-11-01'},
+  {...lot,id:'closed',status:'encerrado'},
+ ],[{id:'p10',code:'Curral 10'},{id:'p2',code:'Curral 2'}],[],'2026-10-16');
+ assert.equal(rows.length,4);assert.equal(rows[0].penCode,'Curral 2');
+ assert.ok(rows.find(r=>r.lotId==='invalid').issue);assert.equal(rows.find(r=>r.lotId==='invalid').feedDaily,null);
+ assert.equal(rows.find(r=>r.lotId==='future').day,null);
+ const report=feedingSuggestionReport(rows,'Fazenda teste','2026-10-16');
+ assert.equal(report.rows.length,5);assert.equal(report.pdf.format,'a4');assert.match(report.note,/apenas cálculos válidos/);
+ assert.equal(feedingSuggestionReport([],'Teste','2026-10-16').rows.length,0);
+});
+test('PDF real da sugestão usa A4, logo e valores por refeição',async()=>{
+ const fixtures=Array.from({length:10},(_,i)=>({...lot,id:`s${i}`,code:`Lote ${String(i+1).padStart(2,'0')}`,pen_id:`p${i}`,entry_avg_weight_kg:400+i*5,head_count:10,entry_date:formatAddDays('2026-09-16',i*3)}));
+ const samplePens=fixtures.map((l,i)=>({id:l.pen_id,code:`Curral ${String(i+1).padStart(2,'0')}`}));
+ const report=feedingSuggestionReport(computeFeedingSuggestions(fixtures,samplePens,[],'2026-10-16'),'Fazenda Exemplo - dados demonstrativos','2026-10-16');
+ const originalSave=jsPDF.API.save,originalFetch=globalThis.fetch;let pdf;
+ globalThis.fetch=async url=>new Response(fs.readFileSync(new URL(String(url).endsWith('.ttf')?'../public'+String(url):'../public/logo-liben-2.png',import.meta.url)),{status:200});
+ jsPDF.API.save=function(){pdf=this;return this;};
+ try{
+  await exportPdf(report);
+  assert.ok(Math.abs(pdf.internal.pageSize.getWidth()-297)<.1);
+  assert.ok(pdf.output().includes('/Subtype /Image'));assert.ok(pdf.output().includes('/FontFile2'));
+  assert.equal(report.rows.at(-1)[0],'TOTAL');
+  if(process.env.FEED_SUGGESTION_QA_DIR){fs.mkdirSync(process.env.FEED_SUGGESTION_QA_DIR,{recursive:true});fs.writeFileSync(`${process.env.FEED_SUGGESTION_QA_DIR}/sugestao-fornecimento-exemplo.pdf`,Buffer.from(pdf.output('arraybuffer')));}
+ }finally{jsPDF.API.save=originalSave;globalThis.fetch=originalFetch;}
+});
+function formatAddDays(date,days){const d=new Date(date+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}

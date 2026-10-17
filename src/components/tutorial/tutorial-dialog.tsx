@@ -1,0 +1,67 @@
+import { useEffect, useRef, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { ArrowLeft, ArrowRight, BookOpenText, ExternalLink, Info, List, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { chapterForPath, tutorialChapters, tutorialPage } from "@/lib/tutorial";
+import { LotTutorialDemo } from "./lot-tutorial-demo";
+
+export default function TutorialDialog({ currentPath, onClose }: { currentPath: string; onClose: () => void }) {
+  const [page, setPage] = useState(() => chapterForPath(currentPath));
+  const [showIndex, setShowIndex] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const { isGestor } = useAuth();
+  const navigate = useNavigate();
+  const chapter = tutorialChapters[page];
+  const selectPage = (index: number) => { setPage(tutorialPage(index)); setShowIndex(false); };
+
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+    headingRef.current?.focus({ preventScroll: true });
+  }, [page]);
+
+  return <Dialog.Root open onOpenChange={open => { if (!open) onClose(); }}>
+    <Dialog.Portal>
+      <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/30" />
+      <Dialog.Content className="fixed left-1/2 top-1/2 z-[70] flex h-[92dvh] max-h-[820px] w-[calc(100%_-_1rem)] max-w-[1100px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-2xl outline-none sm:h-[84dvh] sm:w-[90vw] sm:rounded-2xl" onOpenAutoFocus={event => { event.preventDefault(); headingRef.current?.focus(); }} onKeyDown={event => {
+        const target = event.target as HTMLElement;
+        if (target.closest("input,select,textarea,button,a,[contenteditable=true]")) return;
+        if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+          event.preventDefault();
+          selectPage(page + (event.key === "ArrowRight" ? 1 : -1));
+        }
+      }}>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3"><BookOpenText className="hidden size-6 shrink-0 text-primary sm:block" /><div><Dialog.Title className="font-display text-base font-semibold sm:text-lg">Tutorial da plataforma</Dialog.Title><Dialog.Description className="text-xs text-muted-foreground">Aprenda a usar as ferramentas da LiBen.</Dialog.Description></div></div>
+          <div className="flex items-center gap-1"><Button variant="ghost" className="h-11 px-3 md:hidden" aria-expanded={showIndex} aria-controls="tutorial-index" onClick={() => setShowIndex(value => !value)}><List className="size-4" /><span className="hidden min-[380px]:inline">Índice</span></Button><Dialog.Close asChild><Button variant="ghost" size="icon" className="size-11" aria-label="Fechar tutorial"><X /></Button></Dialog.Close></div>
+        </header>
+        <div className="relative flex min-h-0 flex-1">
+          <nav id="tutorial-index" aria-label="Capítulos do tutorial" className={`${showIndex ? "absolute inset-0 z-10 block" : "hidden"} overflow-y-auto border-r border-border bg-background p-3 md:static md:block md:w-64 md:shrink-0`}>
+            <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Índice · {tutorialChapters.length} capítulos</p>
+            {tutorialChapters.map((entry, index) => <button key={entry.id} type="button" onClick={() => selectPage(index)} aria-current={index === page ? "step" : undefined} className={`mb-1 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-primary ${index === page ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}><span className="w-5 shrink-0 text-xs tabular-nums">{String(index + 1).padStart(2, "0")}</span><span>{entry.title}</span></button>)}
+          </nav>
+          <div ref={contentRef} className={`${showIndex ? "hidden md:block" : "block"} min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8`}>
+            <article key={chapter.id} className="mx-auto max-w-5xl space-y-6 pb-2 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
+              <div><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary">{chapter.group}</p><h2 ref={headingRef} tabIndex={-1} className="font-display text-2xl font-semibold outline-none sm:text-3xl">{chapter.title}</h2><p className="mt-3 max-w-3xl text-base leading-relaxed text-muted-foreground">{chapter.summary}</p><p className="mt-3 text-xs text-muted-foreground">Onde encontrar: <span className="font-medium text-foreground">{chapter.path}</span></p></div>
+              {chapter.managerOnly && !isGestor && <p className="rounded-lg border border-border bg-muted p-3 text-sm">As ações de cadastro deste capítulo são realizadas pelo gestor. Consulte-o se precisar de acesso.</p>}
+              <div className={chapter.demo ? "grid items-start gap-6 xl:grid-cols-2" : ""}>
+                <ol className="space-y-3">{chapter.steps.map((step, index) => <li key={step.title} className="flex gap-3 rounded-xl border border-border bg-card p-4"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{index + 1}</span><div><h3 className="text-sm font-semibold">{step.title}</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">{step.text}</p></div></li>)}</ol>
+                {chapter.demo === "lot" && <LotTutorialDemo />}
+              </div>
+              {chapter.example && <div className="rounded-xl border border-border p-4"><h3 className="mb-2 text-sm font-semibold">Exemplo de cálculo</h3><p className="text-sm leading-relaxed text-muted-foreground">{chapter.example}</p></div>}
+              {chapter.table && <div className="overflow-x-auto rounded-xl border border-border"><table className="w-full text-left text-sm"><caption className="sr-only">Referências de {chapter.title}</caption><thead className="bg-muted"><tr>{chapter.table.headers.map(header => <th key={header} scope="col" className="px-4 py-3 font-semibold">{header}</th>)}</tr></thead><tbody>{chapter.table.rows.map(row => <tr key={row[0]} className="border-t border-border">{row.map((cell, index) => <td key={index} className="px-4 py-3">{cell}</td>)}</tr>)}</tbody></table></div>}
+              <aside className="flex gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4"><Info className="mt-0.5 size-5 shrink-0 text-primary" /><p className="text-sm leading-relaxed">{chapter.tip}</p></aside>
+              {chapter.route && (!chapter.managerOnly || isGestor) && <Button variant="outline" className="h-auto min-h-11 whitespace-normal" onClick={() => { onClose(); void navigate(chapter.route!); }}><ExternalLink className="size-4 shrink-0" />Abrir página real</Button>}
+            </article>
+          </div>
+        </div>
+        <footer className="shrink-0 border-t border-border bg-background px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+          <div className="mb-3 h-1 overflow-hidden rounded-full bg-muted" aria-hidden="true"><div className="h-full rounded-full bg-primary motion-safe:transition-all" style={{ width: `${(page + 1) / tutorialChapters.length * 100}%` }} /></div>
+          <div className="flex items-center justify-between gap-2"><Button variant="outline" className="h-11 px-3" disabled={page === 0} onClick={() => selectPage(page - 1)}><ArrowLeft className="size-4" /><span>Anterior</span></Button><p className="text-center text-xs tabular-nums text-muted-foreground" aria-live="polite" aria-atomic="true">{page + 1} de {tutorialChapters.length}</p><Button className="h-11 px-3" onClick={() => page === tutorialChapters.length - 1 ? onClose() : selectPage(page + 1)}>{page === tutorialChapters.length - 1 ? "Concluir" : "Próxima"}<ArrowRight className="size-4" /></Button></div>
+        </footer>
+      </Dialog.Content>
+    </Dialog.Portal>
+  </Dialog.Root>;
+}

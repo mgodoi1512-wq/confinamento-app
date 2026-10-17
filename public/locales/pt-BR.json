@@ -466,5 +466,7 @@
   "feed.reading.alreadyApplied": "Ajuste já aplicado; nenhum novo trato foi criado.",
   "feed.reading.nothingToApply": "Não há ajustes pendentes para aplicar hoje.",
   "nav.adaptation": "Adaptação",
-  "nav.finance": "Financeiro"
+  "nav.finance": "Financeiro",
+  "nav.market": "Mercado e cotações",
+  "market.subtitle": "Arroba, grãos e contratos futuros em fontes públicas."
 }

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
+import { TutorialLauncher } from "@/components/tutorial/tutorial-launcher";
 import { routeTitles } from "@/components/app/nav-config";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +60,7 @@ export const Topbar = ({
 
       <div className="flex items-center gap-1">
         <ThemeToggle />
+        <TutorialLauncher currentPath={pathname} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label={profile?.full_name ?? "Usuário"}>

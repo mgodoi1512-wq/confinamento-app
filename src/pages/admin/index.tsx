@@ -1,3 +1,5 @@
+import { BillingAdmin } from "@/components/app/billing-admin";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeedbackAdmin } from "@/components/app/feedback-admin";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -21,6 +23,9 @@ export default function Administration() {
       <header className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-2xl font-semibold">Administração do sistema</h1><p className="text-muted-foreground">Aprove novos clientes e controle o acesso ao serviço.</p></div>
         <div className="flex items-center gap-2"><ThemeToggle /><Button asChild variant="outline"><Link to="/">Minha fazenda</Link></Button><Button variant="ghost" onClick={() => void signOut().catch(error => toast.error(error.message))}>Sair</Button></div>
       </header>
+      <Tabs defaultValue="customers" className="space-y-5">
+      <TabsList className="grid h-auto w-full grid-cols-3 sm:max-w-lg"><TabsTrigger value="customers">Cadastros</TabsTrigger><TabsTrigger value="billing">Cobrança</TabsTrigger><TabsTrigger value="feedback">Relatos beta</TabsTrigger></TabsList>
+      <TabsContent value="customers" className="space-y-5">
       <div className="flex flex-wrap gap-2">{["pending", "approved", "rejected", "suspended", "all"].map(value => <Button key={value} variant={filter === value ? "default" : "outline"} onClick={() => setFilter(value)}>{value === "all" ? "Todos" : labels[value as keyof typeof labels]}</Button>)}<Button variant="ghost" onClick={() => void query.refetch()}>Atualizar</Button></div>
       {query.isError ? <p role="alert">{query.error.message}</p> : null}
       {query.isLoading ? <p>Carregando cadastros...</p> : null}
@@ -34,7 +39,10 @@ export default function Administration() {
         </div> : <p className="text-sm">Conta administrativa</p>}
       </article>)}</div>
       {!query.isLoading && query.data?.filter(row => filter === "all" || row.status === filter).length === 0 ? <p>Nenhum cadastro nesta situação.</p> : null}
-      <FeedbackAdmin />
+      </TabsContent>
+      <TabsContent value="billing"><BillingAdmin /></TabsContent>
+      <TabsContent value="feedback"><FeedbackAdmin /></TabsContent>
+      </Tabs>
     </div>
   </main>;
 }

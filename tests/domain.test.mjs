@@ -88,3 +88,74 @@ test('resumo do trato distingue oferta média por lançamento do total diário',
   const mixed=domain.summarizeFeedLogs([{kg_per_head:4,total_kg:40},{kg_per_head:5,total_kg:25}]);
   assert.equal(mixed.totalKg,65);assert.equal(mixed.averageKgPerHeadPerLog,4.5);
 });
+
+
+const feedFixture=()=>({
+ lots:[{...lot,id:'l1',pen_id:'p',head_count:10,diet_id:'d'}],
+ diets:[{id:'d',name:'Adaptação',is_active:true}],
+ items:[{diet_id:'d',ingredient:'RAÇÃO',kg_per_head_day:0,body_weight_pct:0.3},{diet_id:'d',ingredient:'VOLUMOSO',kg_per_head_day:0,body_weight_pct:3}],
+ logs:[],weights:[],
+});
+const penFeed=f=>domain.computePenDailyFeeding('p',f.lots,f.logs,f.diets,f.items,f.weights,'2026-10-15');
+const feedLog=(shift,total=44,extra={})=>({pen_id:'p',lot_id:'l1',date:'2026-10-15',shift,total_kg:total,diet_id:'d',...extra});
+test('barra diária converte ingredientes e soma três tratos sem multiplicar recomendação por turno',()=>{
+ const f=feedFixture();let r=penFeed(f);assert.equal(r.recommendedKg,132);assert.equal(r.percent,0);assert.ok(r.shifts.every(s=>!s.complete));
+ f.logs=[feedLog('manha')];r=penFeed(f);assert.ok(Math.abs(r.percent-100/3)<1e-9);assert.deepEqual(r.shifts.map(s=>s.complete),[true,false,false]);
+ f.logs.push(feedLog('tarde'),feedLog('noite'));r=penFeed(f);assert.equal(r.percent,100);assert.equal(r.suppliedKg,132);assert.ok(r.shifts.every(s=>s.complete));
+ f.logs.push(feedLog('noite',44));assert.ok(penFeed(f).percent>100);
+});
+test('tratos antigos e de outro curral não sinalizam fornecimento; parcial exige todos os lotes',()=>{
+ const f=feedFixture();f.lots.push({...f.lots[0],id:'l2',head_count:5});
+ f.logs=[feedLog('manha'),feedLog('tarde',44,{date:'2026-10-14'}),feedLog('noite',44,{pen_id:'outro'})];
+ let r=penFeed(f);assert.equal(r.recommendedKg,198);assert.equal(r.suppliedKg,44);assert.equal(r.shifts[0].served,1);assert.equal(r.shifts[0].complete,false);assert.equal(r.shifts[1].served,0);
+ f.logs.push(feedLog('manha',22,{lot_id:'l2'}));assert.equal(penFeed(f).shifts[0].complete,true);
+});
+test('barra usa dieta selecionada no trato e peso da última pesagem válida',()=>{
+ const f=feedFixture();f.diets.push({id:'d2'});f.items.push({diet_id:'d2',kg_per_head_day:0,body_weight_pct:2});f.logs=[feedLog('manha',30,{diet_id:'d2'})];
+ f.weights=[{...weighing,avg_weight_kg:450}];assert.equal(penFeed(f).recommendedKg,90);
+});
+test('sem dieta, ingredientes ou peso não apresenta porcentagem falsa',()=>{
+ const f=feedFixture();f.lots[0].diet_id=null;assert.equal(penFeed(f).percent,null);
+ f.lots[0].diet_id='d';f.lots[0].entry_avg_weight_kg=0;assert.equal(penFeed(f).percent,null);
+ f.lots=[];assert.equal(penFeed(f).percent,null);assert.equal(penFeed(f).shifts[0].total,0);
+});
+test('dietas divergentes no mesmo dia não geram comparação enganosa',()=>{
+ const f=feedFixture();f.logs=[feedLog('manha'),feedLog('tarde',44,{diet_id:'outra'})];
+ assert.equal(penFeed(f).percent,null);assert.equal(penFeed(f).suppliedKg,88);
+});
+
+
+test('barra usa total congelado do plano e respeita turnos não previstos',()=>{
+ const f=feedFixture();f.lots[0].entry_avg_weight_kg=999;
+ f.logs=[feedLog('manha',132)];
+ const r=domain.computePenDailyFeeding('p',f.lots,f.logs,f.diets,f.items,f.weights,'2026-10-15',[{lot_id:'l1',pen_id:'p',date:'2026-10-15',daily_total_kg:132,schedule:[{shift:'manha',percent:100},{shift:'tarde',percent:0},{shift:'noite',percent:0}]}]);
+ assert.equal(r.percent,100);assert.equal(r.shifts[0].complete,true);assert.equal(r.shifts[1].total,0);
+});
+
+const planning=await import(moduleUrl(fs.readFileSync(new URL('../src/lib/feed-planning.ts',import.meta.url),'utf8')));
+test('planejamento de um a três tratos soma 100% e valida períodos',()=>{
+ for(const count of [1,2,3]){const slots=planning.splitFeedSchedule(count);assert.equal(slots.filter(s=>s.percent>0).length,count);assert.equal(planning.validateFeedSchedule(slots),null);}
+ assert.ok(planning.validateFeedSchedule(planning.defaultFeedSchedule().map(s=>({...s,percent:20}))));
+ assert.ok(planning.validateFeedSchedule(planning.defaultFeedSchedule().map(s=>({...s,shift:'invalido'}))));
+ assert.equal(planning.validateFeedSchedule(planning.defaultFeedSchedule().map(s=>({...s,time:'08:00'}))),null);
+});
+test('parcela é do dia e ingredientes mantêm proporção ao ajustar oferta',()=>{
+ assert.equal(planning.portionPerHead(13.2,33.33),4.4);
+ const items=planning.feedIngredientPortions([{name:'Ração',bodyWeightPct:0.3,dailyKgPerHead:1.2},{name:'Volumoso',bodyWeightPct:3,dailyKgPerHead:12}],6.6);
+ assert.ok(Math.abs(items[0].kgPerHead-.6)<1e-9);assert.ok(Math.abs(items[1].kgPerHead-6)<1e-9);
+});
+
+test('escolha de períodos cobre qualquer combinação sem excluir a noite por posição',()=>{
+ for(const selected of [['manha'],['tarde'],['noite'],['manha','tarde'],['manha','noite'],['tarde','noite'],['manha','tarde','noite']]){
+  const slots=planning.selectFeedPeriods(selected);assert.equal(planning.validateFeedSchedule(slots),null);assert.deepEqual(slots.filter(s=>s.percent>0).map(s=>s.shift),['manha','tarde','noite'].filter(s=>selected.includes(s)));
+ }
+ assert.deepEqual(planning.selectFeedPeriods(['noite']).map(s=>s.percent),[0,0,100]);
+ assert.deepEqual(planning.selectFeedPeriods(['manha','noite']).map(s=>s.percent),[50,0,50]);
+});
+
+test('quantidade flexível encerra o dia sem exigir um período específico',()=>{
+ const f=feedFixture();f.logs=[feedLog('noite',132)];
+ const plans=[{lot_id:'l1',pen_id:'p',date:'2026-10-15',daily_total_kg:132,meal_count:1,schedule:[{shift:'manha',percent:100},{shift:'tarde',percent:0},{shift:'noite',percent:0}]}];
+ const r=domain.computePenDailyFeeding('p',f.lots,f.logs,f.diets,f.items,f.weights,'2026-10-15',plans);
+ assert.equal(r.percent,100);assert.equal(r.shifts[0].total,0);assert.equal(r.shifts[1].total,0);assert.equal(r.shifts[2].complete,true);
+});

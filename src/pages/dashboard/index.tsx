@@ -191,6 +191,12 @@ const Dashboard = () => {
                 {t("lots.new")}
               </Link>
             </Button>
+            <Button asChild variant="outline" className="h-10">
+              <Link to="/gestao/mercado">
+                <TrendingUp />
+                Acompanhar Mercado
+              </Link>
+            </Button>
             <Button asChild className="h-10">
               <Link to="/trato/leitura">
                 <ClipboardCheck />

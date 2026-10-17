@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "pInstall": "npm install",
-    "test": "node --test tests/domain.test.mjs tests/export.test.mjs tests/adaptation.test.mjs tests/feed-form.test.mjs",
+    "test": "node --test tests/domain.test.mjs tests/export.test.mjs tests/adaptation.test.mjs tests/feed-form.test.mjs tests/finance.test.mjs",
     "test:db": "node tests/database.test.mjs && node tests/database.test.mjs --text-profiles",
     "test:tenancy": "node tests/tenancy.test.mjs && node tests/tenancy.test.mjs --text-profiles"
   },
