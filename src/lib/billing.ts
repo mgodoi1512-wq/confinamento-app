@@ -60,12 +60,14 @@ export async function checkAsaasSandbox(): Promise<AsaasSandboxConnection> {
 }
 
 export type MyPlanOrder = {
-  id: string; archived: boolean; plan: "monthly" | "annual"; method: "PIX" | "CREDIT_CARD";
+  id: string; subscriptionId?: string | null; dueOn?: string | null; archived: boolean; plan: "monthly" | "annual"; method: "PIX" | "CREDIT_CARD";
   amountCents: number; status: string; invoiceUrl: string | null;
+  refundedCents?: number; lastSyncSource?: "manual" | "webhook" | null; lastWebhookAt?: string | null;
   validFrom: string | null; validUntil: string | null; checkedAt: string | null; createdAt: string;
 };
 export type MyPlanOverview = {
   environment: "sandbox"; mode: "manual" | "automatic"; monthlyCents: number; annualCents: number;
+  subscription?: SandboxSubscription | null; graceDays?: number; simulatedStatus?: string | null; paidThrough?: string | null;
   isOwner: boolean; canTest: boolean; orders: MyPlanOrder[];
 };
 export async function getMyPlan(): Promise<MyPlanOverview> {
@@ -84,4 +86,22 @@ export async function sandboxPayment(input: SandboxPaymentInput): Promise<void> 
     throw new Error(message);
   }
   if (data?.ok !== true || data?.environment !== "sandbox") throw new Error("Resposta do Sandbox inválida.");
+}
+
+export type SandboxSubscription = {
+  id: string; plan: "monthly" | "annual"; method: "PIX" | "CREDIT_CARD"; amountCents: number;
+  status: "creating" | "ACTIVE" | "INACTIVE" | "EXPIRED" | "canceling" | "CANCELLED";
+  firstDueOn: string; nextDueOn: string | null; cancelledAt: string | null; checkedAt: string | null;
+};
+export type SubscriptionInput = { action: "create"; plan: "monthly" | "annual"; method: "PIX" | "CREDIT_CARD"; name: string; cpfCnpj: string } | { action: "refresh"; id: string } | { action: "cancel"; id: string; confirm: true };
+export async function sandboxSubscription(input: SubscriptionInput): Promise<void> {
+  const { data, error } = await supabase.functions.invoke("asaas-sandbox-subscription", { body: input });
+  if (error) {
+    let message = "Não foi possível consultar a assinatura. Confira a publicação da função asaas-sandbox-subscription.";
+    if (error instanceof FunctionsHttpError) {
+      try { const details = await error.context.json(); if (typeof details?.error?.message === "string") message = details.error.message; } catch { /* Sem JSON. */ }
+    }
+    throw new Error(message);
+  }
+  if (data?.ok !== true || data?.environment !== "sandbox") throw new Error("A assinatura não confirmou o ambiente Sandbox.");
 }

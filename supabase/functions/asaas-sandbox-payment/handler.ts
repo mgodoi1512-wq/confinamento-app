@@ -81,8 +81,8 @@ export function createSandboxPaymentHandler(deps: PaymentDeps) {
         if (Array.isArray(found.data) && found.data.length === 1 && object(found.data[0])) payment = found.data[0];
       }
       if (!payment) return fail(409, "A geração anterior ainda não foi confirmada. Confira o Sandbox do Asaas e tente Atualizar situação. Não crie outra cobrança manualmente.");
-      if (typeof payment.id !== "string" || payment.externalReference !== order.id || payment.customer !== order.customer_id || payment.billingType !== order.method || typeof payment.value !== "number" || Math.round(payment.value * 100) !== order.amount_cents || !invoice(payment.invoiceUrl)) return fail(502, "A cobrança retornada não corresponde ao plano solicitado.");
-      await rpc("sync", { id: order.id, customerId: payment.customer, externalReference: payment.externalReference, paymentId: payment.id, amountCents: Math.round(payment.value * 100), method: payment.billingType, invoiceUrl: payment.invoiceUrl, observedAt, status: payment.deleted === true ? "DELETED" : payment.status });
+      if (typeof payment.id !== "string" || (order.provider_subscription_id ? payment.subscription !== order.provider_subscription_id : payment.externalReference !== order.id) || payment.customer !== order.customer_id || payment.billingType !== order.method || typeof payment.value !== "number" || Math.round(payment.value * 100) !== order.amount_cents || !invoice(payment.invoiceUrl)) return fail(502, "A cobrança retornada não corresponde ao plano solicitado.");
+      await rpc("sync", { id: order.id, customerId: payment.customer, externalReference: order.provider_reference ?? payment.externalReference, providerSubscriptionId: payment.subscription ?? null, dueDate: payment.dueDate ?? null, paymentId: payment.id, amountCents: Math.round(payment.value * 100), method: payment.billingType, invoiceUrl: payment.invoiceUrl, observedAt, status: payment.deleted === true ? "DELETED" : payment.status });
       if (body.action === "archive") await rpc("archive", { id: order.id });
       return new Response(JSON.stringify({ ok: true, environment: "sandbox", id: order.id }), { headers });
     } catch {
