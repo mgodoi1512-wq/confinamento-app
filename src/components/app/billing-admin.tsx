@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CreditCard, Hand, LockKeyhole, RefreshCw, Save } from "lucide-react";
+import { CheckCircle2, CreditCard, Hand, LockKeyhole, PlugZap, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
-import { billingAdmin, billingAdminKey, billingMoney, type BillingSettings, type FarmBillingControl } from "@/lib/billing";
+import { billingAdmin, billingAdminKey, billingMoney, checkAsaasSandbox, type BillingSettings, type FarmBillingControl } from "@/lib/billing";
 import { useAuth } from "@/hooks/use-auth";
 import { NumericField } from "@/components/app/numeric-field";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,20 @@ import { Input } from "@/components/ui/input";
 import { formatDate, formatNumber, todayIso } from "@/lib/format";
 
 const accountLabels = { pending: "Aguardando aprovação", approved: "Aprovada", rejected: "Recusada", suspended: "Suspensa" };
+const SandboxConnection = () => {
+  const check = useMutation({ mutationFn: checkAsaasSandbox });
+  return <Card>
+    <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><PlugZap className="size-5" />Conexão com Asaas · Sandbox</CardTitle></CardHeader>
+    <CardContent className="space-y-3">
+      <p className="text-sm text-muted-foreground">Verifique a conexão com o ambiente de testes antes de preparar os pagamentos. A chave é cadastrada somente no servidor.</p>
+      <Button variant="outline" disabled={check.isPending} onClick={() => check.mutate()}><RefreshCw className={`size-4 ${check.isPending ? "motion-safe:animate-spin" : ""}`} />{check.isPending ? "Testando conexão..." : "Testar conexão com Asaas"}</Button>
+      {check.isPending && <p role="status" className="text-sm text-muted-foreground">Verificando o acesso administrativo e a resposta do Sandbox...</p>}
+      {check.isError && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{check.error.message}</p>}
+      {check.isSuccess && !check.isPending && <div role="status" className="space-y-1 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm"><p className="flex items-center gap-2 font-medium"><CheckCircle2 className="size-4 shrink-0" />Conexão Sandbox confirmada</p><p className="text-xs text-muted-foreground">Último teste nesta sessão: {new Date(check.data.checkedAt).toLocaleString("pt-BR")}. O teste não criou clientes, assinaturas ou cobranças.</p></div>}
+      <p className="text-xs leading-relaxed text-muted-foreground">A conexão confirmada não ativa a cobrança. Checkout, confirmação de pagamento e controle automático de acesso ainda precisam ser implementados e validados.</p>
+    </CardContent>
+  </Card>;
+};
 const priceCents = (raw: string) => {
   if (!/^\d+(?:[.,]\d{1,2})?$/.test(raw.trim())) return null;
   const value = Math.round(Number(raw.trim().replace(",", ".")) * 100);
@@ -83,11 +97,12 @@ export const BillingAdmin = () => {
   const term = search.trim().toLocaleLowerCase("pt-BR");
   const filtered = farms.filter(farm => `${farm.farmName} ${farm.ownerName} ${farm.ownerEmail}`.toLocaleLowerCase("pt-BR").includes(term));
   return <section className="space-y-5" aria-label="Controles de cobrança">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">Cobrança e acesso</h2><p className="text-sm text-muted-foreground">Etapa 1: configuração administrativa, sem cobranças reais.</p></div><Button variant="outline" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className="size-4" />Atualizar</Button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">Cobrança e acesso</h2><p className="text-sm text-muted-foreground">Preparação da integração Asaas em ambiente de testes, sem cobranças reais.</p></div><Button variant="outline" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className="size-4" />Atualizar</Button></div>
     <div className="grid gap-4 md:grid-cols-2">
       <Card className="border-primary"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Hand className="size-5" />Acesso manual <span className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">Ativo</span></CardTitle></CardHeader><CardContent className="text-sm leading-relaxed">Você aprova os clientes como hoje. Não há exigência de pagamento nesta etapa. Contas pendentes, recusadas e suspensas seguem os controles atuais.</CardContent></Card>
       <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><CreditCard className="size-5" />Com cobrança</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><p>Cartão recorrente e Pix comum, com confirmação automática do pagamento e validade por fazenda.</p><Button disabled variant="outline"><LockKeyhole className="size-4" />Ativar após integrar o Asaas</Button><p className="text-xs text-muted-foreground">A ativação também é bloqueada no servidor. Primeiro serão testados pagamentos, renovações, falhas e cancelamentos.</p></CardContent></Card>
     </div>
+    <SandboxConnection />
     <SettingsEditor key={settings.updatedAt} settings={settings} />
     <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm leading-relaxed">As fazendas existentes na primeira instalação têm acesso manual preservado. A futura cobrança não deve migrá-las automaticamente. Desligar a exigência de pagamento no LiBen não cancela cobranças já autorizadas no provedor.</div>
     <div className="space-y-3"><h3 className="text-lg font-semibold">Fazendas e cortesias</h3><Input aria-label="Buscar fazenda ou proprietário" placeholder="Buscar fazenda, proprietário ou e-mail" value={search} onChange={event => setSearch(event.target.value)} /><p className="text-xs text-muted-foreground">{filtered.length} fazenda(s). Contas sem fazenda cadastrada aparecem somente em Cadastros.</p>
