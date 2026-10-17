@@ -6,6 +6,7 @@ const Finance = lazy(() => import("./pages/management/finance"));
 const Adaptation = lazy(() => import("./pages/feed/adaptation"));
 const Administration = lazy(() => import("./pages/admin"));
 const Animals = lazy(() => import("./pages/animals"));
+const MyPlan = lazy(() => import("./pages/config/plan"));
 const SettingsHome = lazy(() => import("./pages/config"));
 const SettingsDiets = lazy(() => import("./pages/config/diets"));
 const SettingsPens = lazy(() => import("./pages/config/pens"));
@@ -65,6 +66,7 @@ export const routers = [
           { path: "sanidade/tratamentos", name: "treatments", element: <Treatments /> },
           { path: "sanidade/ocorrencias", name: "occurrences", element: <Occurrences /> },
           { path: "config", name: "settings", element: <SettingsHome /> },
+          { path: "config/plano", name: "myPlan", element: <MyPlan /> },
           { path: "config/usuarios", name: "settingsUsers", element: <SettingsUsers /> },
           { path: "config/currais", name: "settingsPens", element: <SettingsPens /> },
           { path: "config/dietas", name: "settingsDiets", element: <SettingsDiets /> },

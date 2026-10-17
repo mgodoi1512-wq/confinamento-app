@@ -828,6 +828,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      app_my_plan: { Args: Record<string, never>; Returns: Json };
       app_billing_admin: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
       app_save_feed_schedule: { Args: { p_schedule: Json; p_expected_updated_at?: string | null }; Returns: Json };
       app_record_planned_feed: { Args: { p_payload: Json; p_request_id: string }; Returns: Json };

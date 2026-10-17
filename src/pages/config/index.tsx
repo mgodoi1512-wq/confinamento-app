@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { BarChart3, Cog, Package, Save, Users } from "lucide-react";
+import { BarChart3, Cog, CreditCard, Package, Save, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
@@ -120,6 +120,11 @@ const SettingsHome = () => {
                   </Link>
                 </li>
               ))}
+              {isGestor ? <li>
+                <Link to="/config/plano" className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground">
+                  <CreditCard className="size-4 text-muted-foreground" />Meu plano
+                </Link>
+              </li> : null}
             </ul>
 
             <p className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">

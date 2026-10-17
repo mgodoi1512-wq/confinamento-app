@@ -58,3 +58,30 @@ export async function checkAsaasSandbox(): Promise<AsaasSandboxConnection> {
   if (data?.ok !== true || data?.environment !== "sandbox" || data?.paymentCreationEnabled !== false || data?.accessModeChanged !== false || typeof data?.checkedAt !== "string" || !Number.isFinite(Date.parse(data.checkedAt))) throw new Error("O retorno não confirmou a conexão segura com o Sandbox.");
   return data as AsaasSandboxConnection;
 }
+
+export type MyPlanOrder = {
+  id: string; archived: boolean; plan: "monthly" | "annual"; method: "PIX" | "CREDIT_CARD";
+  amountCents: number; status: string; invoiceUrl: string | null;
+  validFrom: string | null; validUntil: string | null; checkedAt: string | null; createdAt: string;
+};
+export type MyPlanOverview = {
+  environment: "sandbox"; mode: "manual" | "automatic"; monthlyCents: number; annualCents: number;
+  isOwner: boolean; canTest: boolean; orders: MyPlanOrder[];
+};
+export async function getMyPlan(): Promise<MyPlanOverview> {
+  const { data, error } = await supabase.rpc("app_my_plan");
+  if (error) throw new Error("Não foi possível carregar Meu plano. Confira a instalação da etapa 2.2 no Supabase.");
+  return data as unknown as MyPlanOverview;
+}
+export type SandboxPaymentInput = { action: "create"; plan: "monthly" | "annual"; method: "PIX" | "CREDIT_CARD"; name: string; cpfCnpj: string } | { action: "refresh" | "archive"; id: string };
+export async function sandboxPayment(input: SandboxPaymentInput): Promise<void> {
+  const { data, error } = await supabase.functions.invoke("asaas-sandbox-payment", { body: input });
+  if (error) {
+    let message = "Não foi possível consultar o pagamento. Confira a publicação da função asaas-sandbox-payment.";
+    if (error instanceof FunctionsHttpError) {
+      try { const details = await error.context.json(); if (typeof details?.error?.message === "string") message = details.error.message; } catch { /* Erro sem JSON. */ }
+    }
+    throw new Error(message);
+  }
+  if (data?.ok !== true || data?.environment !== "sandbox") throw new Error("Resposta do Sandbox inválida.");
+}
