@@ -7,6 +7,7 @@ export type BillingSettings = {
   monthlyCents: number;
   annualCents: number;
   integrationReady: boolean;
+  productionCheckedAt?: string | null; activationReady?: boolean; paymentVerified?: boolean;
   updatedAt: string;
 };
 export type FarmBillingControl = {
@@ -19,15 +20,16 @@ export type FarmBillingControl = {
   courtesyEnabled: boolean;
   courtesyExpiresOn: string | null;
   courtesyActive: boolean;
+  financial?: ProductionAccess;
   updatedAt: string | null;
 };
 export type BillingOverview = {
   settings: BillingSettings;
   farms: FarmBillingControl[];
-  phase: "controls_only";
+  phase: "controls_only" | "production_ready";
 };
 export const billingAdminKey = ["platform-billing-admin"] as const;
-export async function billingAdmin(action: "overview" | "save_settings" | "set_courtesy", payload: Record<string, Json | undefined> = {}): Promise<BillingOverview> {
+export async function billingAdmin(action: "overview" | "save_settings" | "set_courtesy" | "set_farm_access" | "set_mode", payload: Record<string, Json | undefined> = {}): Promise<BillingOverview> {
   const { data, error } = await supabase.rpc("app_billing_admin", { p_action: action, p_payload: payload });
   if (error) throw new Error(error.message);
   return data as unknown as BillingOverview;
@@ -66,7 +68,8 @@ export type MyPlanOrder = {
   validFrom: string | null; validUntil: string | null; checkedAt: string | null; createdAt: string;
 };
 export type MyPlanOverview = {
-  environment: "sandbox"; mode: "manual" | "automatic"; monthlyCents: number; annualCents: number;
+  environment: "sandbox" | "production"; mode: "manual" | "automatic"; monthlyCents: number; annualCents: number;
+  canCreate?: boolean; newSubscriptionStartsOn?: string; billingVersion?: string; access?: ProductionAccess;
   subscription?: SandboxSubscription | null; graceDays?: number; simulatedStatus?: string | null; paidThrough?: string | null;
   isOwner: boolean; canTest: boolean; orders: MyPlanOrder[];
 };
@@ -105,3 +108,25 @@ export async function sandboxSubscription(input: SubscriptionInput): Promise<voi
   }
   if (data?.ok !== true || data?.environment !== "sandbox") throw new Error("A assinatura não confirmou o ambiente Sandbox.");
 }
+
+export type ProductionAccess = { allowed: boolean; reason: string; paidThrough: string | null; graceDays: number; graceUntil: string | null };
+export async function getProductionPlan(): Promise<MyPlanOverview> {
+  const { data, error } = await supabase.rpc("app_my_production_plan");
+  if (error) throw new Error("Não foi possível carregar o plano. Confira o SQL de produção e sua sessão.");
+  return data as unknown as MyPlanOverview;
+}
+async function productionInvoke(name: string, body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke(name, { body });
+  if (error) {
+    let message = "Não foi possível concluir. Confira a publicação da função de produção.";
+    if (error instanceof FunctionsHttpError) {
+      try { const details = await error.context.json(); if (typeof details?.error?.message === "string") message = details.error.message; } catch { /* Sem JSON. */ }
+    }
+    throw new Error(message);
+  }
+  if (data?.ok !== true || data?.environment !== "production") throw new Error("A resposta não confirmou o ambiente de produção.");
+  return data;
+}
+export const checkAsaasProduction = () => productionInvoke("asaas-production-check", { action: "check_production" });
+export const productionSubscription = (input: SubscriptionInput, priceVersion?: string) => productionInvoke("asaas-production-subscription", input.action === "create" ? { ...input, productionConsent: true, priceVersion } : input);
+export const productionPayment = (id: string) => productionInvoke("asaas-production-payment", { action: "refresh", id });

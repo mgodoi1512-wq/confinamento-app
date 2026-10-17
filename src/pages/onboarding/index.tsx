@@ -18,7 +18,7 @@ export default function Onboarding() {
     catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível concluir."); }
     finally { setBusy(false); }
   }
-  const canCreate = tenant?.status === "approved" && !tenant.hasMembership;
+  const canCreate = (tenant?.status === "approved" || tenant?.autoEnrollment) && !tenant?.hasMembership;
   const blocked = tenant?.status === "rejected" || tenant?.status === "suspended";
   return <main className="min-h-dvh bg-background px-5 py-10 text-foreground">
     <div className="mx-auto max-w-lg space-y-5 rounded-xl border bg-card p-6 text-card-foreground">
@@ -36,6 +36,7 @@ export default function Onboarding() {
           <Button type="submit" disabled={busy || !name.trim()}>Criar minha fazenda</Button>
         </form> : <p>{tenant?.hasMembership ? "Seu acesso à fazenda foi desativado ou a fazenda está suspensa. Contate o responsável." : "Seu cadastro foi recebido. O administrador do sistema precisa aprovar seu acesso. Se recebeu um convite de equipe, confirme seu e-mail e aceite o convite acima."}</p>}
       </>}
+      {tenant?.billingOwner ? <Button asChild variant="outline"><Link to="/config/plano">Gerenciar minha assinatura</Link></Button> : null}
       <div className="flex gap-3"><Button variant="outline" disabled={busy} onClick={() => void refreshProfile()}>Verificar novamente</Button>
         <Button variant="ghost" onClick={() => void signOut().catch(error => toast.error(error.message))}>Sair</Button></div>
     </div>

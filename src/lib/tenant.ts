@@ -4,6 +4,8 @@ export type Invitation = { id: string; farmName: string; role: "gestor" | "opera
 export type TenantContext = {
   isAdmin: boolean; status: "pending" | "approved" | "rejected" | "suspended";
   farmId: string | null; role: "gestor" | "operador" | null;
+  billingFarmId?: string | null; billingOwner?: boolean; billingMode?: "manual" | "automatic";
+  billingRequired?: boolean; autoEnrollment?: boolean; billing?: import("./billing").ProductionAccess | null;
   invitations: Invitation[]; hasMembership: boolean;
 };
 export type Customer = { userId: string; name: string; email: string; status: TenantContext["status"]; source: string; createdAt: string; farmName: string | null; confirmed: boolean; isAdmin: boolean };
