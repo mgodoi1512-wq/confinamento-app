@@ -74,7 +74,9 @@ const NewLot = () => {
 
   const occupancy = useMemo(() => computePenOccupancy(pens, lotsQuery.data ?? []), [pens, lotsQuery.data]);
 
-  const availablePens = occupancy.filter((item) => item.pen.status !== "manutencao");
+  const usablePens = occupancy.filter((item) => item.pen.status !== "manutencao");
+  const requiredHead = Math.max(1, parseNumberInput(headCount) ?? 0);
+  const availablePens = usablePens.filter((item) => item.free >= requiredHead);
   const requiredQueries = [pensQuery, lotsQuery];
   const canAdvance = requiredQueries.every(query => query.isSuccess) && availablePens.length > 0 && !dietsQuery.isLoading && !protocolsQuery.isLoading;
   const activeDiets = diets.filter(diet => diet.is_active);
@@ -102,7 +104,8 @@ const NewLot = () => {
     const next: Record<string, string> = {};
     if (!requiredQueries.every(query => query.isSuccess)) next.pen = "Aguarde a verificação dos currais. Se houver erro, tente carregar novamente.";
     else if (pens.length === 0) next.pen = "Cadastre pelo menos um curral antes de criar o lote.";
-    else if (availablePens.length === 0) next.pen = "Nenhum curral disponível: os currais estão em manutenção.";
+    else if (usablePens.length === 0) next.pen = "Nenhum curral disponível: os currais estão em manutenção.";
+    else if (availablePens.length === 0) next.pen = "Nenhum curral tem vagas suficientes para a quantidade de animais informada.";
     if (dietsQuery.isLoading || protocolsQuery.isLoading) next.setup = "Aguarde a verificação de dietas e protocolos.";
     if (target >= 2 && !selectedOccupancy) next.pen = "Selecione o curral em que o lote ficará.";
     if (target >= 2 && selectedOccupancy?.pen.status === "manutencao") next.pen = "Escolha um curral que não esteja em manutenção.";
@@ -125,7 +128,7 @@ const NewLot = () => {
     if (!entryDate || entryDate > todayIso()) next.code = "Informe uma data de entrada válida, até hoje.";
     if (!(parseNumberInput(targetWeight) > 0)) next.entryWeight = "Informe um peso alvo positivo.";
     if (target >= 1 && mode === "individual" && (animals.length !== parseNumberInput(headCount) || animals.some((animal) => !animal.earTag.trim() || !(parseNumberInput(animal.weight) > 0)))) next.duplicate = "Preencha um brinco e peso positivo para cada cabeça do lote.";
-    if (target >= 2 && selectedOccupancy && (parseNumberInput(headCount) ?? 0) > selectedOccupancy.free) next.code = "O curral não tem capacidade disponível para este lote.";
+    if (target >= 2 && selectedOccupancy && (parseNumberInput(headCount) ?? 0) > selectedOccupancy.free) next.pen = "O curral não tem capacidade disponível para este lote.";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -214,7 +217,8 @@ const NewLot = () => {
         {requiredQueries.some(query=>query.isLoading) && <p role="status" className="text-sm text-muted-foreground">Verificando currais disponíveis...</p>}
         {requiredQueries.some(query=>query.isError) && <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">Não foi possível verificar os currais. <Button variant="outline" onClick={()=>void Promise.all(requiredQueries.map(query=>query.refetch()))}>Tentar novamente</Button></div>}
         {pensQuery.isSuccess && pens.length===0 && <div className="flex flex-wrap items-center gap-3 text-sm"><p>Cadastre um curral para liberar o cadastro do lote.</p><Button variant="outline" onClick={()=>setPenNoticeDismissed(false)}>Ver aviso</Button></div>}
-        {pensQuery.isSuccess && pens.length>0 && availablePens.length===0 && <p role="alert" className="rounded-lg border border-destructive p-4 text-sm">Todos os currais estão em manutenção. Disponibilize um curral antes de avançar.</p>}
+        {pensQuery.isSuccess && pens.length>0 && usablePens.length===0 && <p role="alert" className="rounded-lg border border-destructive p-4 text-sm">Todos os currais estão em manutenção. Disponibilize um curral antes de avançar.</p>}
+        {requiredQueries.every(query => query.isSuccess) && usablePens.length > 0 && availablePens.length === 0 && <div role="alert" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p>Nenhum curral tem vagas suficientes para {formatNumber(requiredHead, 0)} animais. Ajuste a quantidade, aumente a capacidade de um curral ou cadastre outro para continuar.</p><Button asChild variant="outline"><Link to="/config/currais">Gerenciar currais</Link></Button></div>}
         {(dietsQuery.isLoading || protocolsQuery.isLoading) && <p role="status" className="text-sm text-muted-foreground">Verificando dietas e protocolos...</p>}
         {(dietsQuery.isError || protocolsQuery.isError) && <div role="status" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p>Não foi possível verificar {dietsQuery.isError && protocolsQuery.isError ? "dietas e protocolos" : dietsQuery.isError ? "as dietas" : "os protocolos"}. Você pode continuar e configurar depois.</p><Button variant="outline" onClick={()=>void Promise.all([dietsQuery.refetch(),protocolsQuery.refetch()])}>Verificar novamente</Button></div>}
         {((dietsQuery.isSuccess && activeDiets.length===0) || (protocolsQuery.isSuccess && protocols.length===0)) && <div role="status" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p className="font-semibold">Antes de criar o lote</p>
@@ -449,11 +453,14 @@ const NewLot = () => {
           {step === 2 ? (
             <>
               <SelectField
-                label={t("field.protocol")}
-                value={protocols.some(protocol=>protocol.id===protocolId) ? protocolId : ""}
+                label={`${t("field.protocol")} (opcional)`}
+                value={protocols.some(protocol=>protocol.id===protocolId) ? protocolId : "all"}
                 onChange={value=>{setProtocolId(value);if(value==="all")setApplyProtocol(false);}}
                 allowEmpty
-                emptyLabel={t("common.noData")}
+                emptyLabel="Sem protocolo"
+                placeholder="Sem protocolo"
+                disabled={protocolsQuery.isLoading}
+                error={errors.protocol}
                 options={protocols.map((protocol) => ({
                   value: protocol.id,
                   labelKey: protocol.name,
@@ -464,7 +471,8 @@ const NewLot = () => {
                 label={t("field.pen")}
                 value={penId}
                 onChange={setPenId}
-                placeholder={t("field.pen")}
+                placeholder={availablePens.length ? "Selecione um curral" : "Nenhum curral com vagas suficientes"}
+                disabled={!requiredQueries.every(query => query.isSuccess) || availablePens.length === 0}
                 error={errors.pen}
                 options={availablePens.slice().sort((a,b)=>a.pen.code.localeCompare(b.pen.code,"pt-BR",{numeric:true})).map((item) => ({
                   value: item.pen.id,
@@ -489,19 +497,21 @@ const NewLot = () => {
                   ) : null}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">{t("lots.new.noPenAvailable")}</p>
+                <p className="text-xs text-muted-foreground">{availablePens.length ? "Selecione o curral em que o lote ficará. Este campo é obrigatório." : "Nenhum curral com vagas suficientes para este lote."}</p>
               )}
 
               <SelectField
-                label={t("field.diet")}
-                value={dietId}
+                label={`${t("field.diet")} (opcional)`}
+                value={dietId || "all"}
                 onChange={setDietId}
                 allowEmpty
-                emptyLabel={t("common.noData")}
+                emptyLabel="Sem dieta"
+                placeholder="Sem dieta"
+                disabled={dietsQuery.isLoading}
                 options={activeDiets.map((diet) => ({ value: diet.id, labelKey: diet.name }))}
               />
 
-              {dietId ? (
+              {dietId && dietId !== "all" ? (
                 <p className="text-xs text-muted-foreground">
                   {selectedDietTotal === null ? "Carregue os ingredientes e informe um peso médio válido para calcular a oferta da dieta." : `${t("config.diets.totalOffered")}: ${formatNumber(selectedDietTotal, 2)} kg/cab/dia`}
                 </p>
@@ -555,7 +565,7 @@ const NewLot = () => {
                 type="button"
                 className="h-11"
                 onClick={() => void submit()}
-                disabled={createLot.isPending || !canAdvance}
+                disabled={createLot.isPending || !canAdvance || !availablePens.some(item => item.pen.id === penId)}
               >
                 <Beef />
                 {t("lots.new.create")}

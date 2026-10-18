@@ -70,6 +70,7 @@ export type MyPlanOrder = {
 export type MyPlanOverview = {
   environment: "sandbox" | "production"; mode: "manual" | "automatic"; monthlyCents: number; annualCents: number;
   canCreate?: boolean; newSubscriptionStartsOn?: string; billingVersion?: string; access?: ProductionAccess;
+  farmName?: string | null; courtesy?: { enabled: boolean; active: boolean; expiresOn: string | null };
   annualPurchase?: AnnualPurchase | null; maxAnnualInstallments?: number;
   subscription?: SandboxSubscription | null; graceDays?: number; simulatedStatus?: string | null; paidThrough?: string | null;
   isOwner: boolean; canTest: boolean; orders: MyPlanOrder[];

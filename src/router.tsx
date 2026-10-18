@@ -19,6 +19,8 @@ const Protocols = lazy(() => import("./pages/health/protocols"));
 const Treatments = lazy(() => import("./pages/health/treatments"));
 const PasswordRecovery = lazy(() => import("./pages/password-recovery"));
 const ResetPassword = lazy(() => import("./pages/password-recovery/reset"));
+const AccountConfirmed = lazy(() => import("./pages/login/confirmed"));
+const PlanEntry = lazy(() => import("./pages/config/plan/entry"));
 const Login = lazy(() => import("./pages/login"));
 const Lots = lazy(() => import("./pages/lots"));
 const LotDetail = lazy(() => import("./pages/lots/detail"));
@@ -30,6 +32,8 @@ const WeighingDetail = lazy(() => import("./pages/weighings/detail"));
 const NewWeighing = lazy(() => import("./pages/weighings/new"));
 
 export const routers = [
+  { path: "/conta-confirmada", name: "accountConfirmed", element: <AccountConfirmed /> },
+  { path: "/acesso-plano", name: "planEntry", element: <PlanEntry /> },
   { path: "/recuperar-senha", name: "passwordRecovery", element: <PasswordRecovery /> },
   { path: "/redefinir-senha", name: "resetPassword", element: <ResetPassword /> },
   {

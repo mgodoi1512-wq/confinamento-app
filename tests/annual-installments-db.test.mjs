@@ -581,4 +581,25 @@ console.log('PRODUÇÃO: RLS, equipe, tolerância, cortesia, liberação manual,
  console.log('ANUAL: reserva única, 12 parcelas e total exato, RLS, liberação só do conjunto confirmado, estorno, suspensão, cancelamento pendente, webhook idempotente e reaplicação validados.');
 }
 
+// Dados de apresentação continuam limitados à fazenda do usuário autenticado.
+const presentationMigration=fs.readFileSync(new URL('../supabase/migrations/20261018020000_plan_presentation.sql',import.meta.url),'utf8');
+await db.exec('reset role');await db.exec(presentationMigration);
+await db.query("insert into public.farm_billing_controls(farm_id,courtesy_enabled,courtesy_expires_on) values($1,true,public.app_today()+7) on conflict(farm_id) do update set courtesy_enabled=true,courtesy_expires_on=public.app_today()+7",[farmA]);
+await as(ownerA);
+let presented=(await db.query('select public.app_my_production_plan() x')).rows[0].x;
+assert.equal(presented.farmName,(await db.query('select name from public.farms where id=$1',[farmA])).rows[0].name);
+assert.equal(presented.courtesy.enabled,true);assert.equal(presented.courtesy.active,true);
+assert.equal(presented.courtesy.expiresOn,(await db.query('select (public.app_today()+7)::text x')).rows[0].x);
+assert.ok(Array.isArray(presented.orders));assert.ok('annualPurchase' in presented);
+await assert.rejects(db.query('select app_private.app_my_production_plan_before_presentation()'),/permission denied/);
+await db.exec('reset role');
+await db.query('update public.farm_billing_controls set courtesy_expires_on=public.app_today()-1 where farm_id=$1',[farmA]);
+await db.exec(presentationMigration); // Reaplicação não duplica wrappers nem perde planos.
+await as(ownerA);presented=(await db.query('select public.app_my_production_plan() x')).rows[0].x;assert.equal(presented.courtesy.active,false);
+await db.exec('reset role');await db.query('update public.farm_billing_controls set courtesy_expires_on=null where farm_id=$1',[farmA]);
+await as(ownerA);presented=(await db.query('select public.app_my_production_plan() x')).rows[0].x;assert.equal(presented.courtesy.active,true);assert.equal(presented.courtesy.expiresOn,null);
+await db.exec('reset role');await db.query('update public.farm_billing_controls set courtesy_enabled=false,courtesy_expires_on=null where farm_id=$1',[farmB]);
+await as(ownerB);presented=(await db.query('select public.app_my_production_plan() x')).rows[0].x;assert.equal(presented.courtesy.enabled,false,'cortesia da fazenda A não vaza para B');
+await db.exec('reset role;set role anon');await assert.rejects(db.query('select public.app_my_production_plan()'),/permission denied/);
+console.log('APRESENTAÇÃO: nome, cortesia datada, expirada e sem prazo, isolamento entre fazendas, acesso privado e reaplicação validados.');
 await db.close();
