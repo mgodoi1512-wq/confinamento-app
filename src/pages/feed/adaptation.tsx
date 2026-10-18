@@ -110,6 +110,7 @@ const Adaptation = () => {
   const report = (): ExportReport => {
     if (!result || !input) throw new Error("Confira os parâmetros do plano.");
     return {
+      adaptation: { input, lotName: lot?.code ?? "Lote" },
       title: `Adaptação — ${lot?.code ?? "Lote"}`, filename: "adaptacao", filters: `Lote: ${lot?.code} | Animais: ${input.headCount} | Peso médio: ${formatNumber(input.averageWeightKg, 2)} kg | Peso total: ${formatNumber(result.totalLiveWeight, 2)} kg`,
       note: `Peso fixo na simulação. Ração: ${money(input.feedPriceKg)}/kg; volumoso: ${money(input.roughagePriceKg)}/kg. Quantidades e custos da tabela correspondem ao lote inteiro. Confinamento: ${input.totalDays} dias, incluindo os 15 dias de adaptação.`,
       columns: [{title:"Etapa"},{title:"De"},{title:"Até"},{title:"Dias",decimals:0},{title:"Ração (% PV)",decimals:2},{title:"Volumoso (% PV)",decimals:2},{title:"Ração kg/dia (lote)",decimals:2},{title:"Volumoso kg/dia (lote)",decimals:2},{title:"Ração período (kg)",decimals:2},{title:"Volumoso período (kg)",decimals:2},{title:"Custo período (R$)",decimals:2}],
@@ -135,12 +136,12 @@ const Adaptation = () => {
     { key:"actions",headerKey:"Ações",render:planActions },
   ];
   const phaseColumns: Column<Result["phases"][number]>[] = [
-    {key:"period",headerKey:"Período",render:row=><div><p className="font-semibold">Dias {row.startDay} a {row.endDay}</p><p className="text-xs text-muted-foreground">{formatDate(row.startDate)} a {formatDate(row.endDate)}</p></div>},
-    {key:"ration",headerKey:"Ração kg/dia (lote)",numeric:true,render:row=>formatNumber(row.feedDailyKg,2)},
-    {key:"roughage",headerKey:"Volumoso kg/dia (lote)",numeric:true,render:row=>formatNumber(row.roughageDailyKg,2)},
-    {key:"rationPeriod",headerKey:"Ração no período (kg)",numeric:true,render:row=>formatNumber(row.feedPeriodKg,2)},
-    {key:"roughagePeriod",headerKey:"Volumoso no período (kg)",numeric:true,render:row=>formatNumber(row.roughagePeriodKg,2)},
-    {key:"cost",headerKey:"Custo do período",numeric:true,render:row=>money(row.cost)},
+    {className:"text-center",key:"period",headerKey:"Período",render:row=><div><p className="font-semibold">Dias {row.startDay} a {row.endDay}</p><p className="text-xs text-muted-foreground">{formatDate(row.startDate)} a {formatDate(row.endDate)}</p></div>},
+    {className:"text-center",key:"ration",headerKey:"Ração kg/dia (lote)",numeric:true,render:row=>formatNumber(row.feedDailyKg,2)},
+    {className:"text-center",key:"roughage",headerKey:"Volumoso kg/dia (lote)",numeric:true,render:row=>formatNumber(row.roughageDailyKg,2)},
+    {className:"text-center",key:"rationPeriod",headerKey:"Ração no período (kg)",numeric:true,render:row=>formatNumber(row.feedPeriodKg,2)},
+    {className:"text-center",key:"roughagePeriod",headerKey:"Volumoso no período (kg)",numeric:true,render:row=>formatNumber(row.roughagePeriodKg,2)},
+    {className:"text-center",key:"cost",headerKey:"Custo do período",numeric:true,render:row=>money(row.cost)},
   ];
 
   return <div className="space-y-5">

@@ -1,7 +1,7 @@
 import { toast } from "sonner";
-import { LogOut, Menu } from "lucide-react";
+import { CreditCard, LogOut, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { TutorialLauncher } from "@/components/tutorial/tutorial-launcher";
@@ -81,6 +81,13 @@ export const Topbar = ({
                 {role ? t(`status.role.${role}`) : ""}
               </span>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild className="gap-2">
+              <Link to="/config/plano">
+                <CreditCard className="size-4" />
+                Meu Plano
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => void signOut().catch((error) => toast.error(error instanceof Error ? error.message : "Não foi possível sair."))} className="gap-2">
               <LogOut className="size-4" />

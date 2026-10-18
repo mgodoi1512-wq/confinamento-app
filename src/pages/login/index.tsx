@@ -164,7 +164,7 @@ const Login = () => {
 
                 {mode === "signup" ? <div className="space-y-2">
                   <label htmlFor="phone" className="text-sm font-medium">Telefone com DDD</label>
-                  <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => setPhone(event.target.value)} placeholder="(62) 99999-9999" maxLength={22} required className="h-11" />
+                  <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => setPhone(event.target.value)} maxLength={22} required className="h-11" />
                   <p className="text-xs text-muted-foreground">Telefone para contato. Seu acesso continua por e-mail e senha.</p>
                 </div> : null}
 

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -70,6 +70,11 @@ const Dashboard = () => {
   );
 
   const occupancy = useMemo(() => computePenOccupancy(pens, lots), [pens, lots]);
+  const [penPage, setPenPage] = useState(1);
+  const penPageCount = Math.max(1, Math.ceil(occupancy.length / 10));
+  const currentPenPage = Math.min(penPage, penPageCount);
+  const visibleOccupancy = occupancy.slice((currentPenPage - 1) * 10, currentPenPage * 10);
+
 
   const lotRows = useMemo(
     () =>
@@ -284,7 +289,7 @@ const Dashboard = () => {
             {occupancy.length === 0 ? (
               <EmptyState titleKey="pens.empty.title" descriptionKey="pens.empty.description" />
             ) : (
-              occupancy.map((item) => (
+              visibleOccupancy.map((item) => (
                 <div key={item.pen.id} className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2 text-sm">
                     <div className="flex min-w-0 items-center gap-2">
@@ -313,6 +318,14 @@ const Dashboard = () => {
                 </div>
               ))
             )}
+            {occupancy.length > 10 ? <nav aria-label="Paginação da ocupação por curral" className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+              <p className="text-xs text-muted-foreground" aria-live="polite">Mostrando {(currentPenPage - 1) * 10 + 1} a {Math.min(currentPenPage * 10, occupancy.length)} de {occupancy.length} currais</p>
+              <div className="flex items-center gap-2">
+                <Button type="button" size="sm" variant="outline" className="min-h-10" disabled={currentPenPage === 1} onClick={() => setPenPage(currentPenPage - 1)}>Anterior</Button>
+                <span className="whitespace-nowrap text-xs">Página {currentPenPage} de {penPageCount}</span>
+                <Button type="button" size="sm" variant="outline" className="min-h-10" disabled={currentPenPage === penPageCount} onClick={() => setPenPage(currentPenPage + 1)}>Próxima</Button>
+              </div>
+            </nav> : null}
           </CardContent>
         </Card>
 

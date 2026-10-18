@@ -52,7 +52,7 @@ export const PenFeedingProgress = ({ summary, error }: Props) => {
   return <FeedingInfo label={[headline,quantities,extra].filter(Boolean).join(". ")}
     className="flex h-8 w-full min-w-36 max-w-52 items-center px-1 [@media(pointer:coarse)]:min-h-11"
     content={<div className="space-y-1"><p className="font-medium num">{headline}</p>{quantities&&<p className="num">{quantities}</p>}{extra&&<p>{extra}</p>}</div>}>
-    <span aria-hidden="true" className="block h-2 w-full overflow-hidden rounded-full bg-muted">
+    <span aria-hidden="true" className="block h-2 w-full overflow-hidden rounded-full bg-[#DCCABC] dark:bg-[#8A705C]">
       {percent!==null&&<span className="block h-full bg-green-600 dark:bg-green-400" style={{width:`${Math.min(Math.max(percent,0),100)}%`}} />}
     </span>
   </FeedingInfo>;

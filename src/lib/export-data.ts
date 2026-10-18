@@ -4,6 +4,7 @@ import { daysBetween, formatDate, todayIso } from "./format";
 export type ExportColumn = { title: string; decimals?: number };
 export type ExportReport = {
   title: string;
+  adaptation?: { input: import("./adaptation").AdaptationInput; lotName: string };
   pdf?: { format: "a4" | "a3"; fontSize?: number; embeddedFont?: boolean; columnWidths?: number[] };
   filename: string;
   recordCount?: number;

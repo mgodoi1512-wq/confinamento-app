@@ -12,7 +12,28 @@ export const mutateApp = async <T>(operation: string, payload: unknown, requestI
   const { data, error } = await supabase.rpc("app_mutate", {
     p_operation: operation, p_payload: payload as Json, p_request_id: token,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const prefix = "BRINCOS_OUTROS_LOTES:";
+    if (["create_lot", "save_animal"].includes(operation) && error.message.startsWith(prefix)
+      && payload && typeof payload === "object" && !("confirmedDuplicateEarTags" in payload)) {
+      let matches: { earTag: string; lotCode: string }[] = [];
+      try {
+        const parsed: unknown = JSON.parse(error.message.slice(prefix.length));
+        if (Array.isArray(parsed) && parsed.every(item => item && typeof item.earTag === "string" && typeof item.lotCode === "string")) matches = parsed;
+      } catch { /* Uma resposta inválida não autoriza cadastrar. */ }
+      if (matches.length) {
+        const shown = matches.slice(0, 12).map(item => `• ${item.earTag} — ${item.lotCode}`).join("\n");
+        const more = matches.length > 12 ? `\nE mais ${matches.length - 12} ocorrência(s).` : "";
+        pending.delete(key);
+        if (!window.confirm(`Já existem animais com estes brincos em outros lotes da fazenda:\n\n${shown}${more}\n\nDeseja cadastrar mesmo assim? Os animais existentes serão mantidos.`)) {
+          throw new Error("Cadastro cancelado. Nenhum animal foi alterado.");
+        }
+        return mutateApp<T>(operation, { ...payload, confirmedDuplicateEarTags: [...new Set(matches.map(item => item.earTag))] }, token);
+      }
+    }
+    if (error.message.startsWith(prefix)) throw new Error("Os brincos repetidos precisam ser conferidos novamente. Tente salvar outra vez.");
+    throw new Error(error.message);
+  }
   pending.delete(key);
   return data as T;
 };

@@ -43,6 +43,19 @@ export async function exportExcel(report: ExportReport) {
 }
 
 export async function exportPdf(report: ExportReport) {
+  if (report.adaptation) {
+    const { buildAdaptationPdf } = await import("./adaptation-pdf");
+    const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}logo-liben-2.png`);
+    if (!response.ok) throw new Error("Não foi possível carregar a logo do relatório.");
+    const fontBytes = await Promise.all(["regular", "bold"].map(async style => {
+      const font = await fetch(`${import.meta.env?.BASE_URL ?? "/"}fonts/liben-report-${style}.ttf`);
+      if (!font.ok) throw new Error("Não foi possível carregar a fonte do relatório.");
+      return new Uint8Array(await font.arrayBuffer());
+    }));
+    const doc = buildAdaptationPdf(report.adaptation.input, report.adaptation.lotName, new Uint8Array(await response.arrayBuffer()), undefined, { regular: fontBytes[0], bold: fontBytes[1] });
+    doc.save(filename(report, "pdf"));
+    return;
+  }
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const doc = new jsPDF({ orientation: "landscape", format: report.pdf?.format ?? "a3", compress: !!report.pdf?.embeddedFont });
   const width = doc.internal.pageSize.getWidth();
