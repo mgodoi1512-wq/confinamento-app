@@ -1,3 +1,4 @@
+import { formatContactPhone } from "@/lib/contact-phone";
 import { BillingAdmin } from "@/components/app/billing-admin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeedbackAdmin } from "@/components/app/feedback-admin";
@@ -30,7 +31,7 @@ export default function Administration() {
       {query.isError ? <p role="alert">{query.error.message}</p> : null}
       {query.isLoading ? <p>Carregando cadastros...</p> : null}
       <div className="grid gap-4 md:grid-cols-2">{query.data?.filter(row => filter === "all" || row.status === filter).map(row => <article key={row.userId} className="space-y-3 rounded-xl border bg-card p-5 text-card-foreground">
-        <div><h2 className="font-semibold">{row.name}</h2><p className="break-all text-sm">{row.email}</p><p className="text-sm">{row.farmName ?? "Fazenda ainda não cadastrada"}</p></div>
+        <div><h2 className="font-semibold">{row.name}</h2><p className="break-all text-sm">{row.email}</p><p className="text-sm">Telefone: {formatContactPhone(row.phone)}</p><p className="text-sm">{row.farmName ?? "Fazenda ainda não cadastrada"}</p></div>
         <p className="text-sm">{labels[row.status]} · {row.confirmed ? "E-mail confirmado" : "E-mail não confirmado"}</p>
         {!row.isAdmin ? <div className="flex flex-wrap gap-2">
           {row.status !== "approved" ? <Button disabled={decision.isPending || !row.confirmed} onClick={() => decision.mutate({ userId: row.userId, status: "approved" })}>Aprovar</Button> : null}

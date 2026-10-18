@@ -8,7 +8,7 @@ export type TenantContext = {
   billingRequired?: boolean; autoEnrollment?: boolean; billing?: import("./billing").ProductionAccess | null;
   invitations: Invitation[]; hasMembership: boolean;
 };
-export type Customer = { userId: string; name: string; email: string; status: TenantContext["status"]; source: string; createdAt: string; farmName: string | null; confirmed: boolean; isAdmin: boolean };
+export type Customer = { phone?: string | null; userId: string; name: string; email: string; status: TenantContext["status"]; source: string; createdAt: string; farmName: string | null; confirmed: boolean; isAdmin: boolean };
 export type TeamMember = { userId: string; name: string; email: string; role: "gestor" | "operador"; enabled: boolean; isOwner: boolean };
 export type TeamInvite = { id: string; email: string; role: "gestor" | "operador"; expiresAt: string };
 export async function tenantRpc<T>(action: string, payload: Record<string, Json | undefined> = {}): Promise<T> {

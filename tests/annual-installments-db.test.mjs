@@ -602,4 +602,14 @@ await db.exec('reset role');await db.query('update public.farm_billing_controls 
 await as(ownerB);presented=(await db.query('select public.app_my_production_plan() x')).rows[0].x;assert.equal(presented.courtesy.enabled,false,'cortesia da fazenda A não vaza para B');
 await db.exec('reset role;set role anon');await assert.rejects(db.query('select public.app_my_production_plan()'),/permission denied/);
 console.log('APRESENTAÇÃO: nome, cortesia datada, expirada e sem prazo, isolamento entre fazendas, acesso privado e reaplicação validados.');
+const contactMigration=fs.readFileSync(new URL('../supabase/migrations/20261018030000_signup_contact_phone.sql',import.meta.url),'utf8');
+await db.exec('reset role');await db.exec(contactMigration);
+await db.query("update auth.users set raw_user_meta_data=raw_user_meta_data||jsonb_build_object('phone','+5562999991234') where id=$1",[ownerB]);
+await as(ownerA);let contactRows=await tenant('list_requests');assert.equal(contactRows.find(x=>x.userId===ownerB).phone,'+5562999991234');assert.equal(contactRows.find(x=>x.userId===ownerA).phone,null);
+await assert.rejects(db.query("select app_private.app_tenant_before_contact_phone('list_requests','{}')"),/permission denied/);
+await as(ownerB);await assert.rejects(tenant('list_requests'),/administrador/);
+assert.ok((await tenant('context')).status,'outras operações de contexto preservadas');
+await db.exec('reset role');await db.exec(contactMigration);await as(ownerA);assert.equal((await tenant('list_requests')).find(x=>x.userId===ownerB).phone,'+5562999991234');
+await db.exec('reset role;set role anon');await assert.rejects(db.query("select public.app_tenant('list_requests','{}')"),/permission denied/);
+console.log('TELEFONE: contato restrito ao admin, legado sem contato, contexto preservado e reaplicação validados.');
 await db.close();

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeContactPhone } from "@/lib/contact-phone";
 import { useAuth } from "@/hooks/use-auth";
 
 const Login = () => {
@@ -17,6 +18,7 @@ const Login = () => {
 
   const [mode, setMode] = useState("login");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [notice, setNotice] = useState<string | null>(location.state?.accountConfirmed ? "Sua conta foi confirmada. Entre com seu e-mail e senha." : null);
@@ -41,6 +43,11 @@ const Login = () => {
       return;
     }
 
+    const contactPhone = mode === "signup" ? normalizeContactPhone(phone) : null;
+    if (mode === "signup" && !contactPhone) {
+      setError("Informe um telefone válido com DDD, com 10 ou 11 dígitos.");
+      return;
+    }
     setSubmitting(true);
 
     if (mode === "signup") {
@@ -49,7 +56,7 @@ const Login = () => {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/conta-confirmada`,
-          data: { full_name: fullName },
+          data: { full_name: fullName, phone: contactPhone },
         },
       });
       setSubmitting(false);
@@ -154,6 +161,12 @@ const Login = () => {
                     />
                   </div>
                 ) : null}
+
+                {mode === "signup" ? <div className="space-y-2">
+                  <label htmlFor="phone" className="text-sm font-medium">Telefone com DDD</label>
+                  <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => setPhone(event.target.value)} placeholder="(62) 99999-9999" maxLength={22} required className="h-11" />
+                  <p className="text-xs text-muted-foreground">Telefone para contato. Seu acesso continua por e-mail e senha.</p>
+                </div> : null}
 
                 <div className="space-y-2">
                   <label htmlFor="email" className="text-sm font-medium">
