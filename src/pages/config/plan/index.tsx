@@ -62,7 +62,8 @@ export default function MyPlan({ forceProduction = false }: { forceProduction?: 
     catch { toast.error("Não foi possível verificar o acesso. Tente novamente."); }
     finally { setEntering(false); }
   };
-  const entryLabel = overview?.farmName ? `Ir para Fazenda ${overview.farmName}` : "Ir para Plataforma";
+  const farmName = overview?.farmName?.trim();
+  const entryLabel = farmName ? `Ir para ${/^fazenda\b/i.test(farmName) ? farmName : `Fazenda ${farmName}`}` : "Ir para Plataforma";
   const canCreate = real ? overview?.canCreate === true : overview?.canTest === true;
   const pixOrder = real ? overview?.orders.find(order => order.id === pixOrderId && order.method === "PIX") : undefined;
   const subscription = overview?.subscription;
@@ -83,12 +84,11 @@ export default function MyPlan({ forceProduction = false }: { forceProduction?: 
   return <div className="mx-auto max-w-5xl space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="font-display text-2xl font-semibold md:text-3xl">Meu plano</h1><p className="text-sm text-muted-foreground">Planos, renovação e pagamentos da sua fazenda.</p></div>
-      {approved ? <Button variant="outline" asChild><Link to="/config"><ArrowLeft className="size-4" />Configurações</Link></Button> : null}
+      {forceProduction && overview?.access?.allowed ? <Button disabled={entering} onClick={() => void enterPlatform()}>{entering ? "Verificando acesso…" : entryLabel}</Button> : approved ? <Button variant="outline" asChild><Link to="/config"><ArrowLeft className="size-4" />Configurações</Link></Button> : null}
     </div>
     {tenant?.isAdmin && !forceProduction ? <div className="flex flex-wrap items-center gap-3"><label className="flex items-center gap-2 text-sm">Ambiente<select className="rounded-lg border bg-background px-3 py-2" value={chosenEnvironment} disabled={busy} onChange={event => { setPixOrderId(null); setChosenEnvironment(event.target.value as "sandbox" | "production"); }}><option value="sandbox">Sandbox · testes</option><option value="production">Produção · pagamentos reais</option></select></label></div> : null}
     {query.isPending ? <p role="status">Carregando seu plano…</p> : query.isError ? <Card><CardContent className="space-y-3 pt-5"><p role="alert">{query.error.message}</p><Button variant="outline" onClick={() => void query.refetch()}>Tentar novamente</Button></CardContent></Card> : overview ? <>
       <div className="rounded-xl border border-border bg-muted/50 p-4 text-sm"><p className="font-semibold">{real ? "Acesso à plataforma" : "Sandbox · testes"}</p><p className="mt-1 text-muted-foreground">{real ? overview.mode === "automatic" ? "Seu acesso acompanha a vigência do plano. Cortesias e liberações do administrador também são respeitadas." : "Seu acesso é gerenciado pelo administrador da plataforma. Assinaturas existentes continuam disponíveis para consulta e cancelamento." : "As assinaturas estão em teste. A simulação não altera o acesso da fazenda."}</p>{real && ["rejected", "suspended"].includes(tenant?.status ?? "") ? <p className="mt-2 text-destructive">Sua conta está bloqueada pelo administrador. Pagamento não remove esse bloqueio; você pode consultar ou cancelar a assinatura.</p> : null}</div>
-      {real && overview.access?.allowed && overview.access.reason === "paid" ? <section className="space-y-3 rounded-xl border border-green-600/30 bg-green-600/5 p-5" aria-live="polite"><h2 className="text-xl font-semibold text-green-700 dark:text-green-400">Pagamento confirmado!</h2><p className="text-sm">Seu pagamento foi identificado. Clique abaixo para continuar.</p><Button disabled={entering} onClick={() => void enterPlatform()}>{entering ? "Verificando acesso…" : entryLabel}</Button></section> : null}
       <div className="grid gap-4 sm:grid-cols-2">
         {(["monthly", "annual"] as const).map(item => <Card key={item} className={cn("flex h-full flex-col transition-colors", selectedPlan === item && "border-primary ring-1 ring-primary/30")}>
           <CardHeader className="pb-2"><CardTitle className="flex items-center justify-between gap-2 text-lg">{item === "monthly" ? "Mensal" : "Anual"}{item === "annual" && overview.annualCents < overview.monthlyCents * 12 ? <span className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">Melhor valor</span> : null}</CardTitle></CardHeader>

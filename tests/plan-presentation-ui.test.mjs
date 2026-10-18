@@ -64,9 +64,13 @@ test('Pix recebido mostra confirmação e entrada com nome da fazenda sem botão
 test('Pix confirmado em processamento ainda não anuncia recebimento',()=>{
   setup(null);const html=renderToStaticMarkup(React.createElement(PlanPixDialog,{order:order('CONFIRMED'),onEnter:()=>{},onClose:()=>{}}));assert.ok(!html.includes('Pagamento confirmado!'));assert.ok(html.includes('Aguardando confirmação do recebimento'));
 });
-test('confirmação persiste no plano mesmo se fechar o modal Pix',()=>{
-  setup(overview([order('RECEIVED')],{access:{allowed:true,reason:'paid'},farmName:'São Miguel'}));const html=renderToStaticMarkup(React.createElement(MyPlan,{forceProduction:true}));assert.ok(html.includes('Pagamento confirmado!'));assert.ok(html.includes('Ir para Fazenda São Miguel'));
+test('plano pago não mantém aviso fixo de confirmação',()=>{
+  setup(overview([order('RECEIVED')],{access:{allowed:true,reason:'paid'},farmName:'São Miguel'}));const html=renderToStaticMarkup(React.createElement(MyPlan));assert.ok(!html.includes('Pagamento confirmado!'));assert.ok(!html.includes('Ir para Fazenda São Miguel'));
 });
 test('anual cancelado sem pagamento continua apenas no histórico',()=>{
   setup(overview([{...order('DELETED'),installmentCount:12}],{annualPurchase:{id:'order',status:'DELETED',cancelState:'CANCELLED',active:false,validFrom:null,amountCents:24990,installmentCount:12}}));const html=renderToStaticMarkup(React.createElement(MyPlan,{forceProduction:true}));assert.ok(!html.includes('Consultar contratação'));assert.ok(html.includes('Cancelado'));
+});
+
+test('entrada após a barreira de pagamento permanece disponível sem aviso fixo ou nome duplicado',()=>{
+  setup(overview([order('RECEIVED')],{access:{allowed:true,reason:'paid'},farmName:'Fazenda São Miguel'}));const html=renderToStaticMarkup(React.createElement(MyPlan,{forceProduction:true}));assert.ok(!html.includes('Pagamento confirmado!'));assert.ok(html.includes('Ir para Fazenda São Miguel'));assert.ok(!html.includes('Fazenda Fazenda'));
 });
