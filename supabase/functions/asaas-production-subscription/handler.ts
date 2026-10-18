@@ -17,6 +17,11 @@ const validDocument = (value: string): boolean => {
     return digits[size] === (remainder < 2 ? 0 : 11 - remainder);
   });
 };
+// O Asaas pode retornar BOLETO para a fatura Boleto/Pix de uma assinatura PIX.
+// Normalizar somente nesse sentido; nunca aceitar cartão ou método indefinido.
+const compatibleMethod = (requested: unknown, actual: unknown): boolean =>
+  (requested === "PIX" && (actual === "PIX" || actual === "BOLETO")) ||
+  (requested === "CREDIT_CARD" && actual === "CREDIT_CARD");
 export function createProductionSubscriptionHandler(deps: SubscriptionDeps) {
   return async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");
@@ -86,9 +91,17 @@ export function createProductionSubscriptionHandler(deps: SubscriptionDeps) {
         if (Array.isArray(found.data) && found.data.length === 1 && object(found.data[0])) provider = found.data[0];
       }
       if (!provider) return fail(409, "A criação anterior está em conferência. Use Consultar assinatura; não repita a criação no Asaas.");
-      if (typeof provider.id !== "string" || provider.customer !== subscription.customer_id || provider.externalReference !== subscription.id || provider.billingType !== subscription.method || provider.cycle !== (subscription.plan === "annual" ? "YEARLY" : "MONTHLY") || typeof provider.value !== "number" || Math.round(provider.value * 100) !== subscription.amount_cents || (subscription.provider_id != null && subscription.provider_id !== provider.id)) return fail(502, "A assinatura não corresponde ao plano solicitado.");
+      const mismatches = [
+        typeof provider.id !== "string" || (subscription.provider_id != null && subscription.provider_id !== provider.id) ? "identificador" : null,
+        provider.customer !== subscription.customer_id ? "cliente" : null,
+        provider.externalReference !== subscription.id ? "referência" : null,
+        !compatibleMethod(subscription.method, provider.billingType) ? "forma de pagamento" : null,
+        provider.cycle !== (subscription.plan === "annual" ? "YEARLY" : "MONTHLY") ? "periodicidade" : null,
+        typeof provider.value !== "number" || Math.round(provider.value * 100) !== subscription.amount_cents ? "valor" : null,
+      ].filter(Boolean);
+      if (mismatches.length) return fail(502, `A assinatura não corresponde ao plano solicitado (${mismatches.join(", ")}). Use Consultar assinatura; não gere outra cobrança.`);
       const cancelled = provider.deleted === true || provider.status === "CANCELLED";
-      subscription = await rpc("save", { id: subscription.id, providerId: provider.id, customerId: provider.customer, externalReference: provider.externalReference, method: provider.billingType, cycle: provider.cycle, amountCents: Math.round(provider.value * 100), nextDueDate: provider.nextDueDate ?? null, status: cancelled ? "CANCELLED" : provider.status, observedAt });
+      subscription = await rpc("save", { id: subscription.id, providerId: provider.id, customerId: provider.customer, externalReference: provider.externalReference, method: subscription.method, cycle: provider.cycle, amountCents: Math.round(Number(provider.value) * 100), nextDueDate: provider.nextDueDate ?? null, status: cancelled ? "CANCELLED" : provider.status, observedAt });
       if (!cancelled && subscription.status !== "canceling") {
         // Conciliação explícita, paginada. Webhooks continuam sendo a atualização principal.
         for (let page = 0; page < 10; page++) {
@@ -96,10 +109,10 @@ export function createProductionSubscriptionHandler(deps: SubscriptionDeps) {
           const list = await asaas(`subscriptions/${encodeURIComponent(String(provider.id))}/payments?limit=100&offset=${page * 100}`);
           if (!Array.isArray(list.data)) throw new Error("INVALID_PAYMENTS");
           for (const item of list.data) {
-            if (!object(item) || typeof item.id !== "string" || item.subscription !== provider.id || item.customer !== subscription.customer_id || item.billingType !== subscription.method || typeof item.value !== "number" || Math.round(item.value * 100) !== subscription.amount_cents || typeof item.dueDate !== "string" || !invoice(item.invoiceUrl)) throw new Error("INVALID_PAYMENT");
+            if (!object(item) || typeof item.id !== "string" || item.subscription !== provider.id || item.customer !== subscription.customer_id || !compatibleMethod(subscription.method, item.billingType) || typeof item.value !== "number" || Math.round(item.value * 100) !== subscription.amount_cents || typeof item.dueDate !== "string" || !invoice(item.invoiceUrl)) throw new Error("INVALID_PAYMENT");
             const refunds = Array.isArray(item.refunds) ? item.refunds : [];
             const refundedCents = refunds.reduce((sum: number, x: unknown) => sum + (object(x) && x.status === "DONE" && typeof x.value === "number" ? Math.round(x.value * 100) : 0), 0);
-            const sync = await call(`${url}/rest/v1/rpc/app_ingest_production_subscription_payment`, { method: "POST", headers: serviceHeaders, body: JSON.stringify({ p_subscription_id: subscription.id, p_payload: { paymentId: item.id, providerSubscriptionId: item.subscription, customerId: item.customer, externalReference: subscription.id, method: item.billingType, amountCents: Math.round(item.value * 100), dueDate: item.dueDate, invoiceUrl: item.invoiceUrl, status: item.deleted === true ? "DELETED" : item.status, refundedCents, observedAt: paymentsObservedAt } }) });
+            const sync = await call(`${url}/rest/v1/rpc/app_ingest_production_subscription_payment`, { method: "POST", headers: serviceHeaders, body: JSON.stringify({ p_subscription_id: subscription.id, p_payload: { paymentId: item.id, providerSubscriptionId: item.subscription, customerId: item.customer, externalReference: subscription.id, method: subscription.method, amountCents: Math.round(item.value * 100), dueDate: item.dueDate, invoiceUrl: item.invoiceUrl, status: item.deleted === true ? "DELETED" : item.status, refundedCents, observedAt: paymentsObservedAt } }) });
             if (!sync.ok) throw new Error("PAYMENT_SYNC");
           }
           if (list.hasMore !== true) break;

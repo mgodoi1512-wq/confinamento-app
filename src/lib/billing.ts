@@ -62,7 +62,7 @@ export async function checkAsaasSandbox(): Promise<AsaasSandboxConnection> {
 }
 
 export type MyPlanOrder = {
-  id: string; subscriptionId?: string | null; dueOn?: string | null; archived: boolean; plan: "monthly" | "annual"; method: "PIX" | "CREDIT_CARD";
+  id: string; installmentCount?: number | null; subscriptionId?: string | null; dueOn?: string | null; archived: boolean; plan: "monthly" | "annual"; method: "PIX" | "CREDIT_CARD";
   amountCents: number; status: string; invoiceUrl: string | null;
   refundedCents?: number; lastSyncSource?: "manual" | "webhook" | null; lastWebhookAt?: string | null;
   validFrom: string | null; validUntil: string | null; checkedAt: string | null; createdAt: string;
@@ -70,6 +70,7 @@ export type MyPlanOrder = {
 export type MyPlanOverview = {
   environment: "sandbox" | "production"; mode: "manual" | "automatic"; monthlyCents: number; annualCents: number;
   canCreate?: boolean; newSubscriptionStartsOn?: string; billingVersion?: string; access?: ProductionAccess;
+  annualPurchase?: AnnualPurchase | null; maxAnnualInstallments?: number;
   subscription?: SandboxSubscription | null; graceDays?: number; simulatedStatus?: string | null; paidThrough?: string | null;
   isOwner: boolean; canTest: boolean; orders: MyPlanOrder[];
 };
@@ -130,3 +131,22 @@ async function productionInvoke(name: string, body: Record<string, unknown>) {
 export const checkAsaasProduction = () => productionInvoke("asaas-production-check", { action: "check_production" });
 export const productionSubscription = (input: SubscriptionInput, priceVersion?: string) => productionInvoke("asaas-production-subscription", input.action === "create" ? { ...input, productionConsent: true, priceVersion } : input);
 export const productionPayment = (id: string) => productionInvoke("asaas-production-payment", { action: "refresh", id });
+
+export type PlanPix = {
+  ok: true; environment: "production"; id: string; amountCents: number; status: string;
+  state: "pending" | "processing" | "paid" | "unavailable"; checkedAt: string;
+  pix: { encodedImage: string; payload: string; expirationDate: string } | null;
+};
+export async function getProductionPix(id: string): Promise<PlanPix> {
+  const data = await productionInvoke("asaas-production-payment", { action: "pix", id });
+  if (data.id !== id || !Number.isSafeInteger(data.amountCents) || data.amountCents <= 0 || typeof data.status !== "string"
+    || !["pending", "processing", "paid", "unavailable"].includes(data.state) || !Number.isFinite(Date.parse(data.checkedAt))) throw new Error("Não foi possível validar os dados do pagamento.");
+  if (data.state === "pending" && (!data.pix || typeof data.pix.encodedImage !== "string" || data.pix.encodedImage.length > 1048576
+    || !/^iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/.test(data.pix.encodedImage) || typeof data.pix.payload !== "string" || !data.pix.payload.startsWith("000201")
+    || !Number.isFinite(Date.parse(data.pix.expirationDate)))) throw new Error("O código Pix retornado é inválido.");
+  return data as PlanPix;
+}
+
+export type AnnualPurchase = { id: string; installmentCount: number; amountCents: number; status: string; cancelState: "canceling" | "CANCELLED" | null; invoiceUrl: string | null; validFrom: string | null; validUntil: string | null; checkedAt: string | null; active: boolean; canCancel: boolean };
+export type AnnualPurchaseInput = { action: "create"; installmentCount: number; name: string; cpfCnpj: string } | { action: "refresh"; id: string } | { action: "cancel"; id: string; confirm: true };
+export const productionAnnual = (input: AnnualPurchaseInput, priceVersion?: string) => productionInvoke("asaas-production-annual", input.action === "create" ? { ...input, priceVersion, productionConsent: true } : input);

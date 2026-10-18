@@ -1,3 +1,4 @@
+import { annualSnapshot } from "../_shared/annual-reconcile.ts";
 type WebhookDeps = { env: (name: string) => string | undefined; fetch: typeof fetch; now?: () => Date };
 type Data = Record<string, unknown>;
 const record = (value: unknown): value is Data => !!value && typeof value === "object" && !Array.isArray(value);
@@ -18,6 +19,11 @@ const equalToken = async (expected: string, received: string) => {
   for (let i = 0; i < left.length; i++) diff |= left[i] ^ right[i];
   return diff === 0;
 };
+// O Asaas pode retornar BOLETO para a fatura Boleto/Pix de uma assinatura PIX.
+// Normalizar somente nesse sentido; nunca aceitar cartão ou método indefinido.
+const compatibleMethod = (requested: unknown, actual: unknown): boolean =>
+  (requested === "PIX" && (actual === "PIX" || actual === "BOLETO")) ||
+  (requested === "CREDIT_CARD" && actual === "CREDIT_CARD");
 export function createProductionWebhookHandler(deps: WebhookDeps) {
   return async (request: Request): Promise<Response> => {
     const deadline = Date.now() + 8000;
@@ -54,7 +60,7 @@ export function createProductionWebhookHandler(deps: WebhookDeps) {
     };
     let claimToken: string | undefined;
     try {
-      const claim = await rpc("claim", { eventId: event.id, eventType: event.event, paymentId, externalReference: typeof resource.externalReference === "string" ? resource.externalReference : null, providerSubscriptionId: typeof resource.subscription === "string" ? resource.subscription : null });
+      const claim = await rpc("claim", { eventId: event.id, eventType: event.event, paymentId, externalReference: typeof resource.externalReference === "string" ? resource.externalReference : null, providerSubscriptionId: typeof resource.subscription === "string" ? resource.subscription : null, providerInstallmentId: typeof resource.installment === "string" ? resource.installment : null });
       if (claim.duplicate === true) return reply(200, "EVENT_ALREADY_PROCESSED");
       if (claim.ignored === true) return reply(200, "UNRELATED_PAYMENT_IGNORED");
       if (claim.busy === true) return reply(503, "EVENT_IN_PROGRESS");
@@ -63,6 +69,19 @@ export function createProductionWebhookHandler(deps: WebhookDeps) {
       const order = record(claim.order) ? claim.order : undefined;
       const subscription = record(claim.subscription) ? claim.subscription : undefined;
       const observedAt = (deps.now?.() ?? new Date()).toISOString();
+      if (!lifecycle && order?.installment_count != null) {
+        const get = async (path: string): Promise<Data | null> => {
+          const response = await deps.fetch(`https://api.asaas.com/v3/${path}`, { method: "GET", headers: { access_token: key, "User-Agent": "LiBen-Annual-Webhook/1.0", Accept: "application/json" }, redirect: "error", signal: timeout(3000) });
+          if (response.status === 404) return null;
+          if (!response.ok) throw new Error("PROVIDER_UNAVAILABLE");
+          const value: unknown = await response.json(); if (!record(value)) throw new Error("PROVIDER_UNAVAILABLE"); return value;
+        };
+        const snapshot = await annualSnapshot(order, get, observedAt, paymentId);
+        const applied = await deps.fetch(`${url}/rest/v1/rpc/app_apply_annual_snapshot`, { method: "POST", headers: { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" }, body: JSON.stringify({ p_order_id: order.id, p_snapshot: { ...snapshot, source: "webhook" } }), redirect: "error", signal: timeout(2000) });
+        if (!applied.ok) throw new Error("DATABASE_UNAVAILABLE");
+        await rpc("complete_annual", { eventId: event.id, claimToken });
+        return reply(200, "EVENT_PROCESSED");
+      }
       const endpoint = lifecycle ? "subscriptions" : "payments";
       const response = await deps.fetch(`https://api.asaas.com/v3/${endpoint}/${encodeURIComponent(paymentId)}`, { method: "GET", headers: { access_token: key, "User-Agent": "LiBen-Production-Webhook/1.0", Accept: "application/json" }, redirect: "error", signal: timeout(3000) });
       if (lifecycle) {
@@ -71,8 +90,8 @@ export function createProductionWebhookHandler(deps: WebhookDeps) {
         if (response.status === 404 && event.event === "SUBSCRIPTION_DELETED" && subscription.provider_id === paymentId) {
           provider = { id: paymentId, customer: subscription.customer_id, externalReference: subscription.id, billingType: subscription.method, cycle: subscription.plan === "annual" ? "YEARLY" : "MONTHLY", value: Number(subscription.amount_cents) / 100, status: "CANCELLED", deleted: true };
         } else { if (!response.ok) throw new Error("PROVIDER_UNAVAILABLE"); provider = await response.json(); }
-        if (!record(provider) || provider.id !== paymentId || provider.customer !== subscription.customer_id || provider.externalReference !== subscription.id || provider.billingType !== subscription.method || provider.cycle !== (subscription.plan === "annual" ? "YEARLY" : "MONTHLY") || typeof provider.value !== "number" || Math.round(provider.value * 100) !== subscription.amount_cents || (subscription.provider_id != null && subscription.provider_id !== provider.id)) throw new Error("SUBSCRIPTION_MISMATCH");
-        await rpc("complete", { eventId: event.id, claimToken, subscription: { providerId: provider.id, customerId: provider.customer, externalReference: provider.externalReference, method: provider.billingType, cycle: provider.cycle, amountCents: Math.round(provider.value * 100), nextDueDate: provider.nextDueDate ?? null, status: provider.deleted === true ? "CANCELLED" : provider.status, observedAt } });
+        if (!record(provider) || provider.id !== paymentId || provider.customer !== subscription.customer_id || provider.externalReference !== subscription.id || !compatibleMethod(subscription.method, provider.billingType) || provider.cycle !== (subscription.plan === "annual" ? "YEARLY" : "MONTHLY") || typeof provider.value !== "number" || Math.round(provider.value * 100) !== subscription.amount_cents || (subscription.provider_id != null && subscription.provider_id !== provider.id)) throw new Error("SUBSCRIPTION_MISMATCH");
+        await rpc("complete", { eventId: event.id, claimToken, subscription: { providerId: provider.id, customerId: provider.customer, externalReference: provider.externalReference, method: subscription.method, cycle: provider.cycle, amountCents: Math.round(provider.value * 100), nextDueDate: provider.nextDueDate ?? null, status: provider.deleted === true ? "CANCELLED" : provider.status, observedAt } });
         return reply(200, "EVENT_PROCESSED");
       }
       if (response.status === 404 && event.event === "PAYMENT_DELETED" && subscription && (!order || !order.invoice_url)) {
@@ -84,7 +103,7 @@ export function createProductionWebhookHandler(deps: WebhookDeps) {
         payment = { id: paymentId, customer: order.customer_id, externalReference: order.provider_reference ?? order.id, subscription: order.provider_subscription_id, dueDate: order.due_on, value: Number(order.amount_cents) / 100, billingType: order.method, invoiceUrl: order.invoice_url, deleted: true };
       } else { if (!response.ok) throw new Error("PROVIDER_UNAVAILABLE"); payment = await response.json(); }
       const expected = subscription ?? order;
-      if (!expected || !record(payment) || payment.id !== paymentId || payment.customer !== expected.customer_id || payment.billingType !== expected.method || typeof payment.value !== "number" || Math.round(payment.value * 100) !== expected.amount_cents || typeof payment.invoiceUrl !== "string" || !/^https:\/\/(www\.asaas\.com|asaas\.com)\/i\/[A-Za-z0-9_-]+$/.test(payment.invoiceUrl)) throw new Error("PAYMENT_MISMATCH");
+      if (!expected || !record(payment) || payment.id !== paymentId || payment.customer !== expected.customer_id || !compatibleMethod(expected.method, payment.billingType) || typeof payment.value !== "number" || Math.round(payment.value * 100) !== expected.amount_cents || typeof payment.invoiceUrl !== "string" || !/^https:\/\/(www\.asaas\.com|asaas\.com)\/i\/[A-Za-z0-9_-]+$/.test(payment.invoiceUrl)) throw new Error("PAYMENT_MISMATCH");
       if (subscription ? (!subscription.provider_id || payment.subscription !== subscription.provider_id) : (payment.externalReference !== order?.id || order?.payment_id != null && order.payment_id !== payment.id)) throw new Error("PAYMENT_MISMATCH");
       const refunds = Array.isArray(payment.refunds) ? payment.refunds : [];
       let refundedCents = 0;
@@ -94,7 +113,7 @@ export function createProductionWebhookHandler(deps: WebhookDeps) {
           refundedCents += Math.round(refund.value * 100);
         }
       }
-      await rpc("complete", { eventId: event.id, claimToken, payment: { paymentId: payment.id, customerId: payment.customer, externalReference: subscription?.id ?? payment.externalReference, providerSubscriptionId: payment.subscription ?? null, dueDate: payment.dueDate ?? null, method: payment.billingType, amountCents: Math.round(payment.value * 100), invoiceUrl: payment.invoiceUrl, observedAt, refundedCents, status: payment.deleted === true ? "DELETED" : payment.status } });
+      await rpc("complete", { eventId: event.id, claimToken, payment: { paymentId: payment.id, customerId: payment.customer, externalReference: subscription?.id ?? payment.externalReference, providerSubscriptionId: payment.subscription ?? null, dueDate: payment.dueDate ?? null, method: expected.method, amountCents: Math.round(payment.value * 100), invoiceUrl: payment.invoiceUrl, observedAt, refundedCents, status: payment.deleted === true ? "DELETED" : payment.status } });
       return reply(200, "EVENT_PROCESSED");
     } catch {
       if (claimToken) {

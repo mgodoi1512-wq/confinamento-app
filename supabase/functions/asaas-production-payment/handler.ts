@@ -17,6 +17,11 @@ const validDocument = (value: string): boolean => {
     return digits[size] === (remainder < 2 ? 0 : 11 - remainder);
   });
 };
+// O Asaas pode retornar BOLETO para a fatura Boleto/Pix de uma assinatura PIX.
+// Normalizar somente nesse sentido; nunca aceitar cartão ou método indefinido.
+const compatibleMethod = (requested: unknown, actual: unknown): boolean =>
+  (requested === "PIX" && (actual === "PIX" || actual === "BOLETO")) ||
+  (requested === "CREDIT_CARD" && actual === "CREDIT_CARD");
 export function createProductionPaymentHandler(deps: PaymentDeps) {
   return async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");
@@ -34,6 +39,7 @@ export function createProductionPaymentHandler(deps: PaymentDeps) {
     if (!url || !anon || !service || !key?.startsWith("$aact_prod_") || /\s/.test(key)) return fail(503, "Confira os Secrets do Production na Edge Function.");
     const call = (target: string, options: RequestInit, timeout = 15000) => deps.fetch(target, { ...options, redirect: "error", signal: AbortSignal.timeout(timeout) });
     const userHeaders = { apikey: anon, Authorization: authorization, "Content-Type": "application/json" };
+    let pixRequested = false;
     try {
       const auth = await call(`${url}/auth/v1/user`, { headers: userHeaders });
       if (!auth.ok) return fail(auth.status === 401 || auth.status === 403 ? 401 : 503, "Não foi possível validar sua sessão.");
@@ -43,8 +49,9 @@ export function createProductionPaymentHandler(deps: PaymentDeps) {
       if (raw.length > 4096) return fail(413, "Formulário muito grande.");
       let body: unknown;
       try { body = JSON.parse(raw); } catch { return fail(400, "Dados inválidos."); }
-      if (!object(body) || body.action !== "refresh") return fail(400, "Ação inválida.");
+      if (!object(body) || !["refresh", "pix"].includes(String(body.action))) return fail(400, "Ação inválida.");
       if (Object.keys(body).some(x => !["action", "id"].includes(x)) || typeof body.id !== "string" || !/^[0-9a-f-]{36}$/i.test(body.id)) return fail(400, "Pagamento inválido.");
+      pixRequested = body.action === "pix";
       const rpc = async (action: string, payload: RecordData): Promise<RecordData> => {
         const res = await call(`${url}/rest/v1/rpc/app_billing_production_server`, { method: "POST", headers: { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" }, body: JSON.stringify({ p_action: action, p_user_id: user.id, p_payload: payload }) });
         if (!res.ok) throw new Error("DATABASE");
@@ -60,15 +67,44 @@ export function createProductionPaymentHandler(deps: PaymentDeps) {
         return value;
       };
       const order = await rpc("get", { id: body.id });
+      if (pixRequested && (order.method !== "PIX" || order.archived === true)) return fail(409, "Pix indisponível para esta cobrança.");
       if (typeof order.payment_id !== "string") return fail(409, "Cobrança ainda em conferência.");
       const observedAt = (deps.now?.() ?? new Date()).toISOString();
       const payment = await asaas(`payments/${encodeURIComponent(order.payment_id)}`);
       if (!payment) return fail(409, "A geração anterior ainda não foi confirmada. Confira o Production do Asaas e tente Atualizar situação. Não crie outra cobrança manualmente.");
-      if (typeof payment.id !== "string" || (order.provider_subscription_id ? payment.subscription !== order.provider_subscription_id : payment.externalReference !== order.id) || payment.customer !== order.customer_id || payment.billingType !== order.method || typeof payment.value !== "number" || Math.round(payment.value * 100) !== order.amount_cents || !invoice(payment.invoiceUrl)) return fail(502, "A cobrança retornada não corresponde ao plano solicitado.");
-      await rpc("sync", { id: order.id, customerId: payment.customer, externalReference: order.provider_reference ?? payment.externalReference, providerSubscriptionId: payment.subscription ?? null, dueDate: payment.dueDate ?? null, paymentId: payment.id, amountCents: Math.round(payment.value * 100), method: payment.billingType, invoiceUrl: payment.invoiceUrl, observedAt, status: payment.deleted === true ? "DELETED" : payment.status });
+      if (payment.id !== order.payment_id || (order.provider_subscription_id ? payment.subscription !== order.provider_subscription_id : payment.externalReference !== order.id) || payment.customer !== order.customer_id || !compatibleMethod(order.method, payment.billingType) || typeof payment.value !== "number" || Math.round(payment.value * 100) !== order.amount_cents || !invoice(payment.invoiceUrl)) return fail(502, "A cobrança retornada não corresponde ao plano solicitado.");
+      const refunds = Array.isArray(payment.refunds) ? payment.refunds : [];
+      let refundedCents = 0;
+      for (const refund of refunds) {
+        if (object(refund) && refund.status === "DONE") {
+          if (typeof refund.value !== "number" || !Number.isFinite(refund.value) || refund.value < 0) throw new Error("INVALID_REFUND");
+          refundedCents += Math.round(refund.value * 100);
+        }
+      }
+      await rpc("sync", { id: order.id, customerId: payment.customer, externalReference: order.provider_reference ?? payment.externalReference, providerSubscriptionId: payment.subscription ?? null, dueDate: payment.dueDate ?? null, paymentId: payment.id, amountCents: Math.round(payment.value * 100), method: order.method, refundedCents, invoiceUrl: payment.invoiceUrl, observedAt, status: payment.deleted === true ? "DELETED" : payment.status });
+      if (pixRequested) {
+        const status = payment.deleted === true ? "DELETED" : payment.status;
+        const state = refundedCents > 0 ? "unavailable" : status === "RECEIVED" ? "paid" : status === "CONFIRMED" ? "processing" : ["PENDING", "OVERDUE"].includes(String(status)) ? "pending" : "unavailable";
+        const result = { ok: true, environment: "production", id: order.id, amountCents: order.amount_cents, status, state, checkedAt: observedAt };
+        if (state !== "pending") return new Response(JSON.stringify({ ...result, pix: null }), { headers });
+        // Apenas recupera o QR da cobrança existente. Nunca cria cobrança nem usa chave no frontend.
+        const qr = await asaas(`payments/${encodeURIComponent(order.payment_id)}/pixQrCode`);
+        if (typeof qr.encodedImage !== "string" || qr.encodedImage.length > 1048576 || !/^[A-Za-z0-9+/]+={0,2}$/.test(qr.encodedImage)
+          || typeof qr.payload !== "string" || !qr.payload.startsWith("000201") || qr.payload.length < 50 || qr.payload.length > 4096 || Array.from(qr.payload).some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
+          || typeof qr.expirationDate !== "string") throw new Error("INVALID_QR");
+        const png = atob(qr.encodedImage);
+        if (![137,80,78,71,13,10,26,10].every((value, index) => png.charCodeAt(index) === value)) throw new Error("INVALID_PNG");
+        let expiry = qr.expirationDate.trim().replace(" ", "T");
+        if (/^\d{4}-\d{2}-\d{2}$/.test(expiry)) expiry += "T23:59:59";
+        if (!/(Z|[+-]\d{2}:?\d{2})$/.test(expiry)) expiry += "-03:00";
+        const expiresAt = Date.parse(expiry);
+        if (!Number.isFinite(expiresAt)) throw new Error("INVALID_EXPIRY");
+        if (expiresAt <= (deps.now?.() ?? new Date()).getTime()) return fail(409, "Este código Pix expirou. Consulte a fatura no Asaas antes de pagar.");
+        return new Response(JSON.stringify({ ...result, pix: { encodedImage: qr.encodedImage, payload: qr.payload, expirationDate: new Date(expiresAt).toISOString() } }), { headers });
+      }
       return new Response(JSON.stringify({ ok: true, environment: "production", id: order.id }), { headers });
     } catch {
-      return fail(502, "Não foi possível concluir. Confira a migração e os Secrets. Se a cobrança já foi iniciada, use Atualizar situação; ela não será reenviada automaticamente.");
+      return fail(502, pixRequested ? "Não foi possível carregar o Pix. Tente novamente ou abra a fatura no Asaas." : "Não foi possível concluir. Confira a migração e os Secrets. Se a cobrança já foi iniciada, use Atualizar situação; ela não será reenviada automaticamente.");
     }
   };
 }
