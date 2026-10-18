@@ -4,8 +4,9 @@ import { daysBetween, formatDate, todayIso } from "./format";
 export type ExportColumn = { title: string; decimals?: number };
 export type ExportReport = {
   title: string;
+  feedingSuggestion?: { suggestions: import("./feed-suggestion").FeedingSuggestion[]; farmName: string; date: string };
   adaptation?: { input: import("./adaptation").AdaptationInput; lotName: string };
-  pdf?: { format: "a4" | "a3"; fontSize?: number; embeddedFont?: boolean; columnWidths?: number[] };
+  pdf?: { format: "a4" | "a3"; fontSize?: number; embeddedFont?: boolean; columnWidths?: number[]; centerColumns?: boolean };
   filename: string;
   recordCount?: number;
   filters: string;
@@ -30,6 +31,7 @@ export function animalReport(animals: Animal[], lots: Lot[], pens: Pen[], weighi
   }
   return {
     title: "Relatório de animais", filename: "animais", filters,
+    pdf: { format: "a3", centerColumns: true },
     note: "GMD individual = (peso atual - peso de entrada) / dias entre a entrada do lote atual e a última pesagem individual. Sem base compatível, o GMD fica em branco. Pesos em kg; GMD em kg/dia. A data de entrada é a do lote.",
     columns: [
       { title: "Brinco" }, { title: "SISBOV" }, { title: "Lote" }, { title: "Curral" },

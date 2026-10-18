@@ -43,6 +43,18 @@ export async function exportExcel(report: ExportReport) {
 }
 
 export async function exportPdf(report: ExportReport) {
+  if (report.feedingSuggestion) {
+    const { buildFeedingSuggestionPdf } = await import("./feed-suggestion-pdf");
+    const base = import.meta.env?.BASE_URL ?? "/";
+    const files = await Promise.all(["logo-liben-2.png", "fonts/liben-report-regular.ttf", "fonts/liben-report-bold.ttf"].map(async file => {
+      const response = await fetch(`${base}${file}`);
+      if (!response.ok) throw new Error("Não foi possível carregar a logo ou as fontes do relatório.");
+      return new Uint8Array(await response.arrayBuffer());
+    }));
+    const data = report.feedingSuggestion;
+    buildFeedingSuggestionPdf(data.suggestions, data.farmName, data.date, files[0], { regular: files[1], bold: files[2] }).save(filename(report, "pdf"));
+    return;
+  }
   if (report.adaptation) {
     const { buildAdaptationPdf } = await import("./adaptation-pdf");
     const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}logo-liben-2.png`);
@@ -102,11 +114,11 @@ export async function exportPdf(report: ExportReport) {
     body: report.rows.map(row => row.map((value, index) => typeof value === "number" ? formatNumber(value, report.columns[index].decimals ?? 1) : value ?? "—")),
     margin: { top: 12, right: 12, bottom: 16, left: 12 },
     styles: { font: reportFont, fontSize: report.pdf?.fontSize ?? 8, cellPadding: 2, overflow: "linebreak" },
-    headStyles: { fillColor: [101, 59, 39] },
+    headStyles: { fillColor: [101, 59, 39], ...(report.pdf?.centerColumns ? { halign: "center" as const } : {}) },
     alternateRowStyles: { fillColor: [247, 242, 237] },
     rowPageBreak: "avoid",
     columnStyles: Object.fromEntries(report.columns.map((column,index)=>[index, {
-      ...(column.decimals===undefined?{}:{halign:"right" as const}),
+      ...(report.pdf?.centerColumns ? {halign:"center" as const} : column.decimals===undefined ? {} : {halign:"right" as const}),
       ...(report.pdf?.columnWidths?.[index] ? {cellWidth:report.pdf.columnWidths[index]} : {}),
     }])) ,
   });

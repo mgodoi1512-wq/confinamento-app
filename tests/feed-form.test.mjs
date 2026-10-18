@@ -16,11 +16,13 @@ const mock=url(`
 export const useState=initial=>{const h=globalThis.__feedHarness;const i=h.cursor++;if(!(i in h.state))h.state[i]=typeof initial==='function'?initial():initial;return[h.state[i],value=>{h.state[i]=typeof value==='function'?value(h.state[i]):value;}];};
 export const useMemo=fn=>fn();export const useRef=value=>{const h=globalThis.__feedHarness;const i=h.cursor++;if(!(i in h.state))h.state[i]={current:value};return h.state[i];};
 export const useAuth=()=>({isGestor:true});
+export class DuplicateEarTagsError extends Error{constructor(matches){super('duplicado');this.matches=matches;}}
+export const mutateApp=async(operation,payload)=>{const h=globalThis.__feedHarness;h.tagChecks??=[];h.tagChecks.push({operation,payload});if(h.tagCheckError)throw new Error(h.tagCheckError);return h.tagMatches??[];};
 export const useTranslation=()=>({t:key=>key});
 export const useNavigate=()=>()=>{};export const cn=(...values)=>values.filter(Boolean).join(' ');
-export const useProtocols=()=>query('protocols');export const useCreateLot=()=>({isPending:false});
+export const useProtocols=()=>query('protocols');export const useCreateLot=()=>({isPending:false,mutateAsync:async payload=>{globalThis.__feedHarness.saved.push(payload);return{id:'created',...payload.lot};}});
 export function Link(){} export function PageHeader(){} export function StatusBadge(){} export function Card(){} export function CardContent(){}
-export function LockKeyhole(){} export function ArrowLeft(){} export function ArrowRight(){} export function Beef(){} export function Check(){} export function Plus(){} export function Trash2(){}
+export function AlertTriangle(){} export function Loader2(){} export function LockKeyhole(){} export function ArrowLeft(){} export function ArrowRight(){} export function Beef(){} export function Check(){} export function Plus(){} export function Trash2(){}
 export const toast={success:()=>{},error:()=>{}};
 const query=name=>({data:globalThis.__feedHarness[name],isSuccess:globalThis.__feedHarness.ready,isLoading:false,isError:false,refetch:async()=>({data:globalThis.__feedHarness[name],isError:false})});
 export const useLots=()=>query('lots');export const usePens=()=>query('pens');export const useDiets=()=>query('diets');export const useDietItems=()=>query('items');export const useWeighings=()=>query('weighings');
@@ -74,14 +76,14 @@ test('trato não grava contexto incompleto e não lista curral em manutenção',
 });
 
 test('novo lote oferece somente protocolos ativos e calcula o resumo percentual pelo peso informado',()=>{
- const h=fixture();h.protocols=[{id:'on',name:'Ativo',is_active:true},{id:'off',name:'Inativo',is_active:false}];
+ const h=fixture();h.pens[0].capacity_head=100;h.protocols=[{id:'on',name:'Ativo',is_active:true},{id:'off',name:'Inativo',is_active:false}];
  const renderLot=()=>{globalThis.__feedHarness=h;h.cursor=0;return NewLot();};
  let tree=renderLot();field(tree,'field.headCount').props.onValueChange('10');field(tree,'field.entryWeight').props.onValueChange('400');
  const advance=()=>{tree=renderLot();const button=nodes(tree).find(node=>node.type.name==='Button' && Array.isArray(node.props.children) && node.props.children.includes('action.next'));assert.equal(button.props.disabled,false);button.props.onClick();};
  advance();advance();tree=renderLot();
- assert.deepEqual(field(tree,'field.protocol').props.options.map(option=>option.value),['on']);
+ assert.deepEqual(field(tree,'field.protocol (opcional)').props.options.map(option=>option.value),['on']);
  const checkbox=nodes(tree).find(node=>node.type==='input' && node.props.type==='checkbox');assert.equal(checkbox.props.checked,false);
- field(tree,'field.diet').props.onChange('da');tree=renderLot();
+ field(tree,'field.diet (opcional)').props.onChange('da');tree=renderLot();
  assert.ok(nodes(tree).some(node=>node.type==='p' && String(node.props.children).includes('4,00 kg/cab/dia')));
  delete globalThis.__feedHarness;
 });
@@ -189,4 +191,37 @@ test('último trato fecha e limpa o formulário, mantendo histórico e outros lo
  assert.equal(h.saved.length,1);assert.equal(select(tree).props.value,'');
  assert.equal(nodes(tree).find(n=>n.type.name==='Dialog').props.open,false);
  delete globalThis.__feedHarness;
+});
+
+
+test('brincos repetidos são conferidos antes da sanidade e a confirmação acompanha o salvamento',async()=>{
+ const h=fixture();h.protocols=[];h.pens[0].capacity_head=100;h.tagMatches=[{earTag:'Animal 1',lotCode:'Lote 1'}];
+ const draw=()=>{globalThis.__feedHarness=h;h.cursor=0;return NewLot();};
+ const button=(tree,text)=>nodes(tree).find(n=>n.type.name==='Button'&&(n.props.children===text||Array.isArray(n.props.children)&&n.props.children.includes(text)));
+ let tree=draw();field(tree,'field.headCount').props.onValueChange('1');field(tree,'field.entryWeight').props.onValueChange('400');
+ await button(draw(),'action.next').props.onClick();
+ tree=draw();nodes(tree).find(n=>n.type==='button'&&n.props.children==='lots.new.modeIndividual').props.onClick();
+ button(draw(),'weighings.form.addAnimal').props.onClick();tree=draw();field(tree,'field.earTag 1').props.onChange(' Animal 1 ');
+ await button(draw(),'action.next').props.onClick();tree=draw();
+ assert.deepEqual(h.tagChecks,[{operation:'check_lot_ear_tags',payload:{tags:['Animal 1']}}]);
+ assert.equal(field(tree,'field.protocol (opcional)'),undefined);assert.equal(h.saved.length,0);
+ assert.ok(nodes(tree).some(n=>n.type==='td'&&n.props.children==='Lote 1'));
+ button(tree,'Revisar brincos').props.onClick();tree=draw();assert.ok(field(tree,'field.earTag 1'));
+ await button(tree,'action.next').props.onClick();button(draw(),'Continuar cadastro').props.onClick();tree=draw();
+ assert.ok(field(tree,'field.protocol (opcional)'));field(tree,'field.pen').props.onChange('p');tree=draw();
+ const final=nodes(tree).find(n=>n.type.name==='Button'&&n.props.onClick&&String(n.props.onClick).includes('submit'));
+ final.props.onClick();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.saved.length,1);assert.deepEqual(h.saved[0].confirmedDuplicateEarTags,['Animal 1']);
+ delete globalThis.__feedHarness;
+});
+
+test('falha na consulta de brincos impede avanço para sanidade',async()=>{
+ const h=fixture();h.protocols=[];h.pens[0].capacity_head=100;
+ const draw=()=>{globalThis.__feedHarness=h;h.cursor=0;return NewLot();};
+ const next=tree=>nodes(tree).find(n=>n.type.name==='Button'&&Array.isArray(n.props.children)&&n.props.children.includes('action.next'));
+ let tree=draw();field(tree,'field.headCount').props.onValueChange('1');field(tree,'field.entryWeight').props.onValueChange('400');await next(draw()).props.onClick();
+ tree=draw();nodes(tree).find(n=>n.type==='button'&&n.props.children==='lots.new.modeIndividual').props.onClick();
+ tree=draw();nodes(tree).find(n=>n.type.name==='Button'&&Array.isArray(n.props.children)&&n.props.children.includes('weighings.form.addAnimal')).props.onClick();
+ field(draw(),'field.earTag 1').props.onChange('Animal 1');h.tagCheckError='Sem conexão';await next(draw()).props.onClick();
+ assert.ok(field(draw(),'field.earTag 1'));assert.equal(h.saved.length,0);delete globalThis.__feedHarness;
 });

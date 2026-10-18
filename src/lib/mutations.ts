@@ -1,6 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
+export type DuplicateEarTag = { earTag: string; lotCode: string };
+export class DuplicateEarTagsError extends Error {
+  constructor(public matches: DuplicateEarTag[]) { super("Há brincos já usados em outros lotes."); this.name = "DuplicateEarTagsError"; }
+}
+
 const pending = new Map<string, string>();
 /** Uma chamada RPC é uma transação. Repetir após falha de rede reutiliza a mesma chave. */
 export const mutateApp = async <T>(operation: string, payload: unknown, requestId: string): Promise<T> => {
@@ -15,13 +20,14 @@ export const mutateApp = async <T>(operation: string, payload: unknown, requestI
   if (error) {
     const prefix = "BRINCOS_OUTROS_LOTES:";
     if (["create_lot", "save_animal"].includes(operation) && error.message.startsWith(prefix)
-      && payload && typeof payload === "object" && !("confirmedDuplicateEarTags" in payload)) {
+      && payload && typeof payload === "object") {
       let matches: { earTag: string; lotCode: string }[] = [];
       try {
         const parsed: unknown = JSON.parse(error.message.slice(prefix.length));
         if (Array.isArray(parsed) && parsed.every(item => item && typeof item.earTag === "string" && typeof item.lotCode === "string")) matches = parsed;
       } catch { /* Uma resposta inválida não autoriza cadastrar. */ }
-      if (matches.length) {
+      if (matches.length && operation === "create_lot") { pending.delete(key); throw new DuplicateEarTagsError(matches); }
+      if (matches.length && !("confirmedDuplicateEarTags" in payload)) {
         const shown = matches.slice(0, 12).map(item => `• ${item.earTag} — ${item.lotCode}`).join("\n");
         const more = matches.length > 12 ? `\nE mais ${matches.length - 12} ocorrência(s).` : "";
         pending.delete(key);

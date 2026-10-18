@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, Beef, Check, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Beef, Check, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
@@ -24,6 +24,7 @@ import {
 } from "@/lib/constants";
 import { computePenOccupancy, dietTotalKg } from "@/lib/domain";
 import { formatNumber, parseNumberInput, todayIso } from "@/lib/format";
+import { mutateApp, DuplicateEarTagsError, type DuplicateEarTag } from "@/lib/mutations";
 import { cn } from "@/lib/utils";
 
 type AnimalDraft = { key: string; earTag: string; weight: string };
@@ -71,6 +72,9 @@ const NewLot = () => {
   const [applyProtocol, setApplyProtocol] = useState(false);
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [checkingTags, setCheckingTags] = useState(false);
+  const [confirmedTags, setConfirmedTags] = useState<string[]>([]);
+  const [duplicateDialog, setDuplicateDialog] = useState<{ matches: DuplicateEarTag[]; action: "advance" | "save" } | null>(null);
 
   const occupancy = useMemo(() => computePenOccupancy(pens, lotsQuery.data ?? []), [pens, lotsQuery.data]);
 
@@ -133,12 +137,27 @@ const NewLot = () => {
     return Object.keys(next).length === 0;
   };
 
-  const goNext = () => {
-    if (!validateStep(step)) return;
-    setStep((current) => Math.min(current + 1, STEPS.length - 1));
+  const goNext = async () => {
+    if (checkingTags || createLot.isPending || !validateStep(step)) return;
+    if (step === 1 && mode === "individual") {
+      setCheckingTags(true);
+      try {
+        const tags = animals.map(animal => animal.earTag.trim()).filter(Boolean);
+        const matches = await mutateApp<DuplicateEarTag[]>("check_lot_ear_tags", { tags }, crypto.randomUUID());
+        if (!Array.isArray(matches) || !matches.every(item => typeof item?.earTag === "string" && typeof item?.lotCode === "string")) throw new Error("Não foi possível conferir os brincos. Tente novamente.");
+        if (matches.some(item => !confirmedTags.includes(item.earTag))) {
+          setDuplicateDialog({ matches, action: "advance" });
+          return;
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Não foi possível conferir os brincos.");
+        return;
+      } finally { setCheckingTags(false); }
+    }
+    setStep(current => Math.min(current + 1, STEPS.length - 1));
   };
 
-  const submit = async () => {
+  const submit = async (acceptedTags = confirmedTags) => {
     if (!validateStep(step)) return;
 
     const payload: NewLotAnimal[] = (mode === "individual" ? animals : [])
@@ -169,6 +188,7 @@ const NewLot = () => {
         },
         animals: payload,
         applyProtocol,
+        confirmedDuplicateEarTags: acceptedTags,
       });
 
       setRequestId(crypto.randomUUID());
@@ -177,6 +197,7 @@ const NewLot = () => {
       );
       navigate(`/lotes/${lot.id}`);
     } catch (error) {
+      if (error instanceof DuplicateEarTagsError) { setDuplicateDialog({ matches: error.matches, action: "save" }); return; }
       const message = error instanceof Error ? error.message : "";
       if (message.includes("duplicate")) {
         setErrors({ code: t("lots.new.dupEarTag", { tag: (code || suggestion).trim() }) });
@@ -187,8 +208,34 @@ const NewLot = () => {
     }
   };
 
+  const acceptDuplicates = () => {
+    if (!duplicateDialog) return;
+    const accepted = [...new Set([...confirmedTags, ...duplicateDialog.matches.map(item => item.earTag)])];
+    const action = duplicateDialog.action;
+    setConfirmedTags(accepted); setDuplicateDialog(null);
+    if (action === "advance") setStep(2);
+    else void submit(accepted);
+  };
+
   return (
     <div className="space-y-5">
+      <Dialog open={checkingTags || !!duplicateDialog} onOpenChange={open => { if (!open && !checkingTags) setDuplicateDialog(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg rounded-xl">
+          <DialogHeader>
+            <div className="mb-2 flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">{checkingTags ? <Loader2 className="size-6 animate-spin" /> : <AlertTriangle className="size-6" />}</div>
+            <DialogTitle>{checkingTags ? "Conferindo os brincos…" : "Estes brincos já estão em uso"}</DialogTitle>
+            <DialogDescription>{checkingTags ? "Estamos verificando se os identificadores já aparecem em outros lotes da sua fazenda." : "Encontramos animais com os mesmos brincos em outros lotes. Confira os registros antes de continuar."}</DialogDescription>
+          </DialogHeader>
+          {!checkingTags && duplicateDialog ? <>
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
+              <table className="w-full text-sm"><thead className="sticky top-0 bg-muted"><tr><th className="px-3 py-2 text-left font-semibold">Brinco</th><th className="px-3 py-2 text-left font-semibold">Já cadastrado em</th></tr></thead><tbody>{duplicateDialog.matches.map((item, index) => <tr key={`${item.earTag}-${item.lotCode}-${index}`} className="border-t border-border"><td className="break-words px-3 py-2 font-medium">{item.earTag}</td><td className="break-words px-3 py-2">{item.lotCode}</td></tr>)}</tbody></table>
+            </div>
+            <p className="rounded-lg bg-muted/40 p-3 text-sm">Você pode repetir o brinco em lotes diferentes. Ao continuar, os animais existentes serão mantidos e o novo lote terá seus próprios animais.</p>
+            {duplicateDialog.action === "advance" ? <p className="text-xs text-muted-foreground">Nenhum animal será cadastrado agora. A próxima etapa é Sanidade e alocação.</p> : null}
+            <DialogFooter className="gap-2"><Button type="button" variant="outline" onClick={() => { setDuplicateDialog(null); setStep(1); }}>Revisar brincos</Button><Button type="button" onClick={acceptDuplicates}>{duplicateDialog.action === "advance" ? "Continuar cadastro" : "Cadastrar mesmo assim"}<ArrowRight className="size-4" /></Button></DialogFooter>
+          </> : null}
+        </DialogContent>
+      </Dialog>
       <PageHeader
         titleKey="lots.new"
         subtitleKey="lots.subtitle"
@@ -556,7 +603,7 @@ const NewLot = () => {
             </Button>
 
             {step < STEPS.length - 1 ? (
-              <Button type="button" className="h-11" onClick={goNext} disabled={!canAdvance || createLot.isPending}>
+              <Button type="button" className="h-11" onClick={goNext} disabled={!canAdvance || createLot.isPending || checkingTags}>
                 {t("action.next")}
                 <ArrowRight />
               </Button>

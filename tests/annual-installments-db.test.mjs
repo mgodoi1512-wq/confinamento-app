@@ -646,4 +646,14 @@ await assert.rejects(rpc('save_animal',{...editableTag,ear_tag:'TAG-3'}),/BRINCO
 await rpc('save_animal',{...editableTag,ear_tag:'TAG-3',confirmedDuplicateEarTags:['TAG-3']});
 assert.equal((await db.query("select count(*)::int n from public.animals where ear_tag='TAG-3'")).rows[0].n,2);
 console.log('BRINCOS: alerta sem gravação, confirmação entre lotes, bloqueio no mesmo lote, replay, edição sem novo alerta e reaplicação validados.');
+const precheckMigration=fs.readFileSync(new URL('../supabase/migrations/20261018050000_lot_ear_tag_precheck.sql',import.meta.url),'utf8');
+await db.exec('reset role');await db.exec(precheckMigration);await as(ownerB);
+const prechecked=await rpc('check_lot_ear_tags',{tags:['TAG-1','  TAG-3  ','NOT-FOUND']});
+assert.equal(prechecked.filter(x=>x.earTag==='TAG-1').length,2);assert.equal(prechecked.filter(x=>x.earTag==='TAG-3').length,2);assert.ok(!prechecked.some(x=>x.lotCode==='TAG-OUTRA-FAZENDA'));
+assert.deepEqual(await rpc('check_lot_ear_tags',{tags:[]}),[]);await assert.rejects(rpc('check_lot_ear_tags',{tags:'bad'}),/lista de brincos/);
+await assert.rejects(rpc('create_lot',tagLot('TAG-PRECHECK',['TAG-1'])),/BRINCOS_OUTROS_LOTES/);
+const afterPrecheck=await rpc('create_lot',{...tagLot('TAG-PRECHECK',['TAG-1']),confirmedDuplicateEarTags:['TAG-1']});assert.ok(afterPrecheck.id);
+await db.exec('reset role');await db.exec(precheckMigration);await as(ownerB);assert.ok((await rpc('check_lot_ear_tags',{tags:['TAG-1']})).length===3);
+await db.exec('reset role;set role anon');await assert.rejects(db.query("select public.app_mutate('check_lot_ear_tags','{}',gen_random_uuid())"),/permission denied/);
+console.log('CHECAGEM ANTECIPADA: consulta autenticada da própria fazenda, sem gravação, confirmação final preservada e reaplicação validadas.');
 await db.close();
