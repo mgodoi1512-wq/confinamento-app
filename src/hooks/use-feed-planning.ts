@@ -31,5 +31,5 @@ export const useRecordPlannedFeed=()=>{
  const client=useQueryClient();return useMutation({mutationFn:async(input:{payload:PlannedFeedPayload;requestId:string})=>{
   const {data,error}=await supabase.rpc("app_record_planned_feed",{p_payload:input.payload as unknown as Json,p_request_id:input.requestId});
   if(error)throw new Error(error.message);return data as unknown as FeedLog;
- },onSuccess:()=>{void client.invalidateQueries({queryKey:dailyFeedPlansKey});void client.invalidateQueries({queryKey:feedLogsQueryKey});}});
+ },onSuccess:()=>{void client.invalidateQueries({queryKey:dailyFeedPlansKey});void client.invalidateQueries({queryKey:feedLogsQueryKey});void client.invalidateQueries({queryKey:["feed-stock"]});void client.invalidateQueries({queryKey:["financial-workspace"]});}});
 };

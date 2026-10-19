@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pencil, RefreshCw, Save, Sprout, Trash2 } from "lucide-react";
+import { FileDown, Loader2, Pencil, RefreshCw, Save, Sprout, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable, type Column } from "@/components/app/data-table";
 import { ExportButtons } from "@/components/app/export-buttons";
@@ -42,6 +42,7 @@ const Adaptation = () => {
   const plansQuery = useAdaptationPlans();
   const savePlan = useSaveAdaptation();
   const deletePlan = useDeleteAdaptation();
+  const [exportingPlanId, setExportingPlanId] = useState<string | null>(null);
   const [deletingPlan, setDeletingPlan] = useState<AdaptationPlan | null>(null);
   const busy = savePlan.isPending || deletePlan.isPending;
   const [lotId, setLotId] = useState("");
@@ -67,7 +68,7 @@ const Adaptation = () => {
     const saved = plans.find(item => item.lot_id === id);
     try {
       const next = saved ? draftFromInput(validateAdaptation(saved.parameters)) : {
-        ...initialDraft(), startDate: chosen.entry_date, headCount: String(chosen.head_count),
+        ...initialDraft(), startDate: chosen.system_started_on??chosen.entry_date, headCount: String(chosen.head_count),
         averageWeightKg: String(computeLotMetrics(chosen, weighingsQuery.data ?? []).currentAvgWeight ?? ""),
       };
       setLotId(id); setDraft(next); setLoadedVersion(saved?.updated_at ?? null); setSavedDraft(saved ? JSON.stringify(next) : null);
@@ -103,15 +104,31 @@ const Adaptation = () => {
       toast.success("Plano excluído.");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível excluir o plano."); }
   };
-  const planActions = (row: SavedRow) => <div className="flex flex-wrap gap-2">
+  const downloadSavedPlan = async (row: SavedRow) => {
+    if (exportingPlanId || !row.result) return;
+    setExportingPlanId(row.plan.id);
+    try {
+      const savedReport = report(row.plan.parameters, row.lot?.code ?? "Lote indisponível");
+      savedReport.filename = `adaptacao-${(row.lot?.code ?? row.plan.lot_id).replace(/[^a-zA-Z0-9-]/g, "-")}`;
+      const { exportPdf } = await import("@/lib/export-files");
+      await exportPdf(savedReport);
+      toast.success("PDF do plano salvo gerado.");
+    } catch {
+      toast.error("Não foi possível gerar o PDF deste plano. Confira os parâmetros e tente novamente.");
+    } finally { setExportingPlanId(null); }
+  };
+  const planActions = (row: SavedRow) => <div className="flex flex-wrap items-center justify-center gap-2">
+    <Button variant="outline" size="sm" aria-label={`Baixar PDF da adaptação — ${row.lot?.code ?? "Lote indisponível"}`} disabled={exportingPlanId !== null || !row.result} onClick={()=>void downloadSavedPlan(row)}>{exportingPlanId===row.plan.id ? <Loader2 className="size-4 animate-spin" /> : <FileDown className="size-4" />}Baixar PDF</Button>
     <Button variant="outline" size="sm" disabled={busy || !row.lot} onClick={()=>edit(row.plan)}><Pencil className="size-4" />{isGestor ? "Editar" : "Consultar"}</Button>
     {isGestor && <Button variant="outline" size="sm" className="text-destructive" disabled={busy} onClick={()=>setDeletingPlan(row.plan)}><Trash2 className="size-4" />Excluir</Button>}
   </div>;
-  const report = (): ExportReport => {
-    if (!result || !input) throw new Error("Confira os parâmetros do plano.");
+  const report = (parameters: unknown = input, lotName = lot?.code ?? "Lote"): ExportReport => {
+    if (!parameters) throw new Error("Confira os parâmetros do plano.");
+    const input = validateAdaptation(parameters);
+    const result = computeAdaptation(input);
     return {
-      adaptation: { input, lotName: lot?.code ?? "Lote" },
-      title: `Adaptação — ${lot?.code ?? "Lote"}`, filename: "adaptacao", filters: `Lote: ${lot?.code} | Animais: ${input.headCount} | Peso médio: ${formatNumber(input.averageWeightKg, 2)} kg | Peso total: ${formatNumber(result.totalLiveWeight, 2)} kg`,
+      adaptation: { input, lotName },
+      title: `Adaptação — ${lotName}`, filename: "adaptacao", filters: `Lote: ${lotName} | Animais: ${input.headCount} | Peso médio: ${formatNumber(input.averageWeightKg, 2)} kg | Peso total: ${formatNumber(result.totalLiveWeight, 2)} kg`,
       note: `Peso fixo na simulação. Ração: ${money(input.feedPriceKg)}/kg; volumoso: ${money(input.roughagePriceKg)}/kg. Quantidades e custos da tabela correspondem ao lote inteiro. Confinamento: ${input.totalDays} dias, incluindo os 15 dias de adaptação.`,
       columns: [{title:"Etapa"},{title:"De"},{title:"Até"},{title:"Dias",decimals:0},{title:"Ração (% PV)",decimals:2},{title:"Volumoso (% PV)",decimals:2},{title:"Ração kg/dia (lote)",decimals:2},{title:"Volumoso kg/dia (lote)",decimals:2},{title:"Ração período (kg)",decimals:2},{title:"Volumoso período (kg)",decimals:2},{title:"Custo período (R$)",decimals:2}],
       rows: [
@@ -144,10 +161,10 @@ const Adaptation = () => {
     {className:"text-center",key:"cost",headerKey:"Custo do período",numeric:true,render:row=>money(row.cost)},
   ];
 
-  return <div className="space-y-5">
+  return <div className="space-y-5"><p className="rounded-lg border bg-muted/30 p-3 text-sm">Esta ferramenta simula a adaptação à dieta de confinamento. Para suplementação a pasto ou semiconfinamento, configure a dieta e registre o fornecimento em Trato.</p>
     <PageHeader titleKey="nav.adaptation" subtitleKey="Planeje ração, volumoso e custos por lote durante e após a adaptação." actions={<>
       <ExportButtons getReport={report} disabled={!lotId || !result} />
-      {isGestor && <Button className="h-10" onClick={()=>void save()} disabled={!canLoad || !input || !lotId || lot?.status!=="ativo" || busy || !dirty}><Save />{loadedVersion ? "Salvar alterações" : "Salvar plano"}</Button>}
+      {isGestor && <Button className="h-10 w-40 max-w-full shrink-0 gap-1.5 px-2" onClick={()=>void save()} disabled={!canLoad || !input || !lotId || lot?.status!=="ativo" || busy || !dirty}><Save />{loadedVersion ? "Salvar alterações" : "Salvar plano"}</Button>}
     </>} />
     {[lotsQuery,weighingsQuery,plansQuery].some(query=>query.isError) && <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">Não foi possível carregar os dados do planejamento. <Button variant="outline" onClick={()=>void Promise.all([lotsQuery.refetch(),weighingsQuery.refetch(),plansQuery.refetch()])}>Tentar novamente</Button></div>}
     {[lotsQuery,weighingsQuery,plansQuery].some(query=>query.isLoading) ? <PageLoading /> : <>
@@ -164,7 +181,9 @@ const Adaptation = () => {
         </fieldset>
         <p className="text-xs text-muted-foreground">Os dias totais de confinamento incluem os 15 dias de adaptação.</p>
         <p className="text-xs text-muted-foreground">Os custos iniciais de R$ 1,87/kg e R$ 0,80/kg vêm da planilha enviada; ajuste aos seus preços. O peso é fixo nesta simulação. Novas pesagens não alteram planos salvos automaticamente.</p>
-        {dirty && <p className="text-sm text-primary">{loadedVersion ? "Alterações ainda não salvas." : "Novo planejamento ainda não salvo."}</p>}
+        <p role="status" aria-live="polite" className="min-h-10 text-sm text-primary sm:min-h-5">
+          {dirty ? (loadedVersion ? "Alterações ainda não salvas." : "Novo planejamento ainda não salvo.") : (loadedVersion ? "Plano salvo. Nenhuma alteração pendente." : "\u00a0")}
+        </p>
         {lot?.status!=="ativo" && lotId && <p className="text-sm text-muted-foreground">Lote encerrado: consulta e simulação disponíveis; o plano salvo permanece no histórico.</p>}
         {!isGestor && <p className="text-xs text-muted-foreground">Você pode consultar e simular. O salvamento é feito por um gestor.</p>}
       </CardContent></Card>
@@ -201,7 +220,7 @@ const Adaptation = () => {
         <p className="text-xs text-muted-foreground">Planejamento de quantidades e custos. Salvar o plano não registra tratos nem altera a dieta do lote.</p>
       </CardContent></Card>}
       <Card><CardHeader><CardTitle>Planos salvos por lote</CardTitle></CardHeader><CardContent>
-        <div className="overflow-x-auto"><DataTable rows={savedRows} columns={savedColumns} getRowKey={row=>row.plan.id} renderCard={row=><div className="space-y-3"><p className="font-semibold">{row.lot?.code ?? "Lote indisponível"}</p><dl className="grid grid-cols-2 gap-2 text-sm">{savedColumns.filter(column=>column.key!=="lot" && column.key!=="actions").map(column=><div key={column.key} className="min-w-0"><dt className="text-xs text-muted-foreground">{column.headerKey}</dt><dd className="break-words">{column.render(row)}</dd></div>)}</dl>{planActions(row)}</div>} emptyState={<p className="py-6 text-center text-sm text-muted-foreground">Nenhum plano salvo. Escolha um lote, confira os parâmetros e salve o planejamento.</p>} /></div>
+        <div className="overflow-x-auto"><DataTable rows={savedRows} columns={savedColumns.map(column=>({...column,className:"text-center"}))} getRowKey={row=>row.plan.id} renderCard={row=><div className="space-y-3 text-center"><p className="font-semibold">{row.lot?.code ?? "Lote indisponível"}</p><dl className="grid grid-cols-2 gap-2 text-sm">{savedColumns.filter(column=>column.key!=="lot" && column.key!=="actions").map(column=><div key={column.key} className="min-w-0"><dt className="text-xs text-muted-foreground">{column.headerKey}</dt><dd className="break-words">{column.render(row)}</dd></div>)}</dl>{planActions(row)}</div>} emptyState={<p className="py-6 text-center text-sm text-muted-foreground">Nenhum plano salvo. Escolha um lote, confira os parâmetros e salve o planejamento.</p>} /></div>
       </CardContent></Card>
     </>}
     <AlertDialog open={Boolean(deletingPlan)} onOpenChange={open=>{if (!open && !deletePlan.isPending) setDeletingPlan(null);}}>

@@ -14,9 +14,10 @@ export const mutateApp = async <T>(operation: string, payload: unknown, requestI
   const key = `${sessionData.session.user.id}:${operation}:${JSON.stringify(payload)}`;
   const token = pending.get(key) ?? requestId;
   pending.set(key, token);
-  const { data, error } = await supabase.rpc("app_mutate", {
-    p_operation: operation, p_payload: payload as Json, p_request_id: token,
-  });
+  const withPurchase = operation === "create_lot" && payload && typeof payload === "object" && "purchase" in payload && payload.purchase != null;
+  const { data, error } = withPurchase
+    ? await supabase.rpc("app_create_priced_lot", { p_payload: payload as Json, p_request_id: token })
+    : await supabase.rpc("app_mutate", { p_operation: operation, p_payload: payload as Json, p_request_id: token });
   if (error) {
     const prefix = "BRINCOS_OUTROS_LOTES:";
     if (["create_lot", "save_animal"].includes(operation) && error.message.startsWith(prefix)

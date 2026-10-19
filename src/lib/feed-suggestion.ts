@@ -25,13 +25,14 @@ export type FeedingSuggestion={
 export const computeFeedingSuggestions=(lots:Lot[],pens:Pen[],weighings:Weighing[],date=todayIso()):FeedingSuggestion[]=>{
   if(!isValidIsoDate(date))throw new Error("Data de referência inválida.");
   const compare=new Intl.Collator("pt-BR",{numeric:true,sensitivity:"base"});
-  return lots.filter(lot=>lot.status==="ativo").map(lot=>{
+  return lots.filter(lot=>lot.status==="ativo"&&lot.production_system==="confinamento").map(lot=>{
     const pen=pens.find(p=>p.id===lot.pen_id),head=lot.head_count;
+    const start=lot.system_started_on??lot.entry_date;
     let issue:string|null=null,day:number|null=null,weight:number|null=null;
-    if(!isValidIsoDate(lot.entry_date))issue="Confira a data de entrada";
-    else if(lot.entry_date>date)issue="Entrada posterior à referência";
+    if(!isValidIsoDate(start))issue="Confira a data de entrada";
+    else if(start>date)issue="Entrada posterior à referência";
     else{
-      day=daysBetween(lot.entry_date,date)+1;
+      day=daysBetween(start,date)+1;
       weight=computeLotMetrics(lot,weighings,date).currentAvgWeight;
       if(!Number.isFinite(weight)||!weight||weight<=0)issue="Peso médio inválido";
     }
@@ -50,8 +51,8 @@ export const feedingSuggestionReport=(suggestions:FeedingSuggestion[],farmName:s
   const valid=suggestions.filter(item=>!item.issue);
   const feed=valid.reduce((sum,item)=>sum+(item.feedDaily??0),0),roughage=valid.reduce((sum,item)=>sum+(item.roughageDaily??0),0);
   const mealTotals=[0,1,2].map(i=>({feed:valid.reduce((s,item)=>s+item.meals[i].feedKg,0),roughage:valid.reduce((s,item)=>s+item.meals[i].roughageKg,0)}));
-  return {feedingSuggestion:{suggestions,farmName,date},title:"Sugestão diária de fornecimento",filename:"sugestao-trato",recordCount:suggestions.length,filters:`${farmName} | Referência: ${formatDate(date)} | ${suggestions.length} lotes ativos | 3 refeições iguais`,
-    note:`R = ração; V = volumoso. Valores em kg por lote. Peso vivo da última pesagem; sem pesagem, peso médio de entrada. Entrada conta como dia 1. Grade % PV (R/V): 1-3 dias: 0,3/3; 4-6: 0,8/2,5; 7-9: 1,3/2; 10-12: 1,8/1,5; 13-15: 2,3/1; a partir do dia 16: 2,5/0,8. Divisão em três refeições, com diferença de centavos ajustada na noite. Sugestão pela grade fixa, sem descontar tratos registrados nem alterar planos.${valid.length!==suggestions.length?` ${suggestions.length-valid.length} lote(s) precisa(m) de revisão; totais incluem apenas cálculos válidos.`:""}`,
+  return {feedingSuggestion:{suggestions,farmName,date},title:"Sugestão de fornecimento no confinamento",filename:"sugestao-trato",recordCount:suggestions.length,filters:`${farmName} | Referência: ${formatDate(date)} | ${suggestions.length} lotes em confinamento | 3 refeições iguais`,
+    note:`R = ração; V = volumoso. Valores em kg por lote. Peso vivo da última pesagem; sem pesagem, peso médio de entrada. Início do manejo de confinamento conta como dia 1. Grade % PV (R/V): 1-3 dias: 0,3/3; 4-6: 0,8/2,5; 7-9: 1,3/2; 10-12: 1,8/1,5; 13-15: 2,3/1; a partir do dia 16: 2,5/0,8. Divisão em três refeições, com diferença de centavos ajustada na noite. Grade exclusiva para lotes em confinamento; lotes a pasto, em semiconfinamento ou sem sistema informado ficam fora deste relatório. Sugestão pela grade fixa, sem descontar tratos registrados nem alterar planos.${valid.length!==suggestions.length?` ${suggestions.length-valid.length} lote(s) precisa(m) de revisão; totais incluem apenas cálculos válidos.`:""}`,
     pdf:{format:"a4",fontSize:7.5,embeddedFont:true,columnWidths:[26,24,10,10,18,21,24,35,35,35,35]},
     columns:[{title:"Curral"},{title:"Lote"},{title:"Dia",decimals:0},{title:"Nº",decimals:0},{title:"Peso médio (kg)",decimals:2},{title:"Etapa"},{title:"% do peso vivo"},{title:"Total diário\nRação / Volumoso"},{title:"Manhã\nRação / Volumoso"},{title:"Tarde\nRação / Volumoso"},{title:"Noite\nRação / Volumoso"}],
     rows:[...suggestions.map(item=>[item.penCode,item.lotCode,item.day,Number.isFinite(item.head)?item.head:null,item.weight,

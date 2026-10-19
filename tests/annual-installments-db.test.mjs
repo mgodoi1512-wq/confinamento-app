@@ -656,4 +656,5 @@ const afterPrecheck=await rpc('create_lot',{...tagLot('TAG-PRECHECK',['TAG-1']),
 await db.exec('reset role');await db.exec(precheckMigration);await as(ownerB);assert.ok((await rpc('check_lot_ear_tags',{tags:['TAG-1']})).length===3);
 await db.exec('reset role;set role anon');await assert.rejects(db.query("select public.app_mutate('check_lot_ear_tags','{}',gen_random_uuid())"),/permission denied/);
 console.log('CHECAGEM ANTECIPADA: consulta autenticada da própria fazenda, sem gravação, confirmação final preservada e reaplicação validadas.');
+if(process.argv.includes('--financial-workspace'))await (await import('./financial-workspace-db-cases.mjs')).testFinancialWorkspace({db,as,ownerA,ownerB,staffA,farmA,farmB,tagA,tagPen,today,rpc});
 await db.close();

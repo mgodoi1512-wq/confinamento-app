@@ -1,15 +1,18 @@
+import "./dashboard.css";
+import { useAuth } from "@/hooks/use-auth";
+import { useFinancialWorkspace } from "@/hooks/use-financial-workspace";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
+  CheckCircle2,
   Beef,
   CalendarClock,
   ClipboardCheck,
   Scale,
   Target,
   TrendingUp,
-  UtensilsCrossed,
 } from "lucide-react";
 
 import { DataTable, type Column } from "@/components/app/data-table";
@@ -23,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAnimals } from "@/hooks/use-animals";
 import { useFeedLogs } from "@/hooks/use-feed";
+import { usePenFeeding } from "@/hooks/use-pen-feeding";
+import { recentDashboardFeed, summarizeDashboardFeeding } from "@/lib/dashboard-feeding";
 import { useHealthEvents } from "@/hooks/use-health";
 import { useLots } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
@@ -42,6 +47,9 @@ import { cn } from "@/lib/utils";
 const Dashboard = () => {
   const { t } = useTranslation();
   const today = todayIso();
+  const {isGestor}=useAuth();
+  const stock=useFinancialWorkspace();
+  const lowStock=(stock.data?.items??[]).filter(item=>item.category==="ingrediente"&&item.quantity_kg<=item.minimum_kg);
 
   const lotsQuery = useLots();
   const pensQuery = usePens();
@@ -50,6 +58,7 @@ const Dashboard = () => {
   const feedQuery = useFeedLogs();
   const troughQuery = useTroughReadings();
   const healthQuery = useHealthEvents();
+  const feeding = usePenFeeding();
 
   const lots = useMemo(() => lotsQuery.data ?? [], [lotsQuery.data]);
   const pens = useMemo(() => pensQuery.data ?? [], [pensQuery.data]);
@@ -96,9 +105,6 @@ const Dashboard = () => {
 
   const pendencies = useMemo(() => {
     const pensWithLot = occupancy.filter((item) => item.lot);
-    const fedToday = new Set(
-      feedLogs.filter((log) => log.date === today).map((log) => log.pen_id),
-    );
     const readToday = new Set(
       troughReadings.filter((reading) => reading.date === today).map((reading) => reading.pen_id),
     );
@@ -106,14 +112,15 @@ const Dashboard = () => {
     return {
       total: pensWithLot.length,
       read: pensWithLot.filter((item) => readToday.has(item.pen.id)).length,
-      fed: pensWithLot.filter((item) => fedToday.has(item.pen.id)).length,
       withoutWeighing: lotsWithoutRecentWeighing(activeLots, weighings, today).length,
       ready: summary.readyForSlaughter,
     };
   }, [occupancy, feedLogs, troughReadings, activeLots, weighings, today, summary.readyForSlaughter]);
 
+  const feedStates = occupancy.map(item => feeding.forPen(item.pen.id)).filter(state => state !== null);
+  const feedingSummary = summarizeDashboardFeeding(feedStates);
   const recentFeed = useMemo(
-    () => feedLogs.filter((log) => log.date === today).slice(0, 6),
+    () => recentDashboardFeed(feedLogs, today),
     [feedLogs, today],
   );
 
@@ -184,13 +191,13 @@ const Dashboard = () => {
   if (loading) return <PageLoading rows={6} />;
 
   return (
-    <div className="space-y-5 md:space-y-6">
+    <div className="farm-dashboard space-y-5 md:space-y-6">
       <PageHeader
         titleKey="dashboard.title"
-        subtitleKey="dashboard.subtitle"
+        subtitleKey="Seu rebanho e as prioridades de hoje"
         actions={
           <>
-            <Button asChild variant="outline" className="h-10">
+            <Button asChild variant="outline" className="h-10 w-40">
               <Link to="/lotes/novo">
                 <Beef />
                 {t("lots.new")}
@@ -212,86 +219,86 @@ const Dashboard = () => {
         }
       />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-        <StatCard
-          labelKey="dashboard.kpi.confined"
+      <div className="dashboard-primary grid grid-cols-2 gap-3 lg:grid-cols-4">
+<StatCard
+          labelKey="Animais presentes"
           value={formatInteger(summary.confinedHead)}
           unitKey="common.unit.head"
           icon={Beef}
           variant="brand"
           note={t("dashboard.kpi.note.confined", { lots: summary.activeLots })}
         />
-        <StatCard
-          labelKey="dashboard.kpi.gmd"
-          value={summary.avgGmd !== null ? formatNumber(summary.avgGmd, 2) : "—"}
-          unitKey="common.unit.kgPerDay"
-          icon={TrendingUp}
-          note={t("dashboard.kpi.note.gmd")}
-        />
-        <StatCard
-          labelKey="dashboard.kpi.daysOnFeed"
-          value={summary.avgDaysOnFeed !== null ? formatNumber(summary.avgDaysOnFeed, 0) : "—"}
-          unitKey="common.unit.days"
-          icon={CalendarClock}
-          note={t("dashboard.kpi.note.daysOnFeed")}
-        />
-        <StatCard
-          labelKey="dashboard.kpi.mortality"
-          value={summary.mortalityRate !== null ? formatNumber(summary.mortalityRate, 2) : "—"}
-          unitKey="common.unit.percent"
-          icon={AlertTriangle}
-          note={t("dashboard.kpi.note.mortality", { deaths: summary.deaths })}
-        />
-        <StatCard
+<StatCard
           labelKey="dashboard.kpi.avgWeight"
           value={summary.avgWeight !== null ? formatNumber(summary.avgWeight, 1) : "—"}
           unitKey="common.unit.kg"
           icon={Scale}
-          variant="agro"
           note={
             summary.avgArroba !== null
               ? t("dashboard.kpi.note.avgWeight", { arroba: formatNumber(summary.avgArroba, 2) })
               : undefined
           }
         />
-        <StatCard
+<StatCard
+          labelKey="dashboard.kpi.gmd"
+          value={summary.avgGmd !== null ? formatNumber(summary.avgGmd, 2) : "—"}
+          unitKey="common.unit.kgPerDay"
+          icon={TrendingUp}
+          note={summary.avgGmd===null?"Aguardando nova pesagem":t("dashboard.kpi.note.gmd")}
+        />
+<StatCard
+          labelKey="dashboard.kpi.activeLots"
+          value={formatInteger(summary.activeLots)}
+          icon={Beef}
+          note={`${formatInteger(summary.totalLots)} lotes cadastrados`}
+        />
+</div>
+<div className="dashboard-secondary grid grid-cols-2 gap-3 lg:grid-cols-4">
+<StatCard
           labelKey="dashboard.kpi.occupancy"
           value={formatNumber(summary.occupancyPercent, 0)}
           unitKey="common.unit.percent"
           icon={Target}
           note={`${formatInteger(summary.confinedHead)} / ${formatInteger(summary.capacity)}`}
         />
-        <StatCard
-          labelKey="dashboard.kpi.activeLots"
-          value={formatInteger(summary.activeLots)}
-          icon={Beef}
-          note={`${formatInteger(summary.totalLots)} ${t("common.allLots").toLowerCase()}`}
+<StatCard
+          labelKey="dashboard.kpi.daysOnFeed"
+          value={summary.avgDaysOnFeed !== null ? formatNumber(summary.avgDaysOnFeed, 0) : "—"}
+          unitKey="common.unit.days"
+          icon={CalendarClock}
+          note={t("dashboard.kpi.note.daysOnFeed")}
         />
-        <StatCard
+<StatCard
           labelKey="dashboard.today.health"
           value={formatInteger(summary.inTreatment)}
           unitKey="common.unit.head"
           icon={AlertTriangle}
           note={t("dashboard.readySlaughter") + ": " + formatInteger(summary.readyForSlaughter)}
         />
-      </div>
+<StatCard
+          labelKey="dashboard.kpi.mortality"
+          value={summary.mortalityRate !== null ? formatNumber(summary.mortalityRate, 2) : "—"}
+          unitKey="common.unit.percent"
+          icon={AlertTriangle}
+          note={t("dashboard.kpi.note.mortality", { deaths: summary.deaths })}
+        />
+</div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-3">
         {/* Ocupação */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
+        <div className="min-w-0 space-y-3"><Card className="dashboard-panel min-w-0">
+          <CardHeader className="p-4 pb-2">
             <CardTitle className="font-display text-lg">
               {t("dashboard.occupancy.title")}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 p-4 pt-0">
             {occupancy.length === 0 ? (
               <EmptyState titleKey="pens.empty.title" descriptionKey="pens.empty.description" />
             ) : (
               visibleOccupancy.map((item) => (
                 <div key={item.pen.id} className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="font-display font-semibold">{item.pen.code}</span>
                       {item.lot ? (
@@ -320,7 +327,7 @@ const Dashboard = () => {
             )}
             {occupancy.length > 10 ? <nav aria-label="Paginação da ocupação por curral" className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
               <p className="text-xs text-muted-foreground" aria-live="polite">Mostrando {(currentPenPage - 1) * 10 + 1} a {Math.min(currentPenPage * 10, occupancy.length)} de {occupancy.length} currais</p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button type="button" size="sm" variant="outline" className="min-h-10" disabled={currentPenPage === 1} onClick={() => setPenPage(currentPenPage - 1)}>Anterior</Button>
                 <span className="whitespace-nowrap text-xs">Página {currentPenPage} de {penPageCount}</span>
                 <Button type="button" size="sm" variant="outline" className="min-h-10" disabled={currentPenPage === penPageCount} onClick={() => setPenPage(currentPenPage + 1)}>Próxima</Button>
@@ -328,87 +335,64 @@ const Dashboard = () => {
             </nav> : null}
           </CardContent>
         </Card>
+        {isGestor&&stock.isSuccess&&lowStock.length>0&&<Link to="/gestao/financeiro/estoque?aba=insumos&categoria=ingrediente" className="dashboard-stock block rounded-xl border p-4"><div className="flex items-center gap-2 font-semibold"><AlertTriangle className="size-5"/>Estoque em atenção</div><p className="mt-1 text-sm">{lowStock.length} ingrediente(s) no mínimo ou abaixo: {lowStock.slice(0,3).map(item=>item.name).join(", ")}{lowStock.length>3?"…":""}</p><p className="mt-2 text-sm font-semibold">Ver estoque →</p></Link>}
+        {isGestor&&stock.isError&&<p role="alert" className="text-xs text-destructive">Não foi possível conferir os alertas de estoque.</p>}
+        </div>
 
-        {/* Pendências */}
-        <Card className="bg-surface">
-          <CardHeader className="pb-3">
-            <CardTitle className="font-display text-lg">{t("dashboard.today.title")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2.5">
-              <span className="flex items-center gap-2 text-sm">
-                <ClipboardCheck className="size-4 text-muted-foreground" />
-                {t("dashboard.today.reading")}
-              </span>
-              <span className="text-sm num font-semibold">
-                {t("dashboard.today.readingValue", { done: pendencies.read, total: pendencies.total })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2.5">
-              <span className="flex items-center gap-2 text-sm">
-                <UtensilsCrossed className="size-4 text-muted-foreground" />
-                {t("dashboard.today.feed")}
-              </span>
-              <span className="text-sm num font-semibold">
-                {t("dashboard.today.feedValue", { done: pendencies.fed, total: pendencies.total })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2.5">
-              <span className="flex items-center gap-2 text-sm">
-                <Scale className="size-4 text-muted-foreground" />
-                {t("dashboard.today.weighing")}
-              </span>
-              <span className="text-sm num font-semibold">
-                {t("dashboard.today.weighingValue", { count: pendencies.withoutWeighing })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2.5">
-              <span className="flex items-center gap-2 text-sm">
-                <AlertTriangle className="size-4 text-muted-foreground" />
-                {t("dashboard.alerts.treatment", {
-  count: summary.inTreatment,
-})}
-              </span>
-              <span className="text-sm num font-semibold">
-                {formatInteger(summary.inTreatment)}
-              </span>
-            </div>
+      {/* Trato de hoje */}
+      <Card className="dashboard-panel min-w-0">
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="font-display text-lg">{t("dashboard.recent.title")}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          {recentFeed.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("dashboard.recent.empty")}</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {recentFeed.map((log) => (
+                <li key={log.id} className="space-y-1 py-2 text-sm">
+                  <span className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                    <span className="font-display font-semibold">
+                      {pens.find((pen) => pen.id === log.pen_id)?.code ?? "—"}
+                    </span>
+                    <span className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
+                      {t(`feed.shift.${log.shift}`)}
+                    </span>
+                  </span>
+                  <span className="block text-xs num text-muted-foreground">
+                    {formatNumber(log.kg_per_head, 2)} kg/cab ·{" "}
+                    {formatNumber(log.total_kg, 2)} kg · {new Intl.DateTimeFormat("pt-BR",{hour:"2-digit",minute:"2-digit",timeZone:"America/Sao_Paulo"}).format(new Date(log.created_at))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
-            <div className="space-y-2 pt-1">
-              {summary.underWithdrawal > 0 || summary.inTreatment > 0 ? (
-                <>
-                  {summary.underWithdrawal > 0 ? (
-                    <p className="flex items-center gap-2 text-xs text-agro">
-                      <span className="size-1.5 rounded-full bg-agro" />
-                      {t("dashboard.alerts.carencia", { count: summary.underWithdrawal })}
-                    </p>
-                  ) : null}
-                  {summary.inTreatment > 0 ? (
-                    <p className="flex items-center gap-2 text-xs text-warning">
-                      <span className="size-1.5 rounded-full bg-warning" />
-                      {t("dashboard.alerts.treatment", { count: summary.inTreatment })}
-                    </p>
-                  ) : null}
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">{t("dashboard.alerts.none")}</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <Card className="dashboard-panel min-w-0"><CardHeader className="p-4 pb-3"><CardTitle className="font-display text-lg">Rotina de hoje</CardTitle></CardHeader><CardContent className="space-y-3 p-4 pt-0">
+          {[
+            {label:"Leitura de cocho",value:troughQuery.isSuccess?`${pendencies.read} de ${pendencies.total}`:"—",done:troughQuery.isSuccess&&pendencies.total>0&&pendencies.read===pendencies.total,to:"/trato/leitura"},
+            {label:"Tratos concluídos",value:feeding.ready?`${feedingSummary.completed} de ${feedingSummary.total}`:"—",done:feeding.ready&&feedingSummary.total>0&&feedingSummary.completed===feedingSummary.total,to:"/trato"},
+            {label:"Lotes sem pesagem há 30 dias",value:String(pendencies.withoutWeighing),done:pendencies.withoutWeighing===0,to:"/pesagens"},
+            {label:summary.inTreatment||summary.underWithdrawal?"Animais em atenção":"Sem alertas sanitários",value:summary.inTreatment||summary.underWithdrawal?`${summary.inTreatment} em tratamento · ${summary.underWithdrawal} em carência`:"",done:summary.inTreatment===0&&summary.underWithdrawal===0&&animalsQuery.isSuccess,to:"/sanidade/tratamentos"},
+          ].map(item=><Link key={item.label} to={item.to} className={cn("dashboard-routine flex items-center gap-3 rounded-lg border p-3 text-sm",item.done?"is-done":"is-pending")}>
+            {item.done?<CheckCircle2 className="size-5 shrink-0"/>:<AlertTriangle className="size-5 shrink-0"/>}<span className="min-w-0 flex-1">{item.label}</span><span className="text-right text-xs font-semibold tabular-nums">{item.value}</span>
+          </Link>)}
+          <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Como funciona a rotina?</summary><p className="mt-2">Trato iniciado: {feeding.ready?`${feedingSummary.started} de ${feedingSummary.total} locais`:"aguardando dados"}. Concluído: todos os períodos previstos registrados; não significa atingir o peso recomendado. Locais sem suplementação prevista não entram na contagem.</p></details>
+          {(feeding.error||troughQuery.isError||animalsQuery.isError)&&<p role="alert" className="text-xs text-destructive">Não foi possível conferir todos os dados. Recarregue a página.</p>}
+        </CardContent></Card>
       </div>
 
       {/* Desempenho dos lotes */}
-      <div className="space-y-3">
+      <div className="dashboard-performance space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">{t("dashboard.lots.title")}</h2>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/lotes">{t("nav.lots")}</Link>
-          </Button>
+
         </div>
         <DataTable
           rows={lotRows}
-          columns={columns}
+          columns={columns.map(column => ({...column, className: "text-center"}))}
           getRowKey={(row) => row.lot.id}
           emptyState={
             <EmptyState
@@ -425,36 +409,7 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Trato de hoje */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="font-display text-lg">{t("dashboard.recent.title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentFeed.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("dashboard.recent.empty")}</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {recentFeed.map((log) => (
-                <li key={log.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="font-display font-semibold">
-                      {pens.find((pen) => pen.id === log.pen_id)?.code ?? "—"}
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {t(`feed.shift.${log.shift}`)}
-                    </span>
-                  </span>
-                  <span className="shrink-0 num text-muted-foreground">
-                    {formatNumber(log.kg_per_head, 2)} kg/cab ·{" "}
-                    {formatNumber(log.total_kg, 0)} kg
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+
     </div>
   );
 };

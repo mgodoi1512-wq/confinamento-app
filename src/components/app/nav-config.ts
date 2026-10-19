@@ -64,7 +64,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { to: "/gestao/mercado", labelKey: "nav.market", icon: TrendingUp },
       { to: "/gestao/financeiro", labelKey: "nav.finance", icon: Wallet, gestorOnly: true },
-      { to: "/config/currais", labelKey: "nav.pens", icon: Package, gestorOnly: true },
+      { to: "/config/currais", labelKey: "Cadastro de locais", icon: Package, gestorOnly: true },
       { to: "/config/usuarios", labelKey: "nav.users", icon: Users, gestorOnly: true },
       { to: "/config", labelKey: "nav.settings", icon: Cog, end: true },
     ],
@@ -74,6 +74,9 @@ export const navGroups: NavGroup[] = [
 /** Título da página exibido na barra superior no mobile. */
 export const routeTitles: { pattern: RegExp; labelKey: string }[] = [
   { pattern: /^\/gestao\/mercado/, labelKey: "nav.market" },
+  { pattern: /^\/gestao\/financeiro\/alimentacao/, labelKey: "nav.feedingCosts" },
+  { pattern: /^\/gestao\/financeiro\/fluxo-de-caixa/, labelKey: "nav.cashFlow" },
+  { pattern: /^\/gestao\/financeiro\/estoque/, labelKey: "nav.inventory" },
   { pattern: /^\/gestao\/financeiro/, labelKey: "nav.finance" },
   { pattern: /^\/$/, labelKey: "nav.dashboard" },
   { pattern: /^\/currais/, labelKey: "nav.pens" },

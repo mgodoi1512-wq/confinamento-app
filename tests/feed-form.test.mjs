@@ -11,9 +11,15 @@ const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.Modu
 const format=url(compile(read('../src/lib/format.ts')));
 const constants=url(compile(read('../src/lib/constants.ts')));
 const domain=url(compile(read('../src/lib/domain.ts').replace('from "./format"',`from "${format}"`).replace('from "./constants"',`from "${constants}"`)));
+const tagLogic=url(compile(read('../src/lib/animal-registration.ts')));
+const systemsLogic=url(compile(read('../src/lib/production-systems.ts')));
+const stockLogic=url(compile(read('../src/lib/feed-stock.ts')));
 const planning=url(compile(read('../src/lib/feed-planning.ts')));
 const mock=url(`
 export const useState=initial=>{const h=globalThis.__feedHarness;const i=h.cursor++;if(!(i in h.state))h.state[i]=typeof initial==='function'?initial():initial;return[h.state[i],value=>{h.state[i]=typeof value==='function'?value(h.state[i]):value;}];};
+export const money=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+export function AnimalTagsEditor(){}
+export const useNextEarTag=()=>({data:{next:"101"},isLoading:false,refetch:async()=>{}});
 export const useMemo=fn=>fn();export const useRef=value=>{const h=globalThis.__feedHarness;const i=h.cursor++;if(!(i in h.state))h.state[i]={current:value};return h.state[i];};
 export const useAuth=()=>({isGestor:true});
 export class DuplicateEarTagsError extends Error{constructor(matches){super('duplicado');this.matches=matches;}}
@@ -25,34 +31,36 @@ export function Link(){} export function PageHeader(){} export function StatusBa
 export function AlertTriangle(){} export function Loader2(){} export function LockKeyhole(){} export function ArrowLeft(){} export function ArrowRight(){} export function Beef(){} export function Check(){} export function Plus(){} export function Trash2(){}
 export const toast={success:()=>{},error:()=>{}};
 const query=name=>({data:globalThis.__feedHarness[name],isSuccess:globalThis.__feedHarness.ready,isLoading:false,isError:false,refetch:async()=>({data:globalThis.__feedHarness[name],isError:false})});
-export const useLots=()=>query('lots');export const usePens=()=>query('pens');export const useDiets=()=>query('diets');export const useDietItems=()=>query('items');export const useWeighings=()=>query('weighings');
+export const useFarm=()=>({...query('farm'),data:{production_systems:['confinamento','semiconfinamento','pasto'],default_production_system:'confinamento'}});export const useLots=()=>query('lots');export const usePens=()=>query('pens');export const useDiets=()=>query('diets');export const useDietItems=()=>query('items');export const useWeighings=()=>query('weighings');
 export const useDailyFeedPlans=()=>query('plans');export const useFarmFeedSettings=()=>query('settings');
 export const useSaveFeedSchedule=()=>({isPending:false,mutateAsync:async()=>{}});
 export const useRecordPlannedFeed=()=>({isPending:false,mutateAsync:async({payload})=>{
  const h=globalThis.__feedHarness;const log={lot_id:payload.lotId,shift:payload.shift,date:payload.date,pen_id:h.lots.find(l=>l.id===payload.lotId).pen_id,diet_id:payload.dietId,total_kg:Math.round(payload.actualKgPerHead*payload.headCount*100)/100};h.saved.push(log);h.logs.push(log);return log;
 }});
 export const useFeedLogs=()=>query('logs');
+export const useFeedStock=()=>{const h=globalThis.__feedHarness;const list=[...h.items.map(i=>({dietId:i.diet_id,name:i.ingredient})),...h.plans.flatMap(p=>(p.ingredients??[]).map(i=>({dietId:p.diet_id,name:i.name})))];const data=h.stock??{items:[...new Set(list.map(i=>i.name))].map(name=>({id:'stock-'+name,name,category:'racao',quantity_kg:1000000})),links:list.map(i=>({diet_id:i.dietId,ingredient:i.name,item_id:'stock-'+i.name}))};return{data,isSuccess:h.ready,isLoading:false,isError:false,refetch:async()=>({data})};};
+
 export const useSaveFeedLog=()=>({isPending:false,mutateAsync:async value=>{globalThis.__feedHarness.saved.push(value);return value;}});
 export function SelectField(){} export function NumericField(){} export function TextField(){} export function Button(){}
 export function Dialog(){} export function DialogContent(){} export function DialogFooter(){} export function DialogDescription(){} export function DialogHeader(){} export function DialogTitle(){} export function DialogTrigger(){}
 `);
 let source=compile(read('../src/pages/feed/feed-form-dialog.tsx'));
 source=source.replace(/from\s+(['"])(.*?)\1/g,(whole,quote,name)=>{
- const target=name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/feed-planning'?planning:name==='@/lib/domain'?domain:name==='@/lib/constants'?constants:name==='@/lib/format'?format:mock;
+ const target=name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/animal-registration'?tagLogic:name==='@/lib/production-systems'?systemsLogic:name==='@/lib/feed-stock'?stockLogic:name==='@/lib/feed-planning'?planning:name==='@/lib/domain'?domain:name==='@/lib/constants'?constants:name==='@/lib/format'?format:mock;
  return `from "${target}"`;
 });
 const {FeedFormDialog}=await import(url(source));
 let lotSource=compile(read('../src/pages/lots/new/index.tsx'));
 lotSource=lotSource.replace(/from\s+(['"])(.*?)\1/g,(whole,quote,name)=>{
- const target=name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/feed-planning'?planning:name==='@/lib/domain'?domain:name==='@/lib/constants'?constants:name==='@/lib/format'?format:mock;
+ const target=name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/animal-registration'?tagLogic:name==='@/lib/production-systems'?systemsLogic:name==='@/lib/feed-stock'?stockLogic:name==='@/lib/feed-planning'?planning:name==='@/lib/domain'?domain:name==='@/lib/constants'?constants:name==='@/lib/format'?format:mock;
  return `from "${target}"`;
 });
 const {default:NewLot}=await import(url(lotSource));
 
-const fixture=()=>({state:[],cursor:0,ready:true,saved:[],logs:[],plans:[],settings:null,pens:[{id:'p',code:'Curral 01',status:'ativo'}],lots:[{id:'a',code:'Lote A',pen_id:'p',status:'ativo',head_count:10,entry_avg_weight_kg:400,entry_date:'2026-10-01',diet_id:'da'},{id:'b',code:'Lote B',pen_id:'p',status:'ativo',head_count:5,entry_avg_weight_kg:500,entry_date:'2026-10-01',diet_id:'db'}],diets:[{id:'da',name:'Dieta A',is_active:true},{id:'db',name:'Dieta B',is_active:true}],items:[{diet_id:'da',kg_per_head_day:0,body_weight_pct:1},{diet_id:'db',kg_per_head_day:0,body_weight_pct:2}],weighings:[]});
+const fixture=()=>({state:[],cursor:0,ready:true,saved:[],logs:[],plans:[],settings:null,pens:[{id:'p',code:'Curral 01',status:'ativo'}],lots:[{id:'a',code:'Lote A',pen_id:'p',status:'ativo',head_count:10,entry_avg_weight_kg:400,entry_date:'2026-10-01',diet_id:'da'},{id:'b',code:'Lote B',pen_id:'p',status:'ativo',head_count:5,entry_avg_weight_kg:500,entry_date:'2026-10-01',diet_id:'db'}],diets:[{id:'da',name:'Dieta A',is_active:true},{id:'db',name:'Dieta B',is_active:true}],items:[{ingredient:'Ração A',diet_id:'da',kg_per_head_day:0,body_weight_pct:1},{ingredient:'Ração B',diet_id:'db',kg_per_head_day:0,body_weight_pct:2}],weighings:[]});
 const render=h=>{globalThis.__feedHarness=h;h.cursor=0;return FeedFormDialog({trigger:null});};
 const nodes=root=>{const result=[];const visit=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(visit);return;}if(value.props){result.push(value);visit(value.props.children);}};visit(root);return result;};
-const select=tree=>nodes(tree).find(node=>node.props.label==='Curral e lote');
+const select=tree=>nodes(tree).find(node=>node.props.label==='Local e lote');
 const field=(tree,label)=>nodes(tree).find(node=>node.props.label===label);
 const save=tree=>nodes(tree).find(node=>node.type.name==='Button' && node.props.children==='Registrar trato');
 
@@ -75,12 +83,12 @@ test('trato não grava contexto incompleto e não lista curral em manutenção',
  delete globalThis.__feedHarness;
 });
 
-test('novo lote oferece somente protocolos ativos e calcula o resumo percentual pelo peso informado',()=>{
+test('novo lote oferece somente protocolos ativos e calcula o resumo percentual pelo peso informado',async()=>{
  const h=fixture();h.pens[0].capacity_head=100;h.protocols=[{id:'on',name:'Ativo',is_active:true},{id:'off',name:'Inativo',is_active:false}];
  const renderLot=()=>{globalThis.__feedHarness=h;h.cursor=0;return NewLot();};
  let tree=renderLot();field(tree,'field.headCount').props.onValueChange('10');field(tree,'field.entryWeight').props.onValueChange('400');
- const advance=()=>{tree=renderLot();const button=nodes(tree).find(node=>node.type.name==='Button' && Array.isArray(node.props.children) && node.props.children.includes('action.next'));assert.equal(button.props.disabled,false);button.props.onClick();};
- advance();advance();tree=renderLot();
+ const advance=async()=>{tree=renderLot();const button=nodes(tree).find(node=>node.type.name==='Button' && Array.isArray(node.props.children) && node.props.children.includes('action.next'));assert.equal(button.props.disabled,false);button.props.onClick();await new Promise(r=>setImmediate(r));};
+ await advance();await advance();tree=renderLot();
  assert.deepEqual(field(tree,'field.protocol (opcional)').props.options.map(option=>option.value),['on']);
  const checkbox=nodes(tree).find(node=>node.type==='input' && node.props.type==='checkbox');assert.equal(checkbox.props.checked,false);
  field(tree,'field.diet (opcional)').props.onChange('da');tree=renderLot();
@@ -97,7 +105,7 @@ test('trato detalha ingredientes pelo último peso, aplica parcela e informa dia
  let tree=render(h);select(tree).props.onChange('a');tree=render(h);
  const values=[];const visit=value=>{if(Array.isArray(value))return value.forEach(visit);if(value&&typeof value==='object')return visit(value.props?.children);if(value!==null&&value!==undefined)values.push(String(value));};visit(tree);
  const content=values.join(' ').replace(/\s+/g,' ');
- assert.match(content,/Dia 1 no cocho/);
+ assert.match(content,/Dia 1 no manejo atual/);
  assert.match(content,/1,177/);assert.match(content,/11,766/);assert.match(content,/0,392/);assert.match(content,/3,922/);
  assert.equal(field(tree,'Oferta por animal neste trato').props.value,'4,314');
  field(tree,'Oferta por animal neste trato').props.onValueChange('6,5');tree=render(h);
@@ -225,3 +233,5 @@ test('falha na consulta de brincos impede avanço para sanidade',async()=>{
  field(draw(),'field.earTag 1').props.onChange('Animal 1');h.tagCheckError='Sem conexão';await next(draw()).props.onClick();
  assert.ok(field(draw(),'field.earTag 1'));assert.equal(h.saved.length,0);delete globalThis.__feedHarness;
 });
+
+test('trato mostra déficit, bloqueia saldo insuficiente e exige vínculo de todos os componentes',()=>{const h=fixture();h.stock={items:[{id:'stock-a',name:'Ração pronta',category:'racao',quantity_kg:1}],links:[{diet_id:'da',ingredient:'Ração A',item_id:'stock-a'}]};let tree=render(h);select(tree).props.onChange('a');tree=render(h);assert.equal(save(tree).props.disabled,true);assert.ok(nodes(tree).some(n=>n.props.role==='alert'&&JSON.stringify(n.props.children).includes('Estoque insuficiente')));h.stock.items[0].quantity_kg=100;assert.equal(save(render(h)).props.disabled,false);h.stock.links=[];assert.equal(save(render(h)).props.disabled,true);});

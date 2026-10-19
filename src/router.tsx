@@ -2,7 +2,11 @@ import { lazy } from "react";
 import { AppShell } from "./components/app/app-shell";
 import { ProtectedRoute } from "./components/auth/protected-route";
 const Market = lazy(() => import("./pages/market"));
-const Finance = lazy(() => import("./pages/management/finance"));
+const Finance = lazy(() => import("./pages/management/finance-home"));
+const FeedingCosts = lazy(() => import("./pages/management/finance"));
+const StockLotDetail = lazy(() => import("./pages/management/stock-lot-detail"));
+const Inventory = lazy(() => import("./pages/management/inventory"));
+const CashFlow = lazy(() => import("./pages/management/cash-flow"));
 const Adaptation = lazy(() => import("./pages/feed/adaptation"));
 const Administration = lazy(() => import("./pages/admin"));
 const Animals = lazy(() => import("./pages/animals"));
@@ -64,6 +68,10 @@ export const routers = [
           { path: "trato", name: "feed", element: <Feed /> },
           { path: "gestao/mercado", name: "market", element: <Market /> },
           { path: "gestao/financeiro", name: "finance", element: <Finance /> },
+          { path: "gestao/financeiro/alimentacao", name: "feedingCosts", element: <FeedingCosts /> },
+          { path: "gestao/financeiro/fluxo-de-caixa", name: "cashFlow", element: <CashFlow /> },
+          { path: "gestao/financeiro/estoque", name: "inventory", element: <Inventory /> },
+          { path: "gestao/financeiro/estoque/lotes/:lotId", name: "stockLotDetail", element: <StockLotDetail /> },
           { path: "nutricao/adaptacao", name: "adaptation", element: <Adaptation /> },
           { path: "trato/leitura", name: "feedReading", element: <ReadingRound /> },
           { path: "sanidade/protocolos", name: "protocols", element: <Protocols /> },

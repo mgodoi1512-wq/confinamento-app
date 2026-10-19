@@ -34,7 +34,7 @@ export function animalReport(animals: Animal[], lots: Lot[], pens: Pen[], weighi
     pdf: { format: "a3", centerColumns: true },
     note: "GMD individual = (peso atual - peso de entrada) / dias entre a entrada do lote atual e a última pesagem individual. Sem base compatível, o GMD fica em branco. Pesos em kg; GMD em kg/dia. A data de entrada é a do lote.",
     columns: [
-      { title: "Brinco" }, { title: "SISBOV" }, { title: "Lote" }, { title: "Curral" },
+      { title: "Brinco" }, { title: "SISBOV" }, { title: "Lote" }, { title: "Local" },
       { title: "Entrada do lote" }, { title: "Peso de entrada (kg)", decimals: 1 },
       { title: "Peso atual (kg)", decimals: 1 }, { title: "Última pesagem" },
       { title: "Ganho (kg)", decimals: 1 }, { title: "GMD (kg/dia)", decimals: 2 },
@@ -65,11 +65,11 @@ export function lotReport(lots: Lot[], pens: Pen[], weighings: Weighing[], trans
     title: "Relatório de lotes", filename: "lotes", filters,
     note: "Pesos e ganho por cabeça, em kg. GMD em kg/dia, calculado até a última pesagem do lote, conforme os indicadores da plataforma. Sem pesagem, o peso atual corresponde ao peso médio de entrada.",
     columns: [
-      { title: "Lote" }, { title: "Curral" }, { title: "Categoria" }, { title: "Cabeças", decimals: 0 },
+      { title: "Lote" }, { title: "Local" }, { title: "Categoria" }, { title: "Cabeças", decimals: 0 },
       { title: "Entrada" }, { title: "Peso médio de entrada (kg)", decimals: 1 },
       { title: "Peso médio atual (kg)", decimals: 1 }, { title: "Última pesagem" },
       { title: "Ganho médio (kg)", decimals: 1 }, { title: "GMD (kg/dia)", decimals: 2 },
-      { title: "Dias de cocho", decimals: 0 }, { title: "Status" },
+      { title: "Dias no lote", decimals: 0 }, { title: "Status" },
     ],
     rows: lots.map(lot => {
       const metrics = computeLotMetrics(lot, weighings, today);

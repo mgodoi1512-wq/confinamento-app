@@ -86,7 +86,7 @@ export function buildFeedingSuggestionPdf(suggestions: FeedingSuggestion[], farm
   });
   const notes = [
     "Sugestão pela grade fixa de adaptação. Não desconta tratos registrados e não altera os planos salvos.",
-    "Peso da última pesagem; sem pesagem, usa a média de entrada. O dia da entrada conta como dia 1.",
+    "Peso da última pesagem; sem pesagem, usa a média de entrada. O início do manejo de confinamento conta como dia 1.",
     "Três refeições equivalentes; diferenças de centavos de kg são ajustadas à noite.",
     valid.length < suggestions.length ? `${suggestions.length - valid.length} lote(s) com pendências destacados. Os totais incluem apenas lotes válidos.` : "Confira a referência e as quantidades antes do fornecimento.",
   ];

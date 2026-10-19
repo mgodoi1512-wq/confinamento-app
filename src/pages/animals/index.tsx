@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ClipboardList, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList, Plus, Search } from "lucide-react";
 
 import { ExportButtons } from "@/components/app/export-buttons";
 import { animalReport } from "@/lib/export-data";
@@ -59,6 +59,7 @@ const Animals = () => {
   const [penFilter, setPenFilter] = useState(SELECT_ALL);
   const [lotFilter, setLotFilter] = useState(SELECT_ALL);
   const [healthFilter, setHealthFilter] = useState(SELECT_ALL);
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Animal | null>(null);
 
   const pens = pensQuery.data ?? [];
@@ -89,6 +90,11 @@ const Animals = () => {
       return true;
     });
   }, [animalsQuery.data, search, penFilter, lotFilter, movementFilter, healthFilter, today]);
+
+  const pageSize = 15;
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const columns: Column<Animal>[] = [
     {
@@ -177,7 +183,7 @@ const Animals = () => {
           />
           <AnimalFormDialog
             trigger={
-              <Button className="h-10">
+              <Button className="h-10 w-40 max-w-full shrink-0">
                 <Plus />
                 {t("animals.new")}
               </Button>
@@ -189,33 +195,26 @@ const Animals = () => {
 
       <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <SelectField
-          label={t("animals.filter.movement")}
+          label={`${t("animals.filter.movement")} · ${rows.length} ${t("common.results")}`}
           value={movementFilter}
           onChange={(value) => {
+            setPage(1);
             setMovementFilter(value);
             setHealthFilter(SELECT_ALL);
           }}
           options={MOVEMENT_FILTER_OPTIONS}
         />
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={t("animals.searchPlaceholder")}
-            className="h-11 pl-9"
-          />
-        </div>
+
         <SelectField
           value={penFilter}
-          onChange={setPenFilter}
+          onChange={(value) => { setPenFilter(value); setPage(1); }}
           allowEmpty
           emptyLabel={t("common.allPens")}
           options={pens.map((pen) => ({ value: pen.id, labelKey: pen.code }))}
         />
         <SelectField
           value={lotFilter}
-          onChange={setLotFilter}
+          onChange={(value) => { setLotFilter(value); setPage(1); }}
           allowEmpty
           emptyLabel={t("common.allLots")}
           options={lots.map((lot) => ({ value: lot.id, labelKey: lot.code }))}
@@ -223,19 +222,25 @@ const Animals = () => {
         <SelectField
           value={healthFilter}
           disabled={movementFilter === "saidos"}
-          onChange={setHealthFilter}
+          onChange={(value) => { setHealthFilter(value); setPage(1); }}
           allowEmpty
           emptyLabel={t("field.healthStatus")}
           options={HEALTH_FILTER_OPTIONS}
         />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            placeholder={t("animals.searchPlaceholder")}
+            aria-label={t("animals.searchPlaceholder")}
+            className="h-11 pl-9"
+          />
+        </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        {rows.length} {t("common.results")}
-      </p>
-
       <DataTable
-        rows={rows}
+        rows={visibleRows}
         columns={columns.map((column) => ({ ...column, className: `${column.className ?? ""} text-center` }))}
         getRowKey={(row) => row.id}
         onRowClick={(row) => setSelected(row)}
@@ -253,6 +258,7 @@ const Animals = () => {
                   variant="outline"
                   className="h-10"
                   onClick={() => {
+                    setPage(1);
                     setMovementFilter(SELECT_ALL);
                     setSearch("");
                     setPenFilter(SELECT_ALL);
@@ -265,7 +271,7 @@ const Animals = () => {
               ) : (
                 <AnimalFormDialog
                   trigger={
-                    <Button className="h-10">
+                    <Button className="h-10 w-40 max-w-full shrink-0">
                       <Plus />
                       {t("animals.new")}
                     </Button>
@@ -325,6 +331,22 @@ const Animals = () => {
           </div>
         )}
       />
+
+      {!animalsQuery.isLoading && rows.length > 0 && (
+        <nav aria-label="Paginação dos animais" className="flex flex-wrap items-center justify-between gap-3">
+          <p aria-live="polite" className="text-sm text-muted-foreground">
+            {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, rows.length)} de {rows.length} · Página {currentPage} de {pageCount}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
+              <ChevronLeft className="size-4" />Voltar
+            </Button>
+            <Button variant="outline" size="sm" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>
+              Avançar<ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </nav>
+      )}
 
       <AnimalDetailSheet animal={selected} onClose={() => setSelected(null)} />
     </div>

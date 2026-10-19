@@ -1,0 +1,6 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import ts from 'typescript';
+const code=ts.transpileModule(fs.readFileSync(new URL('../src/lib/loan-installments.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText;
+const {loanSchedule,checkLoanDates}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+test('mensal mantém dia de origem sem deslocar março após fevereiro',()=>{assert.deepEqual(loanSchedule('2027-01-31',3,'mensal'),['2027-01-31','2027-02-28','2027-03-31']);assert.deepEqual(loanSchedule('2028-01-31',3,'mensal'),['2028-01-31','2028-02-29','2028-03-31']);});
+test('semestral e anual preservam referência com virada de ano e bissexto',()=>{assert.deepEqual(loanSchedule('2026-08-31',3,'semestral'),['2026-08-31','2027-02-28','2027-08-31']);assert.deepEqual(loanSchedule('2028-02-29',2,'anual'),['2028-02-29','2029-02-28']);});
+test('valida datas reais, ordem e limite',()=>{assert.throws(()=>loanSchedule('2026-02-30',2,'mensal'));for(const n of [0,1.5,361])assert.throws(()=>loanSchedule('2026-10-18',n,'mensal'));assert.ok(checkLoanDates(['2026-11-01','2026-10-01']));assert.ok(checkLoanDates(['2026-11-01','2026-11-01']));assert.equal(checkLoanDates(['2026-11-01','2026-12-02']),null);});

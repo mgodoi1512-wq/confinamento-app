@@ -15,7 +15,7 @@ export type TutorialChapter = {
 const steps = (...rows: [string, string][]) => rows.map(([title, text]) => ({ title, text }));
 
 export const tutorialChapters: TutorialChapter[] = [
-  { id: "welcome", title: "Bem-vindo ao tutorial", group: "Primeiros passos", summary: "Aprenda a organizar os cadastros e acompanhar a rotina do confinamento.", path: "Guia da plataforma", steps: steps(
+  { id: "welcome", title: "Bem-vindo ao tutorial", group: "Primeiros passos", summary: "Aprenda a organizar os cadastros e acompanhar a rotina da fazenda.", path: "Guia da plataforma", steps: steps(
     ["Escolha como aprender", "Use o índice para ir direto a um assunto ou avance pelas páginas na ordem do guia."],
     ["Siga os passos", "Cada capítulo mostra o caminho no menu, o que preencher e os pontos que merecem conferência."],
     ["Experimente criar um lote", "O capítulo Criação de lotes tem uma demonstração clicável. Os dados são fictícios e não são gravados na fazenda."],
@@ -29,20 +29,20 @@ export const tutorialChapters: TutorialChapter[] = [
   ), tip: "Cada pessoa deve usar sua própria conta. Não compartilhe a senha do proprietário com a equipe." },
   { id: "dashboard", title: "Painel e navegação", group: "Primeiros passos", summary: "Comece pela visão geral e aprofunde a consulta nas páginas de manejo.", path: "Operação > Visão geral", route: "/", steps: steps(
     ["Confira o resumo", "Veja os lotes ativos, a ocupação e os indicadores calculados com os registros disponíveis."],
-    ["Abra o detalhe", "Consulte o lote, o curral e os registros quando precisar conferir a origem de um indicador."],
+    ["Abra o detalhe", "Consulte o lote, o local e os registros quando precisar conferir a origem de um indicador."],
     ["Consulte as pendências", "Verifique leituras, tratos e necessidade de pesagens. Um trato registrado no dia não significa que todas as refeições foram concluídas."],
     ["Use o menu no celular", "O botão de menu abre as ferramentas; os atalhos inferiores levam às rotinas mais utilizadas."]
   ), tip: "Se um indicador estiver em branco, confira se os dados necessários já foram registrados. Em branco não significa zero." },
-  { id: "pens", title: "Currais e capacidade", group: "Cadastros", summary: "Prepare o espaço antes de receber o lote.", path: "Gestão > Currais ou Configurações > Currais", route: "/config/currais", managerOnly: true, steps: steps(
-    ["Cadastre o curral", "Informe um código fácil de reconhecer, capacidade em cabeças e os demais campos disponíveis."],
-    ["Defina a situação", "Currais em manutenção não devem receber novos lotes."],
+  { id: "pens", title: "Locais e capacidade", group: "Cadastros", summary: "Prepare o espaço antes de receber o lote.", path: "Gestão > Locais ou Configurações > Locais", route: "/config/currais", managerOnly: true, steps: steps(
+    ["Cadastre o local", "Informe um código fácil de reconhecer, capacidade em cabeças e os demais campos disponíveis."],
+    ["Defina a situação", "Locais em manutenção não devem receber novos lotes."],
     ["Confira a ocupação", "Após salvar, consulte a capacidade, as cabeças alocadas e as vagas livres."],
-    ["Garanta vagas suficientes", "A criação do lote exige um curral válido com capacidade para a quantidade informada."]
+    ["Garanta vagas suficientes", "A criação do lote exige um local válido com capacidade para a quantidade informada."]
   ), tip: "A capacidade cadastrada deve representar a estrutura física real.", example: "Capacidade de 30 cabeças menos 18 alocadas = 12 vagas. Um novo lote com 15 cabeças precisa de outra organização de espaço." },
   { id: "diets", title: "Cadastro de dietas", group: "Cadastros", summary: "Defina ingredientes e confira as unidades usadas no cálculo.", path: "Nutrição > Dietas", route: "/config/dietas", managerOnly: true, steps: steps(
     ["Identifique a dieta", "Informe um nome único na fazenda. Adicione os ingredientes, como ração e volumoso."],
     ["Escolha kg ou % PV", "Em kg, informe a quantidade diária por cabeça. Em % PV, a oferta é calculada pelo peso vivo de referência do lote. O padrão do cadastro é percentual."],
-    ["Revise os percentuais", "% PV não é a participação do ingrediente na mistura. A composição da mistura é outro cálculo, usado no Financeiro."],
+    ["Revise os percentuais", "% PV não é a participação do ingrediente na mistura. A composição da mistura é outro cálculo, usado em Financeiro > Alimentação."],
     ["Salve e confira a situação", "Somente dietas ativas aparecem para novas seleções de trato. Inativar uma dieta não apaga o histórico."]
   ), tip: "Os percentuais devem seguir o planejamento nutricional da fazenda; o tutorial apenas explica o cálculo.", example: "Exemplo fictício: 400 kg × 2,5% PV = 10 kg por cabeça/dia do ingrediente. Para 10 animais, são 100 kg/dia." },
   { id: "protocols", title: "Protocolos sanitários", group: "Cadastros", summary: "Organize o manejo e diferencie vínculo de aplicação.", path: "Sanidade > Protocolos", route: "/sanidade/protocolos", managerOnly: true, steps: steps(
@@ -52,31 +52,31 @@ export const tutorialChapters: TutorialChapter[] = [
     ["Vincule e confira a aplicação", "No novo lote, Aplicar protocolo ao lote inicia desmarcado. Selecione o protocolo e confirme separadamente se deseja aplicá-lo."]
   ), tip: "O sistema registra o manejo. Produtos, doses e carências devem seguir a orientação técnica e a documentação aplicável." },
   { id: "lots", title: "Criação de lotes", group: "Rebanho", summary: "Siga o roteiro e teste a criação em uma demonstração sem gravação.", path: "Lotes > Novo lote", route: "/lotes/novo", steps: steps(
-    ["Confira o espaço", "É obrigatório ter um curral disponível. A ausência de dieta ou protocolo gera aviso, mas não impede o cadastro."],
+    ["Confira o espaço", "É obrigatório ter um local disponível. A ausência de dieta ou protocolo gera aviso, mas não impede o cadastro."],
     ["Preencha a identificação", "Confira código, origem, data de entrada, raça, categoria, sexo, quantidade e peso-alvo."],
     ["Informe os pesos", "Use o peso médio ou cadastre brinco e peso positivo para cada cabeça no modo individual."],
-    ["Escolha o curral e revise", "Selecione um curral com vagas suficientes. Dieta e protocolo são opcionais. Revise o resumo antes de criar o lote."]
+    ["Escolha o local e revise", "Selecione um local com vagas suficientes. Dieta e protocolo são opcionais. Revise o resumo antes de criar o lote."]
   ), tip: "Informar apenas quantidade e peso médio não cadastra os brincos. Para acompanhamento individual, identifique os animais.", demo: "lot" },
   { id: "animals", title: "Animais e movimentações", group: "Rebanho", summary: "Localize o animal e acompanhe os vínculos e a situação.", path: "Animais e Lotes > Detalhes", route: "/animais", steps: steps(
-    ["Localize pela identificação", "Pesquise por brinco ou SISBOV. Use filtros de movimentação, curral, lote e condição sanitária."],
+    ["Localize pela identificação", "Pesquise por brinco ou SISBOV. Use filtros de movimentação, local, lote e condição sanitária."],
     ["Confira os detalhes", "Selecione a linha ou cartão do animal para consultar peso, situação e dados associados."],
-    ["Cadastre a identificação individual", "Em Novo animal, confira os campos e os vínculos com lote e curral. Não repita o brinco na fazenda."],
+    ["Cadastre a identificação individual", "Em Novo animal, confira os campos e os vínculos com lote e local. Não repita o brinco na fazenda."],
     ["Confira as movimentações", "Transferências e saídas são tratadas nos detalhes do lote. Revise quantidade, destino e situação antes de confirmar."]
   ), tip: "Use o filtro de saídos para consultar os animais que deixaram o rebanho ativo. Brincos usam ordem alfabética e numérica." },
   { id: "weighings", title: "Pesagens e GMD", group: "Desempenho", summary: "Registre pesos com datas válidas para acompanhar o ganho.", path: "Pesagens > Nova pesagem", route: "/pesagens/nova", steps: steps(
-    ["Escolha o lote", "Confira curral, peso de referência e dias de confinamento."],
+    ["Escolha o lote", "Confira local, peso de referência e dias no lote."],
     ["Defina tipo e data", "Escolha pesagem amostral, lote completo ou individual. A data precisa ser compatível com a entrada do lote."],
     ["Preencha os pesos", "Nos modos por média, informe cabeças e peso médio. No individual, preencha os pesos dos animais pesados."],
     ["Salve e consulte o GMD", "O GMD do lote usa o ganho desde a entrada dividido pelos dias até a última pesagem válida. O individual exige pesagem individual compatível."]
   ), tip: "Sem uma pesagem posterior válida, o GMD pode ficar em branco. A pesagem por média não cria pesos individuais.", example: "Exemplo fictício: (371 kg − 350 kg) ÷ 15 dias = 1,40 kg/dia." },
   { id: "feed", title: "Registro do trato", group: "Nutrição", summary: "Escolha a refeição atual e informe o que foi fornecido.", path: "Nutrição > Trato > Novo trato", route: "/trato", steps: steps(
-    ["Escolha curral, lote e dieta", "A lista mostra os lotes com tratos pendentes. Confira a data. Peso de referência e cabeças são campos de consulta."],
+    ["Escolha local, lote e dieta", "A lista mostra os lotes com tratos pendentes. Confira a data. Peso de referência e cabeças são campos de consulta."],
     ["Defina os tratos de hoje", "Escolha 1, 2 ou 3 e selecione o período atual. Um único trato pode ser à noite."],
     ["Confira a oferta", "Revise o diário, a parcela desta refeição e as quantidades por ingrediente. Ajuste Oferta por animal neste trato para refletir a quantidade real."],
     ["Registre e acompanhe", "Não repita o mesmo período no lote/data. Bolinhas e barra mostram os registros. Ao concluir o dia, o lote sai da lista de pendentes para novo trato."]
   ), tip: "O primeiro registro fixa as referências do plano diário. Dieta e número de refeições ficam bloqueados nos registros seguintes daquele lote/data." },
   { id: "reading", title: "Leitura de cocho", group: "Nutrição", summary: "Registre a leitura e confira a oferta-base da manhã.", path: "Nutrição > Leitura de cocho", route: "/trato/leitura", steps: steps(
-    ["Abra o curral", "Escolha um curral com lote e confira o contexto."],
+    ["Abra o local", "Escolha um local com lote e confira o contexto."],
     ["Confira a base", "A referência é a manhã. Se a base vier da soma diária da dieta, informe apenas a parcela planejada para a manhã."],
     ["Escolha a nota e salve", "Informe a nota de 0 a 5, sobra em kg quando medida, ajuste e observações."],
     ["Confira antes de aplicar", "A ação de aplicar ajustes pode gerar o trato da manhã. Confira se a refeição já foi lançada antes de registrá-la manualmente."]
@@ -87,21 +87,34 @@ export const tutorialChapters: TutorialChapter[] = [
     ["Revise o período posterior", "Os padrões são 2,5% PV de ração e 0,8% PV de volumoso, editáveis no plano."],
     ["Salve e consulte", "O gestor pode salvar, editar ou excluir planos. Outros perfis podem ter apenas consulta."]
   ), tip: "Salvar um plano não registra tratos nem altera automaticamente a dieta do lote. Registre a execução em Trato." },
-  { id: "finance", title: "Custos da alimentação", group: "Gestão", summary: "Compare preços com a composição e o frete na mesma unidade.", path: "Gestão > Financeiro", route: "/gestao/financeiro", managerOnly: true, steps: steps(
+  { id: "finance", title: "Custos da alimentação", group: "Gestão", summary: "Compare preços com a composição e o frete na mesma unidade.", path: "Gestão > Financeiro > Alimentação", route: "/gestao/financeiro/alimentacao", managerOnly: true, steps: steps(
     ["Informe os preços de compra", "Preencha energia, proteína e núcleo com o preço e o peso da saca. Os padrões são 50 kg, 30 kg e 25 kg."],
     ["Confira composição e frete", "As participações devem somar 100%. O padrão é 80%, 15% e 5%. Escolha a unidade correta do frete; por carga, informe o peso transportado."],
     ["Informe a silagem", "O padrão é por kg. Se usar tonelada, selecione a unidade correspondente. O cálculo da silagem é separado."],
     ["Confira, salve e exporte", "Revise custo entregue por kg e custo da ração por tonelada. Use Salvar custos e os botões de exportação quando necessário."]
   ), tip: "O módulo calcula custos da alimentação. Não é um controle completo de caixa ou contas a pagar.", example: "Exemplo fictício: energia a R$ 1,50/kg × 80% + proteína a R$ 2,00/kg × 15% + núcleo a R$ 4,00/kg × 5% = R$ 1,70/kg de ração." },
   { id: "suggestion", title: "PDF de sugestão de trato", group: "Relatórios", summary: "Confira a sugestão diária de todos os lotes ativos.", path: "Trato > PDF sugestão de trato", route: "/trato", steps: steps(
-    ["Revise os lotes", "Confira entrada, cabeças, curral e última pesagem. Sem pesagem, o relatório usa o peso médio de entrada."],
+    ["Revise os lotes", "Confira entrada, cabeças, local e última pesagem. Sem pesagem, o relatório usa o peso médio de entrada."],
     ["Gere o documento", "O relatório divide ração e volumoso em três refeições iguais, por lote, com a entrada como dia 1."],
     ["Confira a regra", "A grade é fixa para esse relatório. Ela não lê automaticamente os percentuais dos planos de adaptação salvos."],
     ["Use como sugestão", "O PDF não desconta tratos fornecidos e não registra a execução. Confira os lotes com dados incompletos antes de usar os totais."]
   ), tip: "Valores por refeição são em kg por lote. A grade do relatório não substitui a definição técnica da dieta.", table: { headers: ["Dia de cocho", "Ração (% PV)", "Volumoso (% PV)"], rows: [["1 a 3", "0,3%", "3,0%"], ["4 a 6", "0,8%", "2,5%"], ["7 a 9", "1,3%", "2,0%"], ["10 a 12", "1,8%", "1,5%"], ["13 a 15", "2,3%", "1,0%"], ["16 ou mais", "2,5%", "0,8%"]] } },
+  { id: "cashFlow", title: "Fluxo de caixa", group: "Gestão", summary: "Registre compromissos e acompanhe os valores realizados.", path: "Gestão > Financeiro > Fluxo de caixa", route: "/gestao/financeiro/fluxo-de-caixa", managerOnly: true, steps: steps(
+    ["Configure a abertura", "Informe a data inicial e o saldo antes dos pagamentos dessa data. Valores anteriores não são somados novamente."],
+    ["Cadastre o lançamento", "Escolha entrada ou saída, categoria, vencimento e valor. O vínculo com lote é opcional."],
+    ["Confirme a realização", "Marque pago ou recebido e informe a data efetiva. Sem confirmação, a conta permanece pendente e entra na projeção."],
+    ["Filtre e exporte", "A tabela separa realizados pela data efetiva e pendentes pelo vencimento. O resumo mensal considera toda a fazenda."]
+  ), tip: "Cálculo do custo da alimentação e movimentação de estoque não criam pagamentos automaticamente. Registre cada compromisso no caixa apenas uma vez." },
+  { id: "inventory", title: "Estoque de alimentos e animais", group: "Gestão", summary: "Controle entradas, consumo e pesos de referência da fazenda.", path: "Gestão > Financeiro > Estoque", route: "/gestao/financeiro/estoque", managerOnly: true, steps: steps(
+    ["Cadastre os alimentos", "Crie os itens de ração pronta, volumoso e ingredientes. Registre o saldo inicial como entrada, com custo entregue por kg."],
+    ["Registre as movimentações", "Entradas aumentam o estoque; saídas e perdas reduzem. O custo médio segue a ordem de registro. Corrija por movimentação inversa com justificativa."],
+    ["Ative vínculos se desejar", "Vincule o ingrediente da dieta ao item para descontar próximos tratos detalhados. Sem saldo suficiente, o trato é bloqueado. Não registre também uma saída manual para o mesmo consumo."],
+    ["Consulte os animais", "Selecione um lote para atualizar os indicadores. Ative a projeção pelo GMD se desejar e use Detalhar para acompanhar os animais, o ganho de peso e a comparação entre compra e venda estimada."],
+    ["Informe a compra", "No detalhamento, defina um padrão de compra por cabeça e ajuste os valores individuais quando necessário. A diferença entre venda estimada e compra não inclui os demais custos e não é lucro líquido."]
+  ), tip: "Arrobas de carcaça são estimadas com rendimento configurável. A avaliação dos animais não representa dinheiro recebido. Tratos antigos não são baixados automaticamente ao instalar." },
   { id: "exports", title: "Exportações e filtros", group: "Relatórios", summary: "Confira a consulta antes de gerar PDF ou Excel.", path: "Telas com botões PDF e Excel", steps: steps(
     ["Escolha a página", "Abra a listagem ou cálculo e confira os botões disponíveis na sua versão."],
-    ["Aplique os filtros", "Revise busca, movimentação, curral, lote, data ou situação antes de exportar."],
+    ["Aplique os filtros", "Revise busca, movimentação, local, lote, data ou situação antes de exportar."],
     ["Aguarde os dados", "Os botões podem ficar desabilitados durante o carregamento ou quando não há linhas."],
     ["Exporte e confira", "PDF favorece leitura; Excel permite trabalhar com os dados em planilha. Confira fazenda, data, filtros, unidades e quantidade de registros."]
   ), tip: "A sugestão diária de trato é diferente das exportações gerais: ela considera todos os lotes ativos e usa uma grade própria." },
@@ -112,13 +125,13 @@ export const tutorialChapters: TutorialChapter[] = [
     ["Diferencie os controles", "Gestor administra os cadastros liberados; operador usa suas rotinas. Administração do sistema é exclusiva do administrador da plataforma e fica em Configurações."]
   ), tip: "Aprovação de proprietário e aceite de convite de equipe são fluxos diferentes. Cortesia financeira não reativa uma conta suspensa." },
   { id: "market", title: "Mercado e cotações", group: "Gestão", summary: "Consulte a fonte, a data e a unidade antes de comparar preços.", path: "Gestão > Mercado e cotações", route: "/gestao/mercado", steps: steps(
-    ["Escolha físico ou futuro", "Milho e soja físicos têm tabelas incorporadas. Boi físico e sorgo têm consulta na fonte."],
-    ["Confira os contratos", "Há quadros para boi da B3 e milho de Chicago; a soja futura tem consulta externa."],
-    ["Compare referências compatíveis", "Boi futuro está em R$/@. Milho de Chicago usa US$/bushel. Confira praça, vencimento e unidade."],
+    ["Escolha físico ou futuro", "Boi gordo, milho, soja e sorgo têm tabelas incorporadas. A tabela do boi traz estados brasileiros disponíveis no indicador Datagro, incluindo Goiás; não cobre todas as unidades federativas."],
+    ["Confira os contratos", "O mercado futuro tem abas de gráficos para Boi Gordo (BGI), Soja (SJC) e Milho (CCM), todos negociados na B3, com dados exibidos por TradingView."],
+    ["Compare referências compatíveis", "Boi futuro está em R$/@, milho em R$/saca de 60 kg e soja SJC em US$/saca de 60 kg. As séries contínuas mostram a evolução histórica e não uma previsão ou curva por vencimento."],
     ["Consulte a alternativa", "Se o quadro não abrir, use o botão da fonte. Recarregar o quadro não altera a data do preço publicado."]
   ), tip: "Esta página depende da instalação da atualização de mercado. Não promete tempo real. Ainda não há fonte pública confirmada para incorporar torta de algodão." },
   { id: "help", title: "Dúvidas e conferência diária", group: "Ajuda", summary: "Confira os registros e as permissões antes de repetir uma ação.", path: "Consulta rápida", steps: steps(
-    ["Não consigo criar o lote", "Confira curral, manutenção, vagas, quantidade e pesos válidos."],
+    ["Não consigo criar o lote", "Confira local, manutenção, vagas, quantidade e pesos válidos."],
     ["Dieta ou lote não aparece no trato", "Confira se a dieta está ativa, se o plano diário já foi iniciado e se as refeições do dia foram concluídas."],
     ["O GMD está em branco", "Confira a pesagem posterior à entrada. Para o animal, precisa haver pesagem individual compatível."],
     ["Preciso relatar um erro", "Leia a mensagem e consulte a listagem antes de repetir o salvamento. Use o botão de feedback e descreva a página, a ação e o resultado."]

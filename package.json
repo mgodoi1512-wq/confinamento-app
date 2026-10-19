@@ -11,9 +11,13 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "pInstall": "npm install",
-    "test": "node --test tests/domain.test.mjs tests/export.test.mjs tests/adaptation.test.mjs tests/feed-form.test.mjs tests/finance.test.mjs",
+    "test": "node --test tests/domain.test.mjs tests/export.test.mjs tests/adaptation.test.mjs tests/feed-form.test.mjs tests/finance.test.mjs tests/financial-workspace.test.mjs tests/financial-workspace-ui.test.mjs tests/stock-animal-detail.test.mjs tests/stock-animal-detail-ui.test.mjs tests/feed-stock.test.mjs tests/diet-stock-ui.test.mjs tests/production-systems.test.mjs tests/farm-system-notice-ui.test.mjs",
     "test:db": "node tests/database.test.mjs && node tests/database.test.mjs --text-profiles",
-    "test:tenancy": "node tests/tenancy.test.mjs && node tests/tenancy.test.mjs --text-profiles"
+    "test:tenancy": "node tests/tenancy.test.mjs && node tests/tenancy.test.mjs --text-profiles",
+    "test:finance-workspace": "node --test tests/financial-workspace.test.mjs tests/financial-workspace-ui.test.mjs && node tests/annual-installments-db.test.mjs --financial-workspace && node tests/annual-installments-db.test.mjs --financial-workspace --text-profiles",
+    "test:stock-animals": "node --test tests/stock-animal-detail.test.mjs tests/stock-animal-detail-ui.test.mjs tests/separate-finance-settings-ui.test.mjs && node tests/stock-animal-values-db.test.mjs && node tests/separate-finance-settings-db.test.mjs",
+    "test:diet-stock": "node --test tests/feed-stock.test.mjs tests/diet-stock-ui.test.mjs tests/feed-form.test.mjs && node tests/diet-feed-stock-db.test.mjs && node tests/diet-feed-stock-db.test.mjs --text-profiles",
+    "test:production-systems": "node --test tests/production-systems.test.mjs tests/farm-system-notice-ui.test.mjs && node tests/production-systems-db.test.mjs && node tests/production-systems-db.test.mjs --text-profiles"
   },
   "dependencies": {
     "@enter-pro/analytics-sdk": "^0.0.10",

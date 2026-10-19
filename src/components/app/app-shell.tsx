@@ -1,3 +1,4 @@
+import { FarmSystemNotice } from "@/components/farms/farm-system-settings";
 import { FeedbackWidget } from "@/components/app/feedback-widget";
 import { PageLoading } from "@/components/app/page-loading";
 import { QueryErrors } from "@/components/app/query-errors";
@@ -33,8 +34,8 @@ export const AppShell = () => {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar farmName={farm?.name ?? undefined} onOpenMenu={() => setMenuOpen(true)} />
-        <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pb-24 pt-5 md:px-6 md:pb-8 md:pt-6 lg:px-8">
-          <QueryErrors /><Suspense fallback={<PageLoading />}><Outlet /></Suspense>
+        <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-5 md:px-6 md:pt-6 lg:px-8 lg:pb-24">
+          <FarmSystemNotice/><QueryErrors /><Suspense fallback={<PageLoading />}><Outlet /></Suspense>
         </main>
         <BottomNav />
         <FeedbackWidget />

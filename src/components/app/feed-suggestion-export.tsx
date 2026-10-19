@@ -20,7 +20,7 @@ export const FeedSuggestionExport=()=>{
       if([freshLots,freshPens,freshWeights,freshFarm].some(query=>query.isError))throw new Error("Não foi possível atualizar os dados. Tente novamente.");
       const date=todayIso();
       const suggestions=computeFeedingSuggestions(freshLots.data??[],freshPens.data??[],freshWeights.data??[],date);
-      if(!suggestions.length){toast.info("Não há lotes ativos para gerar a sugestão.");return;}
+      if(!suggestions.length){toast.info("Não há lotes ativos identificados como confinamento para gerar esta sugestão.");return;}
       const {exportPdf}=await import("@/lib/export-files");
       await exportPdf(feedingSuggestionReport(suggestions,freshFarm.data?.name??"Fazenda",date));
       if(suggestions.some(item=>item.issue))toast.warning("PDF gerado com lotes que precisam de revisão. Confira as linhas sinalizadas.");
@@ -29,6 +29,6 @@ export const FeedSuggestionExport=()=>{
     finally{setBusy(false);}
   };
   return <Button type="button" variant="outline" className="h-10" disabled={busy||!ready} onClick={()=>void generate()}>
-    {busy?<Loader2 className="animate-spin" />:<FileDown />} PDF sugestão de trato
+    {busy?<Loader2 className="animate-spin" />:<FileDown />} PDF sugestão de confinamento
   </Button>;
 };

@@ -134,9 +134,9 @@ const Protocols = () => {
         titleKey="health.protocols.title"
         subtitleKey="health.protocols.subtitle"
         actions={
-          <Button className="h-10" onClick={() => openDialog()}>
+          <Button className="h-10 w-40 max-w-full shrink-0 gap-1.5 px-2 py-1" onClick={() => openDialog()}>
             <Plus />
-            {t("health.protocols.new")}
+            <span className="min-w-0 whitespace-normal text-center leading-4">{t("health.protocols.new")}</span>
           </Button>
         }
       />
@@ -147,8 +147,9 @@ const Protocols = () => {
           titleKey="health.protocols.empty.title"
           descriptionKey="health.protocols.empty.description"
           action={
-            <Button className="h-10" onClick={() => openDialog()}>
-              {t("health.protocols.new")}
+            <Button className="h-10 w-40 max-w-full shrink-0 gap-1.5 px-2 py-1" onClick={() => openDialog()}>
+                <Plus />
+              <span className="min-w-0 whitespace-normal text-center leading-4">{t("health.protocols.new")}</span>
             </Button>
           }
         />

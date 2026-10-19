@@ -1,7 +1,8 @@
+import {systemLabel} from "@/lib/production-systems";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Beef, Plus } from "lucide-react";
+import { Beef, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import { ExportButtons } from "@/components/app/export-buttons";
 import { lotReport } from "@/lib/export-data";
@@ -34,6 +35,7 @@ const Lots = () => {
   const today = todayIso();
 
   const [statusFilter, setStatusFilter] = useState("ativo");
+  const [page, setPage] = useState(1);
 
   const lotsQuery = useLots();
   const pensQuery = usePens();
@@ -69,7 +71,13 @@ const Lots = () => {
     [lots, weighings, pens, statusFilter, today],
   );
 
+  const pageSize = 15;
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   const columns: Column<LotRow>[] = [
+    {key:"production_system",headerKey:"Sistema de criação",render:row=>systemLabel(row.lot.production_system)},
     {
       key: "code",
       headerKey: "field.lot",
@@ -155,7 +163,7 @@ const Lots = () => {
             disabled={[lotsQuery, pensQuery, weighingsQuery].some(query => query.isFetching || query.isPending || query.isError) || !rows.length}
             getReport={() => lotReport(rows.map(row => row.lot), pens, weighings, key => t(key), `Status: ${statusFilter === SELECT_ALL ? "Todos" : t(`status.lot.${statusFilter}`)}`, today)}
           />
-          <Button asChild className="h-10">
+          <Button asChild className="h-10 w-40 max-w-full shrink-0">
             <Link to="/lotes/novo">
               <Plus />
               {t("lots.new")}
@@ -167,9 +175,10 @@ const Lots = () => {
 
       <div className="flex flex-wrap items-end gap-3">
         <SelectField
-          className="w-full sm:w-48"
+          className="w-full sm:w-72"
+          label={`Exibir lotes · ${rows.length} ${t("common.results")}`}
           value={statusFilter}
-          onChange={setStatusFilter}
+          onChange={(value) => { setStatusFilter(value); setPage(1); }}
           allowEmpty
           emptyLabel={t("common.all")}
           options={[
@@ -177,13 +186,10 @@ const Lots = () => {
             { value: "encerrado", labelKey: "status.lot.encerrado" },
           ]}
         />
-        <p className="pb-3 text-sm text-muted-foreground">
-          {rows.length} {t("common.results")}
-        </p>
       </div>
 
       <DataTable
-        rows={rows}
+        rows={visibleRows}
         columns={columns.map((column) => ({ ...column, className: `${column.className ?? ""} text-center` }))}
         getRowKey={(row) => row.lot.id}
         onRowClick={(row) => navigate(`/lotes/${row.lot.id}`)}
@@ -194,8 +200,8 @@ const Lots = () => {
             titleKey="lots.empty.title"
             descriptionKey="lots.empty.description"
             action={
-              <Button asChild className="h-10">
-                <Link to="/lotes/novo">{t("lots.new")}</Link>
+              <Button asChild className="h-10 w-40 max-w-full shrink-0">
+                <Link to="/lotes/novo"><Plus />{t("lots.new")}</Link>
               </Button>
             }
           />
@@ -246,6 +252,22 @@ const Lots = () => {
           </div>
         )}
       />
+
+      {!lotsQuery.isLoading && rows.length > 0 && (
+        <nav aria-label="Paginação dos lotes" className="flex flex-wrap items-center justify-between gap-3">
+          <p aria-live="polite" className="text-sm text-muted-foreground">
+            {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, rows.length)} de {rows.length} · Página {currentPage} de {pageCount}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
+              <ChevronLeft className="size-4" />Voltar
+            </Button>
+            <Button variant="outline" size="sm" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>
+              Avançar<ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </nav>
+      )}
     </div>
   );
 };

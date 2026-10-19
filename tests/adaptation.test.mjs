@@ -34,3 +34,20 @@ test('dados ausentes e valores inválidos não viram totais zero',()=>{
  for(const change of [{headCount:0},{headCount:1.5},{averageWeightKg:0},{feedPriceKg:-1},{totalDays:14},{totalDays:15.5},{startDate:'2026-02-30'},{phases:[]},{postFeedPct:101}])assert.throws(()=>validateAdaptation({...input,...change}));
  assert.throws(()=>validateAdaptation(null));
 });
+
+test('PDF de plano salvo usa seus próprios parâmetros, independente do lote aberto no formulário',async()=>{
+ const page=source('../src/pages/feed/adaptation.tsx');
+ const reportCode=page.slice(page.indexOf('  const report = '),page.indexOf('  const savedRows:'));
+ const js=ts.transpileModule(reportCode,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const {formatDate,formatNumber}=await import(formatUrl);
+ const make=new Function('input','lot','validateAdaptation','computeAdaptation','formatDate','formatNumber','money',js+';return report;');
+ const original=fixture.cases[0].input;
+ const form={...original,headCount:original.headCount*3,averageWeightKg:600};
+ const report=make(form,{code:'Outro lote aberto'},validateAdaptation,computeAdaptation,formatDate,formatNumber,v=>String(v));
+ const saved=report(original,'Lote salvo');
+ assert.equal(saved.adaptation.lotName,'Lote salvo');assert.deepEqual(saved.adaptation.input,validateAdaptation(original));
+ assert.equal(saved.rows.at(-1).at(-1),computeAdaptation(original).totalCost);
+ assert.notEqual(saved.rows.at(-1).at(-1),report().rows.at(-1).at(-1));
+ assert.match(saved.title,/Lote salvo/);assert.doesNotMatch(saved.filters,/Outro lote aberto/);
+ assert.throws(()=>report({...original,headCount:0},'Plano inválido'));
+});

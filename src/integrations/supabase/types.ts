@@ -40,6 +40,7 @@ export type Database = {
   }
   public: {
     Tables: {
+      lot_system_history: { Row: {id:string;farm_id:string;lot_id:string;from_system:string|null;to_system:string;from_pen_id:string|null;to_pen_id:string;effective_date:string;created_by:string|null;created_at:string;request_id:string|null;request_payload:Json|null}; Insert: {farm_id:string;lot_id:string;to_system:string;to_pen_id:string;effective_date:string}; Update: {to_system?:string}; Relationships: [] };
       farm_feed_settings: {
         Row: { farm_id: string; schedule: Json; updated_at: string };
         Insert: { farm_id: string; schedule: Json; updated_at?: string };
@@ -47,7 +48,7 @@ export type Database = {
         Relationships: [];
       };
       daily_feed_plans: {
-        Row: { meal_count: number | null; id: string; farm_id: string; lot_id: string; pen_id: string; date: string; diet_id: string; diet_name: string; head_count: number; average_weight_kg: number; ingredients: Json; schedule: Json; daily_kg_per_head: number; daily_total_kg: number; created_at: string };
+        Row: { stock_mapping?: Json | null; meal_count: number | null; id: string; farm_id: string; lot_id: string; pen_id: string; date: string; diet_id: string; diet_name: string; head_count: number; average_weight_kg: number; ingredients: Json; schedule: Json; daily_kg_per_head: number; daily_total_kg: number; created_at: string };
         Insert: { farm_id: string; lot_id: string; pen_id: string; date: string; diet_id: string; diet_name: string; head_count: number; average_weight_kg: number; ingredients: Json; schedule: Json; daily_kg_per_head: number; daily_total_kg: number; id?: string; created_at?: string };
         Update: { schedule?: Json };
         Relationships: [];
@@ -226,7 +227,7 @@ export type Database = {
         ]
       }
       farms: {
-        Row: {
+        Row: { production_systems?: string[]; default_production_system?: string | null; systems_updated_at?: string | null;
           city: string | null
           created_at: string
           id: string
@@ -234,7 +235,7 @@ export type Database = {
           owner_id: string | null
           state: string | null
         }
-        Insert: {
+        Insert: { production_systems?: string[]; default_production_system?: string | null; systems_updated_at?: string | null;
           city?: string | null
           created_at?: string
           id?: string
@@ -242,7 +243,7 @@ export type Database = {
           owner_id?: string | null
           state?: string | null
         }
-        Update: {
+        Update: { production_systems?: string[]; default_production_system?: string | null; systems_updated_at?: string | null;
           city?: string | null
           created_at?: string
           id?: string
@@ -418,7 +419,7 @@ export type Database = {
         ]
       }
       lots: {
-        Row: {
+        Row: { production_system?: string | null; system_started_on?: string | null; system_updated_at?: string | null;
           initial_head_count: number
           breed: string | null
           category: string | null
@@ -438,7 +439,7 @@ export type Database = {
           status: string
           target_weight_kg: number
         }
-        Insert: {
+        Insert: { production_system?: string | null; system_started_on?: string | null; system_updated_at?: string | null;
           initial_head_count?: number
           breed?: string | null
           category?: string | null
@@ -458,7 +459,7 @@ export type Database = {
           status?: string
           target_weight_kg?: number
         }
-        Update: {
+        Update: { production_system?: string | null; system_started_on?: string | null; system_updated_at?: string | null;
           initial_head_count?: number
           breed?: string | null
           category?: string | null
@@ -510,7 +511,7 @@ export type Database = {
         ]
       }
       pens: {
-        Row: {
+        Row: { location_type?: string;
           area_m2: number | null
           capacity_head: number
           code: string
@@ -521,7 +522,7 @@ export type Database = {
           owner_id: string | null
           status: string
         }
-        Insert: {
+        Insert: { location_type?: string;
           area_m2?: number | null
           capacity_head?: number
           code: string
@@ -532,7 +533,7 @@ export type Database = {
           owner_id?: string | null
           status?: string
         }
-        Update: {
+        Update: { location_type?: string;
           area_m2?: number | null
           capacity_head?: number
           code?: string
@@ -828,6 +829,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      app_production_settings: { Args: {p_payload: Json}; Returns: Json };
+      app_change_lot_system: { Args: {p_payload: Json; p_request_id: string}; Returns: Json };
+      app_feed_stock: { Args: Record<PropertyKey, never>; Returns: Json };
+      app_stock_production: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
+      app_equipment: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
+      app_create_loan: { Args: { p_payload: Json; p_request_id: string }; Returns: Json };
+      app_record_loan_outflow: { Args: { p_payload: Json; p_request_id: string }; Returns: Json };
+      app_next_ear_tag: { Args: Record<string, never>; Returns: Json };
+      app_register_missing_lot_animals: { Args: { p_payload: Json; p_request_id: string }; Returns: Json };
+      app_create_priced_lot: { Args: { p_payload: Json; p_request_id: string }; Returns: Json };
+      app_stock_animal_values: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
+      app_finance_workspace: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
       app_my_production_plan: { Args: Record<string, never>; Returns: Json };
       app_my_plan: { Args: Record<string, never>; Returns: Json };
       app_billing_admin: { Args: { p_action: string; p_payload?: Json }; Returns: Json };

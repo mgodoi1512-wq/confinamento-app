@@ -1,3 +1,4 @@
+import {locationLabel} from "@/lib/production-systems";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -91,7 +92,7 @@ const Pens = () => {
                 <CardContent className="flex flex-1 flex-col gap-4 pt-6">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-display text-xl font-semibold">{item.pen.code}</p>
+                      <p className="font-display text-xl font-semibold">{item.pen.code} · {locationLabel(item.pen.location_type)}</p>
                       <p className="truncate text-xs text-muted-foreground">
                         {item.lot ? item.lot.code : t("pens.noLot")}
                         {diet ? ` · ${diet.name}` : ""}
@@ -151,7 +152,7 @@ const Pens = () => {
                       <DialogContent className="max-w-lg">
                         <DialogHeader>
                           <DialogTitle>
-                            {item.pen.code} · {t("pens.lastReading")}
+                            {item.pen.code} · {locationLabel(item.pen.location_type)} · {t("pens.lastReading")}
                           </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4">

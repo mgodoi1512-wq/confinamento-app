@@ -422,8 +422,10 @@ export const computePenDailyFeeding = (
 ) => {
   const currentLots = lots.filter(lot => lot.pen_id === penId && lot.status === "ativo" && lot.head_count > 0);
   const todayLogs = logs.filter(log => log.pen_id === penId && log.date === today && log.total_kg > 0);
+  const noSupplement=(lot:Lot)=>lot.production_system==="pasto"&&!lot.diet_id&&!plans.some(p=>p.lot_id===lot.id&&p.date===today)&&!todayLogs.some(log=>log.lot_id===lot.id);
   const shifts = (["manha", "tarde", "noite"] as const).map(shift => {
     const plannedLots = currentLots.filter(lot => {
+      if(noSupplement(lot))return false;
       const plan=plans.find(p=>p.lot_id===lot.id&&p.pen_id===penId&&p.date===today);
       if(plan?.meal_count){
         const supplied=todayLogs.filter(log=>log.lot_id===lot.id&&log.total_kg>0);
@@ -436,11 +438,13 @@ export const computePenDailyFeeding = (
   });
   const suppliedKg = todayLogs.reduce((sum, log) => sum + log.total_kg, 0);
   let recommendedKg = 0;
-  let reason: string | null = currentLots.length ? null : "Curral sem lote ativo.";
+  let reason: string | null = currentLots.length ? null : "Local sem lote ativo.";
+  if(currentLots.length&&currentLots.every(noSupplement))reason="Manejo a pasto sem suplementação cadastrada. Não há trato previsto.";
   for (const lot of currentLots) {
+    if(noSupplement(lot))continue;
     const plan=plans.find(p=>p.lot_id===lot.id&&p.date===today);
     if(plan){
-      if(plan.pen_id!==penId){reason="Lote mudou de curral após o planejamento.";break;}
+      if(plan.pen_id!==penId){reason="Lote mudou de local após o planejamento.";break;}
       recommendedKg+=plan.daily_total_kg;continue;
     }
     const lotLogs = todayLogs.filter(log => log.lot_id === lot.id);

@@ -1,0 +1,19 @@
+.farm-dashboard .dashboard-primary>div,.farm-dashboard .dashboard-secondary>div,.farm-dashboard .dashboard-panel,.farm-dashboard .dashboard-performance>div:last-child>div {
+  background:#fffdfa;border-color:#e6ddd4;box-shadow:0 2px 8px #38231604;
+}
+.farm-dashboard .dashboard-primary>div:first-child {background:linear-gradient(120deg,#603b26,#86624b);color:#fffaf4;border-color:transparent;}
+.farm-dashboard .dashboard-primary>div:first-child :is(p,svg,span){color:inherit;}
+.farm-dashboard .dashboard-secondary>div{padding:1rem;}
+.farm-dashboard .dashboard-secondary .font-display{font-size:1.75rem;}
+.farm-dashboard .dashboard-routine.is-done{background:#eff7ed;border-color:#d5e7d2;color:#355c35;}
+.farm-dashboard .dashboard-routine.is-pending,.farm-dashboard .dashboard-stock{background:#fff6e7;border-color:#eed9b7;color:#82551f;}
+.farm-dashboard .dashboard-performance table thead tr {background:#f3eee7;}
+.farm-dashboard .dashboard-performance table th {color:#69472f;}
+.farm-dashboard .dashboard-performance table tbody tr {background:#fffdfa;border-color:#e8e0d7;}
+.dark .farm-dashboard :is(.dashboard-primary,.dashboard-secondary)>div,.dark .farm-dashboard .dashboard-panel,.dark .farm-dashboard .dashboard-performance>div:last-child>div {background:#2b241e;border-color:#4c4035;}
+.dark .farm-dashboard .dashboard-primary>div:first-child{background:#694932;color:#fff7ed;}
+.dark .farm-dashboard .dashboard-routine.is-done{background:#253a2a;border-color:#3b5741;color:#c2e2c3;}
+.dark .farm-dashboard .dashboard-routine.is-pending,.dark .farm-dashboard .dashboard-stock{background:#3e3020;border-color:#675035;color:#f0ce95;}
+.dark .farm-dashboard .dashboard-performance table thead tr{background:#382c22;}
+.dark .farm-dashboard .dashboard-performance table th{color:#e5ccb6;}
+.dark .farm-dashboard .dashboard-performance table tbody tr{background:#2b241e;border-color:#4c4035;}

@@ -1,3 +1,4 @@
+import { locationTypes, locationLabel } from "@/lib/production-systems";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Package, Plus, Save, Trash2 } from "lucide-react";
@@ -41,6 +42,7 @@ const SettingsPens = () => {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Pen | null>(null);
+  const [locationType,setLocationType]=useState("curral");
   const [code, setCode] = useState("");
   const [capacity, setCapacity] = useState("");
   const [area, setArea] = useState("");
@@ -50,6 +52,7 @@ const SettingsPens = () => {
 
   const openDialog = (pen?: Pen) => {
     setEditing(pen ?? null);
+    setLocationType(pen?.location_type??"curral");
     setCode(pen?.code ?? "");
     setCapacity(pen ? String(pen.capacity_head) : "");
     setArea(pen?.area_m2 ? String(pen.area_m2) : "");
@@ -69,6 +72,7 @@ const SettingsPens = () => {
       await savePen.mutateAsync({
         id: editing?.id,
         code: code.trim(),
+        location_type: locationType,
         capacity_head: parseNumberInput(capacity) ?? 0,
         area_m2: parseNumberInput(area),
         status,
@@ -94,8 +98,9 @@ const SettingsPens = () => {
     {
       key: "code",
       headerKey: "field.code",
-      render: (row) => <span className="font-display text-sm font-semibold">{row.pen.code}</span>,
+      render: (row) => <span className="font-display text-sm font-semibold">{row.pen.code} · {locationLabel(row.pen.location_type)}</span>,
     },
+    {key:"location_type",headerKey:"Tipo de local",render:row=>locationLabel(row.pen.location_type)},
     {
       key: "status",
       headerKey: "field.status",
@@ -216,7 +221,7 @@ const SettingsPens = () => {
         renderCard={(row) => (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-display text-base font-semibold">{row.pen.code}</span>
+              <span className="font-display text-base font-semibold">{row.pen.code} · {locationLabel(row.pen.location_type)}</span>
               <StatusBadge
                 tone={penStatusTone(row.pen.status)}
                 label={t(`status.pen.${row.pen.status}`)}
@@ -250,6 +255,7 @@ const SettingsPens = () => {
           </DialogHeader>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <SelectField label="Tipo de local" value={locationType} onChange={setLocationType} options={locationTypes}/>
             <TextField
               label={t("field.code")}
               value={code}

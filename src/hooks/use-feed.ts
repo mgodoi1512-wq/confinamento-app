@@ -27,6 +27,9 @@ export const useSaveFeedLog = () => {
     mutationFn: (payload: FeedLogInsert) => mutateApp("save_feed", payload, crypto.randomUUID()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: feedLogsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ["feed-stock"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-workspace"] });
+      void queryClient.invalidateQueries({ queryKey: ["daily-feed-plans"] });
     },
   });
 };
@@ -38,6 +41,9 @@ export const useDeleteFeedLog = () => {
     mutationFn: (id: string) => mutateApp("delete_feed", { id }, crypto.randomUUID()),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: feedLogsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ["feed-stock"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-workspace"] });
+      void queryClient.invalidateQueries({ queryKey: ["daily-feed-plans"] });
     },
   });
 };

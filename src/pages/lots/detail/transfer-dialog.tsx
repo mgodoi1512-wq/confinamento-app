@@ -1,3 +1,4 @@
+import { compatibleLocation,locationLabel } from "@/lib/production-systems";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -31,7 +32,7 @@ export const TransferDialog = ({ lot }: { lot: Lot }) => {
 
   const pens = pensQuery.data ?? [];
   const occupancy = computePenOccupancy(pens, lotsQuery.data ?? []).filter(
-    (item) => item.pen.id !== lot.pen_id && item.pen.status !== "manutencao" && item.free >= lot.head_count,
+    (item) => compatibleLocation(lot.production_system,item.pen.location_type)&&item.pen.id !== lot.pen_id && item.pen.status !== "manutencao" && item.free >= lot.head_count,
   );
 
   const submit = async () => {
@@ -81,7 +82,7 @@ export const TransferDialog = ({ lot }: { lot: Lot }) => {
           placeholder={t("field.pen")}
           options={occupancy.map((item) => ({
             value: item.pen.id,
-            labelKey: `${item.pen.code} · ${t("dashboard.occupancy.free", { head: item.free })}`,
+            labelKey: `${locationLabel(item.pen.location_type)} · ${item.pen.code} · ${t("dashboard.occupancy.free", { head: item.free })}`,
           }))}
         />
 

@@ -1,3 +1,9 @@
+import { useFarm } from "@/hooks/use-farm";
+import { compatibleLocation, productionSystems, locationLabel, validSystems } from "@/lib/production-systems";
+import { AnimalTagsEditor } from "@/components/lots/animal-tags-editor";
+import { buildAnimalTags, emptyAnimalTagInput } from "@/lib/animal-registration";
+import { useNextEarTag } from "@/hooks/use-animal-registration";
+import { money } from "@/lib/financial-format";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -27,7 +33,9 @@ import { formatNumber, parseNumberInput, todayIso } from "@/lib/format";
 import { mutateApp, DuplicateEarTagsError, type DuplicateEarTag } from "@/lib/mutations";
 import { cn } from "@/lib/utils";
 
-type AnimalDraft = { key: string; earTag: string; weight: string };
+type AnimalDraft = { key: string; earTag: string; weight: string; purchasePrice: string };
+
+const roundPrice = (amount: number) => Math.round((amount + Number.EPSILON) * 100) / 100;
 
 const STEPS = ["lots.new.step1", "lots.new.step2", "lots.new.step3"];
 
@@ -35,6 +43,9 @@ const NewLot = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const farmQuery=useFarm();
+  const [selectedSystem,setSelectedSystem]=useState("");
+  const effectiveSystem=selectedSystem||farmQuery.data?.default_production_system||"";
   const lotsQuery = useLots();
   const pensQuery = usePens();
   const dietsQuery = useDiets();
@@ -76,13 +87,21 @@ const NewLot = () => {
   const [confirmedTags, setConfirmedTags] = useState<string[]>([]);
   const [duplicateDialog, setDuplicateDialog] = useState<{ matches: DuplicateEarTag[]; action: "advance" | "save" } | null>(null);
 
+  const [purchasePerHead, setPurchasePerHead] = useState("");
+
+  const [registerAnimals, setRegisterAnimals] = useState(true);
+  const [animalTags, setAnimalTags] = useState(emptyAnimalTagInput);
+  const nextTag = useNextEarTag(mode === "avg" && registerAnimals);
+  const generated = buildAnimalTags(parseNumberInput(headCount) ?? 0, animalTags, nextTag.data?.next);
+  const selectedTags = mode === "individual" ? animals.map(animal => animal.earTag.trim()).filter(Boolean) : registerAnimals ? generated.tags : [];
+
   const occupancy = useMemo(() => computePenOccupancy(pens, lotsQuery.data ?? []), [pens, lotsQuery.data]);
 
-  const usablePens = occupancy.filter((item) => item.pen.status !== "manutencao");
+  const usablePens = occupancy.filter((item) => item.pen.status !== "manutencao"&&compatibleLocation(effectiveSystem,item.pen.location_type));
   const requiredHead = Math.max(1, parseNumberInput(headCount) ?? 0);
   const availablePens = usablePens.filter((item) => item.free >= requiredHead);
-  const requiredQueries = [pensQuery, lotsQuery];
-  const canAdvance = requiredQueries.every(query => query.isSuccess) && availablePens.length > 0 && !dietsQuery.isLoading && !protocolsQuery.isLoading;
+  const requiredQueries = [farmQuery,pensQuery, lotsQuery];
+  const canAdvance = validSystems(farmQuery.data?.production_systems??[],effectiveSystem)&&requiredQueries.every(query => query.isSuccess) && availablePens.length > 0 && !dietsQuery.isLoading && !protocolsQuery.isLoading;
   const activeDiets = diets.filter(diet => diet.is_active);
   const selectedOccupancy = occupancy.find((item) => item.pen.id === penId);
 
@@ -104,15 +123,19 @@ const NewLot = () => {
     ? dietTotalKg(dietItems.filter(item => item.diet_id === dietId), effectiveEntryWeight)
     : null;
 
+  const priceValues = mode === "avg" ? [purchasePerHead] : animals.map(animal => animal.purchasePrice ?? "");
+  const knownPrices = priceValues.filter(value => value.trim()).map(value => parseNumberInput(value));
+  const purchaseTotal = mode === "avg" ? roundPrice(parseNumberInput(purchasePerHead) ?? 0) * (parseNumberInput(headCount) ?? 0) : knownPrices.reduce<number>((sum, value) => sum + roundPrice(value ?? 0), 0);
+  const purchaseCount = mode === "avg" ? (purchasePerHead.trim() ? parseNumberInput(headCount) ?? 0 : 0) : knownPrices.length;
   const validateStep = (target: number) => {
     const next: Record<string, string> = {};
-    if (!requiredQueries.every(query => query.isSuccess)) next.pen = "Aguarde a verificação dos currais. Se houver erro, tente carregar novamente.";
-    else if (pens.length === 0) next.pen = "Cadastre pelo menos um curral antes de criar o lote.";
-    else if (usablePens.length === 0) next.pen = "Nenhum curral disponível: os currais estão em manutenção.";
-    else if (availablePens.length === 0) next.pen = "Nenhum curral tem vagas suficientes para a quantidade de animais informada.";
+    if (!requiredQueries.every(query => query.isSuccess)) next.pen = "Aguarde a verificação dos locais. Se houver erro, tente carregar novamente.";
+    else if (pens.length === 0) next.pen = "Cadastre pelo menos um local antes de criar o lote.";
+    else if (usablePens.length === 0) next.pen = "Nenhum local compatível e disponível para o sistema selecionado.";
+    else if (availablePens.length === 0) next.pen = "Nenhum local tem vagas suficientes para a quantidade de animais informada.";
     if (dietsQuery.isLoading || protocolsQuery.isLoading) next.setup = "Aguarde a verificação de dietas e protocolos.";
-    if (target >= 2 && !selectedOccupancy) next.pen = "Selecione o curral em que o lote ficará.";
-    if (target >= 2 && selectedOccupancy?.pen.status === "manutencao") next.pen = "Escolha um curral que não esteja em manutenção.";
+    if (target >= 2 && !selectedOccupancy) next.pen = "Selecione o local em que o lote ficará.";
+    if (target >= 2 && selectedOccupancy?.pen.status === "manutencao") next.pen = "Escolha um local que não esteja em manutenção.";
     if (target >= 2 && protocolId && protocolId!=="all" && !protocols.some(protocol => protocol.id === protocolId)) next.protocol = "O protocolo selecionado está inativo. Escolha um protocolo ativo ou deixe sem protocolo.";
     if (target >= 2 && applyProtocol && !protocols.some(protocol => protocol.id === protocolId)) next.protocol = "Selecione um protocolo para aplicá-lo ao lote.";
 
@@ -123,6 +146,7 @@ const NewLot = () => {
       if (!effectiveEntryWeight || effectiveEntryWeight <= 0) next.entryWeight = t("toast.requiredFields");
     }
 
+    if (target >= 1 && mode === "avg" && registerAnimals && generated.error) next.tags = generated.error;
     if (target >= 1 && mode === "individual") {
       const tags = animals.map((animal) => animal.earTag.trim()).filter(Boolean);
       const duplicates = tags.filter((tag, index) => tags.indexOf(tag) !== index);
@@ -133,16 +157,17 @@ const NewLot = () => {
     if (!(parseNumberInput(targetWeight) > 0)) next.entryWeight = "Informe um peso alvo positivo.";
     if (target >= 1 && mode === "individual" && (animals.length !== parseNumberInput(headCount) || animals.some((animal) => !animal.earTag.trim() || !(parseNumberInput(animal.weight) > 0)))) next.duplicate = "Preencha um brinco e peso positivo para cada cabeça do lote.";
     if (target >= 2 && selectedOccupancy && (parseNumberInput(headCount) ?? 0) > selectedOccupancy.free) next.pen = "O curral não tem capacidade disponível para este lote.";
+    if (target >= 1 && knownPrices.some(value => value === null || value < 0 || value > 999999999999)) next.purchase = "Informe preços de compra válidos, maiores ou iguais a zero.";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
 
   const goNext = async () => {
     if (checkingTags || createLot.isPending || !validateStep(step)) return;
-    if (step === 1 && mode === "individual") {
+    if (step === 1 && selectedTags.length > 0) {
       setCheckingTags(true);
       try {
-        const tags = animals.map(animal => animal.earTag.trim()).filter(Boolean);
+        const tags = selectedTags;
         const matches = await mutateApp<DuplicateEarTag[]>("check_lot_ear_tags", { tags }, crypto.randomUUID());
         if (!Array.isArray(matches) || !matches.every(item => typeof item?.earTag === "string" && typeof item?.lotCode === "string")) throw new Error("Não foi possível conferir os brincos. Tente novamente.");
         if (matches.some(item => !confirmedTags.includes(item.earTag))) {
@@ -160,7 +185,7 @@ const NewLot = () => {
   const submit = async (acceptedTags = confirmedTags) => {
     if (!validateStep(step)) return;
 
-    const payload: NewLotAnimal[] = (mode === "individual" ? animals : [])
+    const payload: NewLotAnimal[] = (mode === "individual" ? animals : registerAnimals ? generated.tags.map(earTag => ({ earTag, weight: entryWeight })) : [])
       .filter((animal) => animal.earTag.trim())
       .map((animal) => ({
         ear_tag: animal.earTag.trim(),
@@ -183,12 +208,17 @@ const NewLot = () => {
           entry_avg_weight_kg: effectiveEntryWeight ?? 0,
           target_weight_kg: parseNumberInput(targetWeight) ?? DEFAULT_TARGET_WEIGHT,
           pen_id: penId,
+          production_system: effectiveSystem,
           diet_id: !dietId || dietId === "all" ? null : dietId,
           protocol_id: !protocolId || protocolId === "all" ? null : protocolId,
         },
         animals: payload,
         applyProtocol,
         confirmedDuplicateEarTags: acceptedTags,
+        purchase: knownPrices.length ? {
+          defaultPerHead: mode === "avg" ? roundPrice(parseNumberInput(purchasePerHead)!) : null,
+          animals: mode === "individual" ? animals.filter(animal => (animal.purchasePrice ?? "").trim()).map(animal => ({ earTag: animal.earTag.trim(), amount: roundPrice(parseNumberInput(animal.purchasePrice)!) })) : [],
+        } : undefined,
       });
 
       setRequestId(crypto.randomUUID());
@@ -250,26 +280,26 @@ const NewLot = () => {
       <Dialog open={pensQuery.isSuccess && pens.length===0 && !penNoticeDismissed} onOpenChange={open=>setPenNoticeDismissed(!open)}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-xl">
           <DialogHeader>
-            <DialogTitle>Cadastre um curral para continuar</DialogTitle>
-            <DialogDescription className="pt-2 leading-relaxed">Sua fazenda ainda não possui currais cadastrados. O lote precisa de pelo menos um curral para ficar. Cadastre o curral antes de continuar.</DialogDescription>
+            <DialogTitle>Cadastre um local para continuar</DialogTitle>
+            <DialogDescription className="pt-2 leading-relaxed">Sua fazenda ainda não possui locais cadastrados. O lote precisa de pelo menos um local para ficar. Cadastre o local antes de continuar.</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={()=>navigate("/lotes")}>Voltar aos lotes</Button>
-            <Button onClick={()=>navigate("/config/currais")}>Cadastrar curral</Button>
+            <Button onClick={()=>navigate("/config/currais")}>Cadastrar local</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <div className="space-y-3">
-        {requiredQueries.some(query=>query.isLoading) && <p role="status" className="text-sm text-muted-foreground">Verificando currais disponíveis...</p>}
-        {requiredQueries.some(query=>query.isError) && <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">Não foi possível verificar os currais. <Button variant="outline" onClick={()=>void Promise.all(requiredQueries.map(query=>query.refetch()))}>Tentar novamente</Button></div>}
-        {pensQuery.isSuccess && pens.length===0 && <div className="flex flex-wrap items-center gap-3 text-sm"><p>Cadastre um curral para liberar o cadastro do lote.</p><Button variant="outline" onClick={()=>setPenNoticeDismissed(false)}>Ver aviso</Button></div>}
-        {pensQuery.isSuccess && pens.length>0 && usablePens.length===0 && <p role="alert" className="rounded-lg border border-destructive p-4 text-sm">Todos os currais estão em manutenção. Disponibilize um curral antes de avançar.</p>}
-        {requiredQueries.every(query => query.isSuccess) && usablePens.length > 0 && availablePens.length === 0 && <div role="alert" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p>Nenhum curral tem vagas suficientes para {formatNumber(requiredHead, 0)} animais. Ajuste a quantidade, aumente a capacidade de um curral ou cadastre outro para continuar.</p><Button asChild variant="outline"><Link to="/config/currais">Gerenciar currais</Link></Button></div>}
+        {requiredQueries.some(query=>query.isLoading) && <p role="status" className="text-sm text-muted-foreground">Verificando locais disponíveis...</p>}
+        {requiredQueries.some(query=>query.isError) && <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">Não foi possível verificar os locais. <Button variant="outline" onClick={()=>void Promise.all(requiredQueries.map(query=>query.refetch()))}>Tentar novamente</Button></div>}
+        {pensQuery.isSuccess && pens.length===0 && <div className="flex flex-wrap items-center gap-3 text-sm"><p>Cadastre um local para liberar o cadastro do lote.</p><Button variant="outline" onClick={()=>setPenNoticeDismissed(false)}>Ver aviso</Button></div>}
+        {pensQuery.isSuccess && pens.length>0 && usablePens.length===0 && <p role="alert" className="rounded-lg border border-destructive p-4 text-sm">Nenhum local compatível está disponível para este sistema. Cadastre ou configure um curral, piquete ou pasto apropriado antes de avançar.</p>}
+        {requiredQueries.every(query => query.isSuccess) && usablePens.length > 0 && availablePens.length === 0 && <div role="alert" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p>Nenhum local tem vagas suficientes para {formatNumber(requiredHead, 0)} animais. Ajuste a quantidade, aumente a capacidade de um local ou cadastre outro para continuar.</p><Button asChild variant="outline"><Link to="/config/currais">Gerenciar locais</Link></Button></div>}
         {(dietsQuery.isLoading || protocolsQuery.isLoading) && <p role="status" className="text-sm text-muted-foreground">Verificando dietas e protocolos...</p>}
         {(dietsQuery.isError || protocolsQuery.isError) && <div role="status" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p>Não foi possível verificar {dietsQuery.isError && protocolsQuery.isError ? "dietas e protocolos" : dietsQuery.isError ? "as dietas" : "os protocolos"}. Você pode continuar e configurar depois.</p><Button variant="outline" onClick={()=>void Promise.all([dietsQuery.refetch(),protocolsQuery.refetch()])}>Verificar novamente</Button></div>}
-        {((dietsQuery.isSuccess && activeDiets.length===0) || (protocolsQuery.isSuccess && protocols.length===0)) && <div role="status" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p className="font-semibold">Antes de criar o lote</p>
-          {dietsQuery.isSuccess && activeDiets.length===0 && <p>Nenhuma dieta ativa cadastrada. Cadastre uma dieta para planejar o trato do lote. <Link className="underline" to="/config/dietas">Cadastrar dieta</Link></p>}
+        {((dietsQuery.isSuccess && activeDiets.length===0 && effectiveSystem!=="pasto") || (protocolsQuery.isSuccess && protocols.length===0)) && <div role="status" className="space-y-2 rounded-lg border border-warning p-4 text-sm"><p className="font-semibold">Antes de criar o lote</p>
+          {dietsQuery.isSuccess && activeDiets.length===0 && effectiveSystem!=="pasto" && <p>Nenhuma dieta ativa cadastrada. Cadastre uma dieta para planejar o trato do lote. <Link className="underline" to="/config/dietas">Cadastrar dieta</Link></p>}
           {protocolsQuery.isSuccess && protocols.length===0 && <p>Nenhum protocolo ativo cadastrado. Cadastre ou ative um protocolo para organizar o manejo sanitário. <Link className="underline" to="/sanidade/protocolos">Cadastrar protocolo</Link></p>}
           <p>Você pode continuar agora e configurar esses itens depois.</p>
         </div>}
@@ -392,6 +422,7 @@ const NewLot = () => {
               </div>
 
               {mode === "avg" ? (
+               <div className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">
                 <NumericField
                   label={t("field.entryWeight")}
                   unit="kg"
@@ -399,6 +430,12 @@ const NewLot = () => {
                   onValueChange={setEntryWeight}
                   error={errors.entryWeight}
                 />
+                <NumericField label="Preço de compra por animal (opcional)" unit="R$/cabeça" value={purchasePerHead} onValueChange={setPurchasePerHead} error={errors.purchase}/>
+               </div>
+               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={registerAnimals} onChange={event=>setRegisterAnimals(event.target.checked)}/>Cadastrar os animais automaticamente</label>
+               {registerAnimals?<><AnimalTagsEditor count={parseNumberInput(headCount)??0} value={animalTags} onChange={setAnimalTags} suggested={nextTag.data?.next} loading={nextTag.isLoading} onRetry={()=>void nextTag.refetch()}/><p className="text-xs text-muted-foreground">Cada animal receberá o peso médio e usará o preço por cabeça do lote. A sequência identifica os animais; não representa uma pesagem individual.</p></>:<p className="rounded-lg bg-muted p-3 text-sm">Somente a quantidade e as médias serão salvas. O Estoque continuará mostrando referências sem cadastro individual até os brincos serem cadastrados.</p>}
+               {errors.tags&&<p role="alert" className="text-sm text-destructive">{errors.tags}</p>}
+               </div>
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">{t("lots.new.individualHint")}</p>
@@ -406,9 +443,8 @@ const NewLot = () => {
                   {animals.length > 0 ? (
                     <div className="space-y-2">
                       {animals.map((animal, index) => (
-                        <div key={animal.key} className="flex items-end gap-2">
-                          <TextField
-                            className="flex-1"
+                        <div key={animal.key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_10rem_2.75rem]">
+                          <div className="col-span-3 min-w-0 sm:col-span-1"><TextField
                             label={`${t("field.earTag")} ${index + 1}`}
                             value={animal.earTag}
                             onChange={(value) =>
@@ -419,8 +455,7 @@ const NewLot = () => {
                               )
                             }
                           />
-                          <NumericField
-                            className="w-32"
+                          </div><div className="min-w-0"><NumericField
                             label={t("field.weight")}
                             unit="kg"
                             value={animal.weight}
@@ -432,6 +467,7 @@ const NewLot = () => {
                               )
                             }
                           />
+                          </div><div className="min-w-0"><NumericField label="Preço unitário (opcional)" unit="R$" value={animal.purchasePrice ?? ""} onValueChange={value=>setAnimals(current=>current.map(item=>item.key===animal.key?{...item,purchasePrice:value}:item))}/></div>
                           <Button
                             type="button"
                             variant="ghost"
@@ -468,6 +504,7 @@ const NewLot = () => {
                           key: crypto.randomUUID(),
                           earTag: "",
                           weight: entryWeight,
+                          purchasePrice: "",
                         },
                       ])
                     }
@@ -497,6 +534,13 @@ const NewLot = () => {
             </>
           ) : null}
 
+          {step===0&&<SelectField label="Sistema de criação do lote" value={effectiveSystem} placeholder="Selecione o sistema" options={productionSystems.filter(s=>farmQuery.data?.production_systems?.includes(s.value)).map(s=>({value:s.value,labelKey:s.label}))} onChange={value=>{setSelectedSystem(value);setPenId("");setPenNoticeDismissed(false);}}/>}
+          {step === 1 ? <div className="space-y-2 rounded-lg border bg-muted/30 p-3 text-sm">
+            <p className="font-semibold">Compra informada: {purchaseCount ? money(purchaseTotal) : "Não informada"}</p>
+            <p className="text-xs text-muted-foreground">{purchaseCount} de {parseNumberInput(headCount) ?? 0} cabeça(s) com preço. Valores opcionais, salvos no Estoque/Animais. Não geram pagamento automático no Fluxo de caixa.</p>
+            {errors.purchase && <p role="alert" className="text-destructive">{errors.purchase}</p>}
+          </div> : null}
+
           {step === 2 ? (
             <>
               <SelectField
@@ -518,12 +562,12 @@ const NewLot = () => {
                 label={t("field.pen")}
                 value={penId}
                 onChange={setPenId}
-                placeholder={availablePens.length ? "Selecione um curral" : "Nenhum curral com vagas suficientes"}
+                placeholder={availablePens.length ? "Selecione um local" : "Nenhum local com vagas suficientes"}
                 disabled={!requiredQueries.every(query => query.isSuccess) || availablePens.length === 0}
                 error={errors.pen}
                 options={availablePens.slice().sort((a,b)=>a.pen.code.localeCompare(b.pen.code,"pt-BR",{numeric:true})).map((item) => ({
                   value: item.pen.id,
-                  labelKey: `${item.pen.code} · ${item.free} ${t("common.unit.head")} livres`,
+                  labelKey: `${locationLabel(item.pen.location_type)} · ${item.pen.code} · ${item.free} ${t("common.unit.head")} livres`,
                 }))}
               />
 
@@ -544,7 +588,7 @@ const NewLot = () => {
                   ) : null}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">{availablePens.length ? "Selecione o curral em que o lote ficará. Este campo é obrigatório." : "Nenhum curral com vagas suficientes para este lote."}</p>
+                <p className="text-xs text-muted-foreground">{availablePens.length ? "Selecione o local em que o lote ficará. Este campo é obrigatório." : "Nenhum local com vagas suficientes para este lote."}</p>
               )}
 
               <SelectField
@@ -586,6 +630,7 @@ const NewLot = () => {
                   {t("field.targetWeight")}:{" "}
                   {formatNumber(parseNumberInput(targetWeight) ?? 0, 0)} kg
                 </p>
+                <p className="mt-1 text-muted-foreground">Compra informada: {purchaseCount ? money(purchaseTotal) : "Não informada"} · {purchaseCount} cabeça(s) com preço.</p>
               </div>
             </>
           ) : null}

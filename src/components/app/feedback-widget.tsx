@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
@@ -44,7 +45,9 @@ export const FeedbackWidget = () => {
     finally {setPending(false);}
   };
   return <>
-    <Button aria-label="Sugestões e problemas" title="Sugestões e problemas" className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 h-12 rounded-full px-4 shadow-lg lg:bottom-6 lg:right-6" onClick={()=>{if(!description)setPage(location.pathname.slice(0,500));setOpen(true);}}><MessageSquarePlus className="size-5" /><span className="hidden sm:inline">Sugestões e problemas</span></Button>
+    <TooltipProvider delayDuration={250}><Tooltip><TooltipTrigger asChild>
+      <Button aria-label="Sugestões e problemas" className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 size-12 rounded-full p-0 shadow-lg lg:bottom-6 lg:right-6" onClick={()=>{if(!description)setPage(location.pathname.slice(0,500));setOpen(true);}}><MessageSquarePlus aria-hidden="true" className="size-5" /></Button>
+    </TooltipTrigger><TooltipContent side="left" sideOffset={8}>Sugestões e problemas</TooltipContent></Tooltip></TooltipProvider>
     <Dialog open={open} onOpenChange={value=>{if(!pending && !reading)setOpen(value);}}><DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle className="flex items-center gap-2"><Bug className="size-5" />Ajude a melhorar o LiBen</DialogTitle><DialogDescription>Envie uma sugestão ou informe um problema encontrado durante os testes.</DialogDescription></DialogHeader>
       <form className="space-y-4" onSubmit={event=>{event.preventDefault();void send();}}><fieldset disabled={pending || reading} className="min-w-0 space-y-4">
         <SelectField label="Tipo de relato" value={kind} onChange={setKind} options={[{value:"bug",labelKey:"Erro ou problema"},{value:"suggestion",labelKey:"Sugestão de melhoria"}]} />

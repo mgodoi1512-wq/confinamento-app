@@ -159,9 +159,9 @@ const Treatments = () => {
         titleKey="health.treatments.title"
         subtitleKey="health.treatments.subtitle"
         actions={
-          <Button className="h-10" onClick={() => setOpen(true)}>
+          <Button className="h-10 w-40 max-w-full shrink-0 gap-1.5 px-2 py-1" onClick={() => setOpen(true)}>
             <Plus />
-            {t("health.treatments.new")}
+            <span className="min-w-0 whitespace-normal text-center leading-4">{t("health.treatments.new")}</span>
           </Button>
         }
       />
@@ -203,8 +203,9 @@ const Treatments = () => {
             titleKey="health.treatments.empty.title"
             descriptionKey="health.treatments.empty.description"
             action={
-              <Button className="h-10" onClick={() => setOpen(true)}>
-                {t("health.treatments.new")}
+              <Button className="h-10 w-40 max-w-full shrink-0 gap-1.5 px-2 py-1" onClick={() => setOpen(true)}>
+                <Plus />
+                <span className="min-w-0 whitespace-normal text-center leading-4">{t("health.treatments.new")}</span>
               </Button>
             }
           />

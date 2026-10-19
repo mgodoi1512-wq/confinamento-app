@@ -1,3 +1,4 @@
+import { LotSystemManager } from "@/components/lots/lot-system-manager";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -251,6 +252,7 @@ const pen = lot
           </>
         }
       />
+      <LotSystemManager lot={lot}/>
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-display text-xl font-semibold">{lot.code}</span>

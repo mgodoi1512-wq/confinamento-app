@@ -1,3 +1,6 @@
+import { ProductionSystemFields } from "@/components/farms/production-system-fields";
+import { validSystems, type ProductionSystem } from "@/lib/production-systems";
+import type { Json } from "@/integrations/supabase/types";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -11,8 +14,9 @@ import { ThemeToggle } from "@/components/app/theme-toggle";
 export default function Onboarding() {
   const { tenant, refreshProfile, signOut, authError } = useAuth();
   const [name, setName] = useState(""); const [city, setCity] = useState(""); const [state, setState] = useState("");
+  const [systems,setSystems]=useState<ProductionSystem[]>([]),[standard,setStandard]=useState("");
   const [busy, setBusy] = useState(false);
-  async function act(action: string, payload: Record<string, string> = {}) {
+  async function act(action: string, payload: Record<string, Json> = {}) {
     setBusy(true);
     try { await tenantRpc(action, payload); await refreshProfile(); }
     catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível concluir."); }
@@ -30,10 +34,11 @@ export default function Onboarding() {
           <p>Convite para <strong>{invite.farmName}</strong>, como {invite.role}.</p>
           <Button disabled={busy} onClick={() => void act("accept_invite", { invitationId: invite.id })}>Aceitar convite</Button>
         </section>)}
-        {canCreate ? <form className="space-y-4" onSubmit={event => { event.preventDefault(); void act("create_farm", { name, city, state }); }}>
+        {canCreate ? <form className="space-y-4" onSubmit={event => { event.preventDefault(); void act("create_farm", { name, city, state, production_systems: systems, default_production_system: standard }); }}>
           <TextField label="Nome da fazenda" value={name} onChange={setName} required />
           <LocationFields state={state} city={city} onStateChange={setState} onCityChange={setCity} disabled={busy} />
-          <Button type="submit" disabled={busy || !name.trim()}>Criar minha fazenda</Button>
+          <ProductionSystemFields systems={systems} standard={standard} disabled={busy} onChange={(list,value)=>{setSystems(list);setStandard(value);}}/>
+          <Button type="submit" disabled={busy || !name.trim() || !validSystems(systems,standard)}>Criar minha fazenda</Button>
         </form> : <p>{tenant?.hasMembership ? "Seu acesso à fazenda foi desativado ou a fazenda está suspensa. Contate o responsável." : "Seu cadastro foi recebido. O administrador do sistema precisa aprovar seu acesso. Se recebeu um convite de equipe, confirme seu e-mail e aceite o convite acima."}</p>}
       </>}
       {tenant?.billingOwner ? <Button asChild variant="outline"><Link to="/config/plano">Gerenciar minha assinatura</Link></Button> : null}

@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
-const mock='data:text/javascript;base64,'+Buffer.from('export const supabase={auth:{getSession:async()=>({data:{session:{user:{id:"user"}}}})},rpc:async(_,body)=>globalThis.__earTagTest.rpc(body)};').toString('base64');
+const mock='data:text/javascript;base64,'+Buffer.from('export const supabase={auth:{getSession:async()=>({data:{session:{user:{id:"user"}}}})},rpc:async(name,body)=>{(globalThis.__earTagTest.methods??=[]).push(name);return globalThis.__earTagTest.rpc(body);}};').toString('base64');
 const source=fs.readFileSync(new URL('../src/lib/mutations.ts',import.meta.url),'utf8').replace('"@/integrations/supabase/client"',JSON.stringify(mock));
 const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {mutateApp,DuplicateEarTagsError}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
@@ -29,4 +29,18 @@ test('não modifica outras operações e não entra em repetição de confirmaç
 
 test('novo lote entrega os conflitos ao modal da plataforma sem confirmação nativa',async()=>{
  const f=setup(true);await assert.rejects(mutateApp('create_lot',{animals:[{ear_tag:'100'}]},'modal-1'),error=>error instanceof DuplicateEarTagsError && error.matches.length===2);assert.equal(f.prompts.length,0);assert.equal(f.calls.length,1);
+});
+
+
+test('novo lote com preço usa RPC atômica e preserva modal de brinco',async()=>{
+ const f=setup(true),payload={animals:[{ear_tag:'100'}],purchase:{defaultPerHead:null,animals:[{earTag:'100',amount:4000}]}};
+ await assert.rejects(mutateApp('create_lot',payload,'price-modal'),e=>e instanceof DuplicateEarTagsError);
+ assert.deepEqual(globalThis.__earTagTest.methods,['app_create_priced_lot']);assert.equal(f.prompts.length,0);
+ await mutateApp('create_lot',{...payload,confirmedDuplicateEarTags:['100']},'price-modal');
+ assert.deepEqual(globalThis.__earTagTest.methods,['app_create_priced_lot','app_create_priced_lot']);assert.deepEqual(f.calls[1].p_payload.purchase,payload.purchase);
+});
+test('sem preço permanece na mutação existente e rede reutiliza identificador',async()=>{
+ const f=setup(true,'Falha de rede'),payload={lot:{code:'retry'},purchase:undefined};
+ await assert.rejects(mutateApp('create_lot',payload,'first-id'),/Falha de rede/);
+ await mutateApp('create_lot',payload,'second-id');assert.deepEqual(globalThis.__earTagTest.methods,['app_mutate','app_mutate']);assert.equal(f.calls[1].p_request_id,'first-id');
 });

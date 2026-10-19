@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart3, Plus, Save, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { BarChart3, Package, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/app/empty-state";
@@ -20,13 +21,14 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useDeleteDiet, useDietItems, useDiets, useSaveDiet } from "@/hooks/use-diets";
-import { INGREDIENT_SUGGESTIONS } from "@/lib/constants";
+import { useFeedStock } from "@/hooks/use-feed-stock";
+import { stockItemFor } from "@/lib/feed-stock";
 import { normalizeDietName, type Diet } from "@/lib/domain";
 import { formatNumber, parseNumberInput } from "@/lib/format";
 
-type ItemDraft = { key: string; ingredient: string; kg: string; unit: "kg" | "percent_bw" };
+type ItemDraft = { stockId: string; key: string; ingredient: string; kg: string; unit: "kg" | "percent_bw" };
 
-const emptyItem = (): ItemDraft => ({ key: crypto.randomUUID(), ingredient: "", kg: "", unit: "percent_bw" });
+const emptyItem = (): ItemDraft => ({ stockId: "", key: crypto.randomUUID(), ingredient: "", kg: "", unit: "percent_bw" });
 
 const quantitySummary = (items: { kg_per_head_day: number; body_weight_pct?: number | null }[]) => {
   const percentages = items.filter(item => item.body_weight_pct != null);
@@ -43,6 +45,8 @@ const SettingsDiets = () => {
 
   const dietsQuery = useDiets();
   const itemsQuery = useDietItems();
+  const stockQuery = useFeedStock();
+  const catalog = stockQuery.data ?? {items:[],links:[]};
   const saveDiet = useSaveDiet();
   const deleteDiet = useDeleteDiet();
 
@@ -79,6 +83,7 @@ const SettingsDiets = () => {
             .filter((item) => item.diet_id === diet.id)
             .map((item) => ({
               key: item.id,
+              stockId: stockItemFor(catalog,diet.id,item.ingredient)?.id ?? "",
               ingredient: item.ingredient,
               kg: String(item.body_weight_pct ?? item.kg_per_head_day),
               unit: item.body_weight_pct != null ? "percent_bw" : "kg",
@@ -104,8 +109,10 @@ const SettingsDiets = () => {
       setError("Preencha os ingredientes e quantidades. O percentual do peso vivo deve estar entre 0 e 100.");
       return;
     }
+    if (!stockQuery.isSuccess || filled.some(draft => !catalog.items.some(item => item.id === draft.stockId))) {setError("Selecione um item do estoque para cada componente da dieta.");return;}
     try {
       await saveDiet.mutateAsync({
+        stockLinked: true,
         diet: {
           id: editing?.id,
           name: name.trim().replace(/\s+/g, " "),
@@ -115,6 +122,7 @@ const SettingsDiets = () => {
         },
         items: filled.map((draft) => ({
           ingredient: draft.ingredient.trim(),
+          stock_item_id: draft.stockId,
           kg_per_head_day: draft.unit === "kg" ? parseNumberInput(draft.kg) ?? 0 : 0,
           body_weight_pct: draft.unit === "percent_bw" ? parseNumberInput(draft.kg) : null,
         })),
@@ -151,10 +159,18 @@ const SettingsDiets = () => {
         titleKey="config.diets.title"
         subtitleKey="config.diets.subtitle"
         actions={
-          <Button className="h-10" onClick={() => openDialog()}>
-            <Plus />
-            {t("config.diets.new")}
-          </Button>
+          <>
+            <Button variant="outline" className="h-10" asChild>
+              <Link to="/gestao/financeiro/estoque?aba=insumos&categoria=ingrediente">
+                <Package />
+                Estoque de insumos
+              </Link>
+            </Button>
+            <Button className="h-10 w-40 max-w-full shrink-0" onClick={() => openDialog()}>
+              <Plus />
+              {t("config.diets.new")}
+            </Button>
+          </>
         }
       />
 
@@ -164,7 +180,7 @@ const SettingsDiets = () => {
           titleKey="config.diets.empty.title"
           descriptionKey="config.diets.empty.description"
           action={
-            <Button className="h-10" onClick={() => openDialog()}>
+            <Button className="h-10 w-40 max-w-full shrink-0" onClick={() => openDialog()}>
               {t("config.diets.new")}
             </Button>
           }
@@ -201,7 +217,7 @@ const SettingsDiets = () => {
                       key={item.id}
                       className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
                     >
-                      <span className="truncate">{item.ingredient}</span>
+                      <span className="min-w-0"><span className="block truncate">{stockItemFor(catalog,diet.id,item.ingredient)?.name ?? item.ingredient}</span><span className={`block text-xs ${stockItemFor(catalog,diet.id,item.ingredient)?.quantity_kg===0?"text-amber-800 dark:text-amber-300":"text-muted-foreground"}`}>{stockQuery.isError?"Estoque indisponível":stockQuery.isPending?"Carregando saldo…":stockItemFor(catalog,diet.id,item.ingredient)?`${formatNumber(stockItemFor(catalog,diet.id,item.ingredient)!.quantity_kg,3)} kg disponíveis${stockItemFor(catalog,diet.id,item.ingredient)!.quantity_kg===0?" · Sem saldo para trato":""}`:"Vincule este componente ao estoque ao editar"}</span></span>
                       <span className="num shrink-0 text-muted-foreground">
                         {item.body_weight_pct != null
                           ? `${formatNumber(item.body_weight_pct, 4)}% PV`
@@ -239,7 +255,7 @@ const SettingsDiets = () => {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={value=>{if(!saveDiet.isPending)setOpen(value);}}>
         <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? t("config.diets.edit") : t("config.diets.new")}</DialogTitle>
@@ -285,18 +301,11 @@ const SettingsDiets = () => {
             <p className="text-xs text-muted-foreground">Informe o percentual do peso vivo ou os kg fixos de cada ingrediente. A conversão para kg será feita no trato, pelo peso médio do lote.</p>
             {drafts.map((draft) => (
               <div key={draft.key} className="flex flex-wrap items-start gap-3">
-                <TextField
-                  className="min-w-0 basis-full sm:basis-0 sm:flex-1 [&_input]:h-12 [&_label]:text-xs [&_label]:text-muted-foreground"
-                  label={t("field.ingredient")}
-                  value={draft.ingredient}
-                  onChange={(value) =>
-                    setDrafts((current) =>
-                      current.map((item) =>
-                        item.key === draft.key ? { ...item, ingredient: value } : item,
-                      ),
-                    )
-                  }
-                />
+                <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
+                 <SelectField label="Ingrediente do estoque" triggerClassName="h-12" value={draft.stockId} disabled={!stockQuery.isSuccess||saveDiet.isPending} placeholder="Selecione ração, volumoso ou ingrediente" options={catalog.items.map(item=>({value:item.id,labelKey:`${item.name} · ${formatNumber(item.quantity_kg,3)} kg disponíveis`}))} onChange={value=>setDrafts(current=>current.map(item=>item.key===draft.key?{...item,stockId:value,ingredient:item.ingredient||catalog.items.find(stock=>stock.id===value)?.name||""}:item))}/>
+                 {draft.stockId&&<p className={`mt-1 text-xs ${catalog.items.find(item=>item.id===draft.stockId)?.quantity_kg===0?"text-amber-800 dark:text-amber-300":"text-muted-foreground"}`}>{formatNumber(catalog.items.find(item=>item.id===draft.stockId)?.quantity_kg??0,3)} kg disponíveis{catalog.items.find(item=>item.id===draft.stockId)?.quantity_kg===0?" · Sem saldo. Reponha antes de fornecer.":""}</p>}
+                 {!draft.stockId&&draft.ingredient&&<p className="mt-1 text-xs text-amber-800 dark:text-amber-300">Componente atual: {draft.ingredient}. Selecione o item correspondente.</p>}
+                </div>
                 <div className="w-28 shrink-0 sm:w-32">
                   <SelectField className="[&_label]:text-xs [&_label]:text-muted-foreground" triggerClassName="h-12" label="Unidade" value={draft.unit} onChange={value => setDrafts(current => current.map(item => item.key === draft.key ? { ...item, unit: value as ItemDraft["unit"], kg: "" } : item))}
                     options={[{ value: "percent_bw", labelKey: "% peso vivo" }, { value: "kg", labelKey: "kg/cab/dia" }]} />
@@ -328,10 +337,9 @@ const SettingsDiets = () => {
               </div>
             ))}
 
-            <p className="text-xs text-muted-foreground">
-              {INGREDIENT_SUGGESTIONS.slice(0, 4).join(" · ")}
-            </p>
-
+            <p className="text-xs text-muted-foreground">O saldo é consultado em kg. A necessidade total depende do peso, dos animais e da quantidade fornecida no trato; a confirmação será bloqueada se faltar estoque.</p>
+            {stockQuery.isError&&<p role="alert" className="text-sm text-destructive">Não foi possível consultar o estoque. Confira o SQL de integração e <button className="underline" onClick={()=>void stockQuery.refetch()}>tente novamente</button>.</p>}
+            {stockQuery.isSuccess&&!catalog.items.length&&<p className="text-sm text-amber-800 dark:text-amber-300">Cadastre os itens em Financeiro → Estoque antes de vincular a dieta.</p>}
             <Button
               variant="outline"
               className="h-11 w-full"
@@ -356,7 +364,7 @@ const SettingsDiets = () => {
             <Button variant="outline" onClick={() => setOpen(false)}>
               {t("action.cancel")}
             </Button>
-            <Button onClick={() => void submit()} disabled={saveDiet.isPending}>
+            <Button onClick={() => void submit()} disabled={saveDiet.isPending||!stockQuery.isSuccess}>
               <Save />
               {t("action.save")}
             </Button>

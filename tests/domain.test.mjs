@@ -159,3 +159,22 @@ test('quantidade flexível encerra o dia sem exigir um período específico',()=
  const r=domain.computePenDailyFeeding('p',f.lots,f.logs,f.diets,f.items,f.weights,'2026-10-15',plans);
  assert.equal(r.percent,100);assert.equal(r.shifts[0].total,0);assert.equal(r.shifts[1].total,0);assert.equal(r.shifts[2].complete,true);
 });
+
+const dashboardFeeding=await import(moduleUrl(fs.readFileSync(new URL('../src/lib/dashboard-feeding.ts',import.meta.url),'utf8')));
+test('painel separa trato iniciado de concluído, sem exigir manhã em dia de uma refeição',()=>{
+ const date='2026-10-18',lot={id:'l',pen_id:'p',status:'ativo',head_count:5,diet_id:null};
+ const log=shift=>({id:shift,lot_id:'l',pen_id:'p',date,shift,total_kg:10,kg_per_head:2});
+ const plan={lot_id:'l',pen_id:'p',date,daily_total_kg:30,meal_count:3,schedule:[{shift:'manha',percent:33.33},{shift:'tarde',percent:33.33},{shift:'noite',percent:33.34}]};
+ const status=(logs,plans=[plan])=>domain.computePenDailyFeeding('p',[lot],logs,[],[],[],date,plans);
+ const partial=status([log('manha')]);
+ assert.deepEqual(dashboardFeeding.summarizeDashboardFeeding([partial]),{total:1,started:1,completed:0});
+ assert.deepEqual(dashboardFeeding.summarizeDashboardFeeding([status(['manha','tarde','noite'].map(log))]),{total:1,started:1,completed:1});
+ assert.equal(dashboardFeeding.summarizeDashboardFeeding([status([log('noite')],[{...plan,meal_count:1}])]).completed,1);
+ assert.equal(dashboardFeeding.summarizeDashboardFeeding([status([log('manha'),log('manha')])]).completed,0,'repetir turno não conclui o dia');
+ const pasture=domain.computePenDailyFeeding('p',[{...lot,production_system:'pasto'}],[],[],[],[],date);
+ assert.deepEqual(dashboardFeeding.summarizeDashboardFeeding([pasture]),{total:0,started:0,completed:0});
+});
+test('últimos tratos são do dia escolhido e ordenados por cadastro, sem alterar a lista original',()=>{
+ const date='2026-10-18';const logs=[{id:'a',date,created_at:'2026-10-18T10:00:00Z'},{id:'b',date,created_at:'2026-10-18T21:00:00Z'},{id:'c',date:'2026-10-17',created_at:'2026-10-18T22:00:00Z'}];
+ assert.deepEqual(dashboardFeeding.recentDashboardFeed(logs,date).map(l=>l.id),['b','a']);assert.equal(logs[0].id,'a');
+});

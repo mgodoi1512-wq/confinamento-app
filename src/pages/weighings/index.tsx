@@ -111,7 +111,7 @@ const Weighings = () => {
         titleKey="weighings.title"
         subtitleKey="weighings.subtitle"
         actions={
-          <Button asChild className="h-10">
+          <Button asChild className="h-10 w-40 max-w-full shrink-0">
             <Link to="/pesagens/nova">
               <Plus />
               {t("weighings.new")}
@@ -132,8 +132,8 @@ const Weighings = () => {
             titleKey="weighings.empty.title"
             descriptionKey="weighings.empty.description"
             action={
-              <Button asChild className="h-10">
-                <Link to="/pesagens/nova">{t("weighings.new")}</Link>
+              <Button asChild className="h-10 w-40 max-w-full shrink-0">
+                <Link to="/pesagens/nova"><Plus />{t("weighings.new")}</Link>
               </Button>
             }
           />

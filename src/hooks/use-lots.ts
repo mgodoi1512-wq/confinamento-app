@@ -19,7 +19,8 @@ const useLotMutation = <T, R = unknown>(operation: string) => {
     onSuccess: () => { void client.invalidateQueries(); },
   });
 };
-export const useCreateLot = () => useLotMutation<{ lot: LotInsert; animals: NewLotAnimal[]; applyProtocol: boolean; confirmedDuplicateEarTags?: string[] }, Lot>("create_lot");
+export type NewLotPurchase = { defaultPerHead: number | null; animals: { earTag: string; amount: number }[] };
+export const useCreateLot = () => useLotMutation<{ purchase?: NewLotPurchase; lot: LotInsert; animals: NewLotAnimal[]; applyProtocol: boolean; confirmedDuplicateEarTags?: string[] }, Lot>("create_lot");
 export const useUpdateLot = () => useLotMutation<Partial<Lot> & { id: string }>("update_lot");
 export const useTransferLot = () => useLotMutation<{ lot: Lot; penId: string }>("transfer_lot");
 export type ExitPayload = {

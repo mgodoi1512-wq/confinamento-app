@@ -1,3 +1,5 @@
+import { useFeedStock } from "@/hooks/use-feed-stock";
+import { feedStockNeeds, stockItemFor } from "@/lib/feed-stock";
 import { useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -34,6 +36,7 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
   const [open,setOpen]=useState(false),[lotId,setLotId]=useState(""),[dietId,setDietId]=useState(""),[shift,setShift]=useState("manha");
   const [requestedCount,setRequestedCount]=useState<number|null>(null);
   const [override,setOverride]=useState<string|null>(null),[notes,setNotes]=useState(""),[error,setError]=useState<string|null>(null);
+  const stockQuery=useFeedStock(open);
   const request=useRef<{key:string;id:string}|null>(null),busy=useRef(false);
   const pens=pensQuery.data??[],allDiets=dietsQuery.data??[];
   const lots=(lotsQuery.data??[]).filter(l=>l.status==="ativo"&&l.head_count>0&&pens.some(p=>p.id===l.pen_id&&p.status!=="manutencao"))
@@ -60,10 +63,12 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
   const kgText=override??(Number.isFinite(suggested)&&suggested>0?String(suggested).replace(".",","):"");
   const actual=Math.round((parseNumberInput(kgText)??0)*1000)/1000,provided=logs.reduce((sum,log)=>sum+log.total_kg,0);
   const portions=feedIngredientPortions(ingredients,actual);
-  const queries=[lotsQuery,pensQuery,dietsQuery,itemsQuery,weightsQuery,logsQuery,plansQuery,settings];
+  const catalog=stockQuery.data??{items:[],links:[]};
+  const stockNeeds=feedStockNeeds(catalog,effectiveDietId,portions.map(item=>({name:item.name,totalKg:item.kgPerHead*head})),Math.round(actual*head*100)/100,plan?.stock_mapping);
+  const queries=[stockQuery,lotsQuery,pensQuery,dietsQuery,itemsQuery,weightsQuery,logsQuery,plansQuery,settings];
   const ready=queries.every(query=>query.isSuccess),queryError=queries.some(query=>query.isError);
   const pending=record.isPending;
-  const canRecord=ready&&!!lot&&!!effectiveDietId&&Number.isFinite(daily)&&daily>0&&ingredients.length>0&&!!shift&&!dayComplete&&!served(shift)&&actual>0&&actual<=99999.999;
+  const canRecord=ready&&stockNeeds.valid&&!stockNeeds.insufficient&&!!lot&&!!effectiveDietId&&Number.isFinite(daily)&&daily>0&&ingredients.length>0&&!!shift&&!dayComplete&&!served(shift)&&actual>0&&actual<=99999.999;
   const resetForm=()=>{
     setLotId("");setDietId("");setShift("");setRequestedCount(null);setOverride(null);setNotes("");setError(null);request.current=null;
   };
@@ -81,12 +86,12 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
     try{
       await record.mutateAsync({payload,requestId:request.current.id});
       request.current=null;
-      const [freshLogs,freshPlans]=await Promise.all([logsQuery.refetch(),plansQuery.refetch()]);
+      const [freshLogs,freshPlans]=await Promise.all([logsQuery.refetch(),plansQuery.refetch(),stockQuery.refetch()]);
       if(freshLogs.isError||freshPlans.isError){toast.info("Trato salvo. Recarregue a página para atualizar os turnos antes de registrar outro.");setOpen(false);return;}
       const registered=(freshLogs.data??[]).filter(log=>log.lot_id===lot.id&&log.date===today&&log.total_kg>0);
       const next=new Set(registered.map(log=>log.shift)).size<targetCount?["manha","tarde","noite"].find(period=>!registered.some(log=>log.shift===period)):undefined;
       if(next){setOverride(null);setNotes("");setShift(next);toast.success("Trato registrado. Próximo turno selecionado.");}
-      else {resetForm();setOpen(false);toast.success("Tratos do lote concluídos. Você já pode registrar o próximo curral.");}
+      else {resetForm();setOpen(false);toast.success("Tratos do lote concluídos. Você já pode registrar o próximo local.");}
     }catch(cause){setError(cause instanceof Error?cause.message:t("toast.error.generic"));}finally{busy.current=false;}
   };
   const dietOptions=allDiets.filter(d=>d.is_active||d.id===plan?.diet_id).map(d=>({value:d.id,labelKey:d.id===plan?.diet_id?plan.diet_name:d.name}));
@@ -95,13 +100,13 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
     <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto">
       <DialogHeader><DialogTitle>{t("feed.new")}</DialogTitle></DialogHeader>
       {queryError&&<div role="alert" className="text-sm text-destructive">Não foi possível carregar o planejamento. Confira se o SQL da atualização foi instalado. <Button variant="outline" onClick={()=>void Promise.all(queries.map(q=>q.refetch()))}>Tentar novamente</Button></div>}
-      {ready&&availableLots.length===0&&<p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">{lots.length?"Todos os lotes com curral disponível já concluíram os tratos de hoje.":"Nenhum lote ativo com curral disponível para registrar trato."}</p>}
+      {ready&&availableLots.length===0&&<p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">{lots.length?"Todos os lotes com local disponível já concluíram os tratos de hoje.":"Nenhum lote ativo com local disponível para registrar trato."}</p>}
       <fieldset disabled={pending} className="min-w-0 space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <SelectField label="Curral e lote" value={lotId} onChange={selectLot} disabled={!ready||pending||availableLots.length===0} placeholder="Selecione o curral e o lote" options={availableLots.map(l=>({value:l.id,labelKey:`${pens.find(p=>p.id===l.pen_id)?.code??"—"} · ${l.code}`}))} />
+          <SelectField label="Local e lote" value={lotId} onChange={selectLot} disabled={!ready||pending||availableLots.length===0} placeholder="Selecione o local e o lote" options={availableLots.map(l=>({value:l.id,labelKey:`${pens.find(p=>p.id===l.pen_id)?.code??"—"} · ${l.code}`}))} />
           <SelectField label={t("feed.dietUsed")} value={effectiveDietId} onChange={value=>{setDietId(value);setOverride(null);setError(null);}} options={dietOptions} disabled={!ready||!!plan} placeholder="Selecione a dieta" />
         </div>
-        {lot&&<div className="rounded-lg border bg-muted/40 p-3 text-sm"><p className="font-semibold">Dia {Math.max(daysBetween(lot.entry_date,today),0)+1} no cocho · {formatDate(today)}</p><p className="text-xs text-muted-foreground">Entrada: {formatDate(lot.entry_date)} (dia 1). {plan?"Referência do dia fixada no primeiro trato.":"Escolha a dieta de acordo com o dia de adaptação."}</p></div>}
+        {lot&&<div className="rounded-lg border bg-muted/40 p-3 text-sm"><p className="font-semibold">Dia {Math.max(daysBetween(lot.system_started_on??lot.entry_date,today),0)+1} no manejo atual · {formatDate(today)}</p><p className="text-xs text-muted-foreground">Início do manejo: {formatDate(lot.system_started_on??lot.entry_date)} (dia 1). {plan?"Referência do dia fixada no primeiro trato.":"Escolha a dieta de acordo com o dia de adaptação."}</p></div>}
         <div className="grid items-end gap-3 sm:grid-cols-3">
           <LockedReference label="Peso vivo de referência" unit="kg" value={referenceWeight?formatNumber(referenceWeight,3):"—"} />
           <LockedReference label={t("field.headCount")} unit="cab." value={head?String(head):"—"} />
@@ -128,10 +133,16 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
           <NumericField compact label="Oferta por animal neste trato" unit="kg" value={kgText} onValueChange={setOverride} disabled={served(shift)||dayComplete} helper="Parcela deste turno; ajuste a mistura realmente fornecida. Arredondamento em 3 casas decimais." />
         </div>
         {ingredients.length>0&&<div className="space-y-2 rounded-lg border p-3 text-sm" aria-live="polite"><p className="font-semibold">Ingredientes deste trato</p>
-          <div className="overflow-x-auto"><table className="w-full min-w-[400px] text-xs"><thead><tr className="text-muted-foreground"><th className="py-2 text-left font-medium">Ingrediente</th><th className="text-right font-medium">Diário / animal</th><th className="text-right font-medium">Trato / animal</th><th className="text-right font-medium">Trato / lote</th></tr></thead><tbody>{portions.map((item,index)=><tr key={index} className="border-t"><td className="py-2">{item.name}{item.bodyWeightPct!==null&&<span className="block text-muted-foreground">{formatNumber(item.bodyWeightPct,4)}% PV</span>}</td><td className="text-right num">{formatNumber(item.dailyKgPerHead,3)} kg</td><td className="text-right num">{formatNumber(item.kgPerHead,3)} kg</td><td className="text-right num">{formatNumber(item.kgPerHead*head,2)} kg</td></tr>)}</tbody></table></div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[400px] text-xs"><thead><tr className="text-muted-foreground"><th className="py-2 text-left font-medium">Ingrediente</th><th className="text-right font-medium">Diário / animal</th><th className="text-right font-medium">Trato / animal</th><th className="text-right font-medium">Trato / lote</th></tr></thead><tbody>{portions.map((item,index)=><tr key={index} className="border-t"><td className="py-2">{stockItemFor(catalog,effectiveDietId,item.name,plan?.stock_mapping)?.name??item.name}{item.bodyWeightPct!==null&&<span className="block text-muted-foreground">{formatNumber(item.bodyWeightPct,4)}% PV</span>}</td><td className="text-right num">{formatNumber(item.dailyKgPerHead,3)} kg</td><td className="text-right num">{formatNumber(item.kgPerHead,3)} kg</td><td className="text-right num">{formatNumber(item.kgPerHead*head,2)} kg</td></tr>)}</tbody></table></div>
           <p className="font-semibold">Total deste trato: {formatNumber(actual*head,2)} kg no lote</p>
           <p className="text-xs text-muted-foreground">Percentuais sobre o peso vivo, sem multiplicar por matéria seca. Ao ajustar a mistura, os ingredientes são rateados mantendo a proporção da dieta.</p>
         </div>}
+        {ingredients.length>0&&ready&&<section className="space-y-2 rounded-lg border p-3 text-sm" aria-live="polite"><h3 className="font-semibold">Estoque para este trato</h3>
+         {stockNeeds.missing.length>0&&<p role="alert" className="text-amber-800 dark:text-amber-300">Vincule os componentes ao estoque na dieta: {stockNeeds.missing.join(", ")}. O registro ficará bloqueado até configurar.</p>}
+         {stockNeeds.rows.length>0&&<div className="overflow-x-auto"><table className="w-full min-w-[480px] text-xs"><thead><tr>{["Item do estoque","Disponível","Será descontado","Saldo após"].map(label=><th key={label} className="px-2 py-2 text-center">{label}</th>)}</tr></thead><tbody>{stockNeeds.rows.map(item=><tr key={item.id} className="border-t"><td className="px-2 py-2 text-center">{item.name}</td><td className="px-2 py-2 text-center">{formatNumber(item.quantity_kg,3)} kg</td><td className="px-2 py-2 text-center font-semibold">{formatNumber(item.required,3)} kg</td><td className={`px-2 py-2 text-center ${item.shortage>0?"font-semibold text-red-700 dark:text-red-400":"text-green-700 dark:text-green-400"}`}>{item.shortage>0?`Faltam ${formatNumber(item.shortage,3)} kg`:`${formatNumber(item.remaining,3)} kg`}</td></tr>)}</tbody></table></div>}
+         {stockNeeds.insufficient&&<p role="alert" className="font-semibold text-red-700 dark:text-red-400">Estoque insuficiente. Reponha os itens indicados ou ajuste a quantidade realmente fornecida.</p>}
+         <p className="text-xs text-muted-foreground">A confirmação desconta os itens acima. Ração pronta é baixada como produto; os ingredientes usados para fabricá-la já foram consumidos na produção. O saldo é validado novamente ao salvar.</p>
+        </section>}
         {plan&&<p className="text-xs text-muted-foreground">Referência diária: {plan.head_count} animais · {formatNumber(plan.daily_kg_per_head,3)} kg/cab/dia. O trato usa os {head} animais atuais do lote.</p>}
         {dayComplete&&<p role="status" className="text-sm">Todos os {targetCount} tratos de hoje foram registrados.</p>}
         {served(shift)&&<p role="status" className="text-sm">Este turno já foi fornecido. Confira o histórico antes de qualquer correção.</p>}
