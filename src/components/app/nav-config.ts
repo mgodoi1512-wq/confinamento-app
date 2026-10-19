@@ -64,7 +64,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { to: "/gestao/mercado", labelKey: "nav.market", icon: TrendingUp },
       { to: "/gestao/financeiro", labelKey: "nav.finance", icon: Wallet, gestorOnly: true },
-      { to: "/config/currais", labelKey: "Cadastro de locais", icon: Package, gestorOnly: true },
+      { to: "/config/currais", labelKey: "nav.pens", icon: Package, gestorOnly: true },
       { to: "/config/usuarios", labelKey: "nav.users", icon: Users, gestorOnly: true },
       { to: "/config", labelKey: "nav.settings", icon: Cog, end: true },
     ],
