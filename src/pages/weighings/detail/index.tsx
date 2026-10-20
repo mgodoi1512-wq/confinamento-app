@@ -1,7 +1,13 @@
+import "./detail.css";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DEFAULT_CARCASS_YIELD } from "@/lib/constants";
+import { weightHistory } from "@/lib/weight-history";
+import { weighingGmd } from "@/lib/weighing-gmd";
+import { WeightKgIcon as Scale } from "@/components/app/weight-kg-icon";
 import { useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, CalendarClock, Scale, Trash2, TrendingUp } from "lucide-react";
+import { ArrowLeft, CalendarClock, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable, type Column } from "@/components/app/data-table";
@@ -17,14 +23,13 @@ import { useAnimals } from "@/hooks/use-animals";
 import { useLots } from "@/hooks/use-lots";
 import { useDeleteWeighing, useWeighings, useWeightRecords } from "@/hooks/use-weighings";
 import {
-  computeGmd,
   computeLotMetrics,
   computeProjection,
   liveWeightToArroba,
   type WeightRecord,
 } from "@/lib/domain";
 import { WeightRecordActions } from "./weight-record-actions";
-import { daysBetween, formatDate, formatNumber, todayIso } from "@/lib/format";
+import { formatDate, formatNumber, todayIso } from "@/lib/format";
 
 const WeighingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -51,15 +56,7 @@ const WeighingDetail = () => {
     [weighings, weighing],
   );
 
-  const previous = useMemo(
-    () =>
-      lotWeighings
-        .filter((item) => item.date < (weighing?.date ?? ""))
-        .sort((a, b) => (a.date < b.date ? 1 : -1))[0] ?? null,
-    [lotWeighings, weighing],
-  );
-
-  if (weighingsQuery.isLoading) return <PageLoading rows={5} />;
+  if (weighingsQuery.isLoading || lotsQuery.isLoading) return <PageLoading rows={5} />;
 
   if (!weighing) {
     return (
@@ -78,13 +75,8 @@ const WeighingDetail = () => {
   const lot = (lotsQuery.data ?? []).find((item) => item.id === weighing.lot_id) ?? null;
   const animals = animalsQuery.data ?? [];
 
-  const gmd = previous
-    ? computeGmd(
-        previous.avg_weight_kg,
-        weighing.avg_weight_kg,
-        Math.max(daysBetween(previous.date, weighing.date), 1),
-      )
-    : null;
+  const gmdInfo = weighingGmd(weighing, lot, weighings, today);
+  const { gmd } = gmdInfo;
 
   const metrics = lot ? computeLotMetrics(lot, weighings, today) : null;
   const projection =
@@ -97,14 +89,12 @@ const WeighingDetail = () => {
 
   const records = (recordsQuery.data ?? []).filter(
     (record) => record.weighing_id === weighing.id,
-  );
+  ).sort((a,b) => (animals.find(animal => animal.id === a.animal_id)?.ear_tag ?? "")
+    .localeCompare(animals.find(animal => animal.id === b.animal_id)?.ear_tag ?? "", "pt-BR", {numeric:true,sensitivity:"base"}) || a.id.localeCompare(b.id));
 
-  const ordered = [...lotWeighings].sort((a, b) => (a.date < b.date ? -1 : 1));
-  const chartPoints: WeightPoint[] = ordered.map((item) => ({
-    date: item.date,
-    weight: item.avg_weight_kg,
-    projection: item.id === ordered[ordered.length - 1]?.id ? item.avg_weight_kg : null,
-  }));
+  const chartPoints: WeightPoint[] = weightHistory(lot, lotWeighings, today);
+  const lastPoint = chartPoints[chartPoints.length - 1];
+  if (lastPoint) lastPoint.projection = lastPoint.weight;
 
   if (lot && projection && projection.days > 0) {
     chartPoints.push({
@@ -132,9 +122,13 @@ const WeighingDetail = () => {
     },
     {
       key: "arroba",
-      headerKey: "field.arroba",
+      headerKey: "Arrobas",
       numeric: true,
-      render: (record) => formatNumber(liveWeightToArroba(record.weight_kg) ?? 0, 1),
+      render: (record) => <Tooltip><TooltipTrigger asChild>
+        <button type="button" className="cursor-help border-b border-dotted border-current/40">
+          {formatNumber(liveWeightToArroba(record.weight_kg) ?? 0, 1)}
+        </button>
+      </TooltipTrigger><TooltipContent>Estimativa de carcaça: peso vivo × {DEFAULT_CARCASS_YIELD}% ÷ 15.</TooltipContent></Tooltip>,
     },
     ...(weighing.kind === "individual" ? [{
       key: "actions",
@@ -158,9 +152,9 @@ const WeighingDetail = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="weighing-detail space-y-5">
       <PageHeader
-        titleKey="weighings.detail.title"
+        titleKey={t("weighings.detail.title", { date: formatDate(weighing.date) })}
         subtitleKey="weighings.subtitle"
         actions={
           <>
@@ -199,30 +193,35 @@ const WeighingDetail = () => {
 
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         <StatCard
+          className="weighing-detail-metric"
           labelKey="weighings.detail.avg"
           value={formatNumber(weighing.avg_weight_kg, 1)}
           unitKey="common.unit.kg"
           icon={Scale}
-          variant="agro"
           note={`${formatNumber(liveWeightToArroba(weighing.avg_weight_kg) ?? 0, 1)} @`}
         />
+        <Tooltip><TooltipTrigger asChild><div tabIndex={0} className="h-full rounded-xl outline-offset-2 focus-visible:outline focus-visible:outline-ring">
         <StatCard
-          labelKey="weighings.detail.gmd"
+          className="weighing-detail-metric"
+          labelKey={gmdInfo.reference === "entry" ? "GMD desde a entrada" : gmdInfo.reference === "previous" ? "GMD desde a pesagem anterior" : "GMD do período"}
           value={gmd !== null ? formatNumber(gmd, 2) : "—"}
           unitKey="common.unit.kgPerDay"
           icon={TrendingUp}
         />
+        </div></TooltipTrigger><TooltipContent className="max-w-xs">{gmdInfo.reason}</TooltipContent></Tooltip>
         <StatCard
+          className="weighing-detail-metric"
           labelKey="field.headCountWeighed"
           value={formatNumber(weighing.head_count_weighed, 0)}
           unitKey="common.unit.head"
           icon={Scale}
         />
         <StatCard
-          labelKey="weighings.detail.projection"
+          className="weighing-detail-metric"
+          labelKey="Previsão de abate"
           value={projection ? formatDate(projection.date) : "—"}
           icon={CalendarClock}
-          variant={projection?.ready ? "brand" : "default"}
+          note="Baseada nas pesagens mais recentes do lote."
         />
       </div>
 
@@ -234,6 +233,7 @@ const WeighingDetail = () => {
         </CardHeader>
         <CardContent>
           <WeightChart points={chartPoints} target={lot?.target_weight_kg ?? null} />
+          <p className="mt-2 text-xs text-muted-foreground">Histórico do lote, incluindo o peso de entrada. A linha pontilhada representa uma estimativa, não uma pesagem.</p>
         </CardContent>
       </Card>
 
@@ -241,9 +241,9 @@ const WeighingDetail = () => {
         <h2 className="font-display text-lg font-semibold">{t("weighings.detail.records")}</h2>
         <DataTable
           rows={records}
-          columns={recordColumns}
+          columns={recordColumns.map(column => ({ ...column, className: "text-center" }))}
           getRowKey={(record) => record.id}
-          loading={recordsQuery.isLoading}
+          loading={recordsQuery.isLoading || animalsQuery.isLoading}
           emptyState={<EmptyState titleKey="weighings.detail.noRecords" />}
         />
       </div>

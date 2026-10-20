@@ -10,6 +10,8 @@ export type EmptyStateProps = {
   descriptionKey?: string;
   action?: ReactNode;
   className?: string;
+  iconClassName?: string;
+  iconContainerClassName?: string;
 };
 
 export const EmptyState = ({
@@ -18,6 +20,8 @@ export const EmptyState = ({
   descriptionKey,
   action,
   className,
+  iconClassName,
+  iconContainerClassName,
 }: EmptyStateProps) => {
   const { t } = useTranslation();
 
@@ -28,8 +32,8 @@ export const EmptyState = ({
         className,
       )}
     >
-      <span className="grid size-12 place-items-center rounded-full bg-muted text-muted-foreground">
-        <Icon className="size-5" />
+      <span className={cn("grid size-12 place-items-center rounded-full bg-muted text-muted-foreground", iconContainerClassName)}>
+        <Icon className={cn("size-5", iconClassName)} />
       </span>
       <p className="font-display text-lg font-semibold">{t(titleKey)}</p>
       {descriptionKey ? (

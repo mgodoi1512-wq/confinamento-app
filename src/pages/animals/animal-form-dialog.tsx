@@ -1,3 +1,4 @@
+import { locationName } from "@/lib/location-name";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -142,7 +143,7 @@ toast.error(
             onChange={setPenId}
             allowEmpty
             emptyLabel={t("common.noData")}
-            options={pens.map((pen) => ({ value: pen.id, labelKey: pen.code }))}
+            options={pens.map((pen) => ({ value: pen.id, labelKey: locationName(pen) }))}
           />
           <SelectField label={t("field.breed")} value={breed} onChange={setBreed} options={BREED_OPTIONS} />
           <SelectField label={t("field.sex")} value={sex} onChange={setSex} options={SEX_OPTIONS} />

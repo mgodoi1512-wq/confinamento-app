@@ -43,7 +43,7 @@ export const WeightChart = ({
 
   const measured = points.filter((point) => point.weight !== null);
 
-  if (measured.length < 2) {
+  if (measured.length === 0) {
     return (
       <EmptyState
         icon={LineChartIcon}

@@ -9,6 +9,7 @@ const domain=url(compile(read('../src/lib/domain.ts').replace('from "./format"',
 const loans=url(compile(read('../src/lib/loan-installments.ts')));
 const stockDetail=url(compile(read('../src/lib/stock-animal-detail.ts').replace('from "./format"',`from "${format}"`)));
 const logic=url(compile(read('../src/lib/financial-workspace.ts').replace('from "./format"',`from "${format}"`).replace('from "./domain"',`from "${domain}"`).replace('from "./stock-animal-detail"',`from "${stockDetail}"`)));
+const dashboardLogic=url(compile(read('../src/lib/dashboard-finance.ts')));
 const mock=url(`
 export const CashFlowExportButtons=ExportButtons;
 export default function StockLotDetail(){}
@@ -21,11 +22,11 @@ export const useWorkspaceMutation=()=>({isPending:false,mutateAsync:async call=>
 export const toast={success:()=>{},error:message=>globalThis.__financeHarness.errors.push(message)};
 export const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);export const number=s=>{const n=Number(s.replace(',','.'));return s.trim()&&Number.isFinite(n)?n:null;};
 export function BackFinance(){}export function Metric(){}export function Pager(){}export function SettingsDialog(){}export function WorkspaceError(){}
-export function Link(){}export const useSearchParams=()=>[new URLSearchParams(globalThis.__financeHarness.query??'aba=insumos')];export function Link2(){}export function Unlink(){}export function Check(){}export function Pencil(){}export function Plus(){}export function Settings2(){}export function Trash2(){}
+export function Link(){}export const useSearchParams=()=>[new URLSearchParams(globalThis.__financeHarness.query??'aba=insumos'),value=>{globalThis.__financeHarness.query=new URLSearchParams(value).toString();}];export function Link2(){}export function Unlink(){}export function Check(){}export function Pencil(){}export function Plus(){}export function Settings2(){}export function Trash2(){}
 export function PageHeader(){}export function PageLoading(){}export function ExportButtons(){}export function NumericField(){}export function TextField(){}export function SelectField(){}export function Button(){}
 export function Dialog(){}export function DialogContent(){}export function DialogDescription(){}export function DialogHeader(){}export function DialogTitle(){}
 `);
-const component=async(path)=>{let source=compile(read(path));source=source.replace(/from\s+(['"])(.*?)\1/g,(_,q,name)=>`from "${name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/loan-installments'?loans:name==='@/lib/format'?format:name==='@/lib/financial-workspace'?logic:mock}"`);return(await import(url(source))).default;};
+const component=async(path)=>{let source=compile(read(path));source=source.replace(/from\s+(['"])(.*?)\1/g,(_,q,name)=>`from "${name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/loan-installments'?loans:name==='@/lib/format'?format:name==='@/lib/financial-workspace'?logic:name==='@/lib/dashboard-finance'?dashboardLogic:mock}"`);return(await import(url(source))).default;};
 const Cash=await component('../src/pages/management/cash-flow.tsx'),Inventory=await component('../src/pages/management/inventory.tsx');
 const fixture=()=>({state:[],cursor:0,calls:[],errors:[],manager:true,workspace:{settings:null,entries:[],items:[{id:'item',name:'Milho',category:'ingrediente',minimum_kg:10,quantity_kg:100,stock_value:200,updated_at:'version'}],movements:[],links:[]},lots:[],animals:[],weighings:[],records:[],diets:[{id:'diet',name:'Dieta',is_active:true}],ingredients:[{diet_id:'diet',ingredient:'RAÇÃO'}]});
 const draw=(h,C)=>{globalThis.__financeHarness=h;h.cursor=0;return C();};
@@ -60,4 +61,16 @@ test('operador não recebe telas financeiras nem dados de estoque',()=>{
 
 test('aba A pagar inclui vencidos de meses anteriores e a exportação acompanha o filtro',()=>{
  const h=fixture();h.workspace.entries=[{id:'old',direction:'saida',description:'Frete vencido',category:'Fretes',amount:80,due_date:'2001-01-01',settled_on:null,lot_id:null,notes:'',updated_at:'v'}];let t=draw(h,Cash);button(t,'A pagar').props.onClick();t=draw(h,Cash);const header=nodes(t).find(n=>n.type.name==='PageHeader');const exporter=nodes(header.props.actions).find(n=>n.type.name==='ExportButtons');assert.equal(exporter.props.getReport().rows.length,1);assert.equal(exporter.props.getReport().rows[0][2],'Frete vencido');
+});
+
+test('atalhos do painel filtram hoje e atrasados, exportam os mesmos registros e permitem remover filtro',()=>{
+ const h=fixture();const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const base={category:'Alimentação',notes:'',lot_id:null,amount:50,settled_on:null,updated_at:'v'};
+ h.workspace.entries=[{...base,id:'today',description:'Hoje',direction:'saida',due_date:today},{...base,id:'old',description:'Atrasada',direction:'saida',due_date:'2020-01-01'},{...base,id:'future',description:'Futura',direction:'saida',due_date:'2099-01-01'},{...base,id:'income',description:'Receita',direction:'entrada',due_date:today}];
+ for(const [query,ids] of [['situacao=pay&prazo=hoje',['today']],['situacao=receive&prazo=hoje',['income']],['situacao=pay&prazo=atrasados',['old']]]){
+  h.query=query;const tree=draw(h,Cash);const actions=nodes(tree).find(n=>n.type.name==='PageHeader').props.actions;
+  const exportButton=nodes(actions).find(n=>n.type.name==='ExportButtons');assert.deepEqual(exportButton.props.getData().entries.map(e=>e.id),ids);
+ }
+ button(draw(h,Cash),'Remover filtro de data').props.onClick();const actions=nodes(draw(h,Cash)).find(n=>n.type.name==='PageHeader').props.actions;
+ assert.equal(nodes(actions).find(n=>n.type.name==='ExportButtons').props.getData().entries.length,3);
 });

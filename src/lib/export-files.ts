@@ -92,28 +92,43 @@ export async function exportPdf(report: ExportReport) {
   if (!logoResponse.ok) throw new Error("Não foi possível carregar a logo do relatório.");
   const logo = new Uint8Array(await logoResponse.arrayBuffer());
   const image = doc.getImageProperties(logo);
-  const logoSize = 26;
+  const compact=!!report.pdf?.compactHeader;
+  const logoSize = compact?20:26;
   const scale = Math.min(logoSize / image.width, logoSize / image.height);
   const logoWidth = image.width * scale;
   const logoHeight = image.height * scale;
-  doc.addImage(logo, "PNG", 12 + (logoSize - logoWidth) / 2, 10 + (logoSize - logoHeight) / 2, logoWidth, logoHeight);
-  doc.setFont(reportFont, "bold");
-  doc.setFontSize(17);
-  doc.text(report.title, 44, 21);
-  doc.setFont(reportFont, "normal");
-  doc.setFontSize(9);
-  doc.text(`Emitido em ${new Date().toLocaleString("pt-BR")} | ${report.recordCount??report.rows.length} registros`, 44, 29);
-  const filterLines = doc.splitTextToSize(`Filtros: ${report.filters}`, width - 24);
-  doc.text(filterLines, 12, 43);
-  const noteLines = doc.splitTextToSize(report.note, width - 24);
-  const noteY = 45 + filterLines.length * 4;
-  doc.text(noteLines, 12, noteY);
+  const emittedAt=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
+  const drawCompactHeader=()=>{
+    doc.setTextColor(0);
+    doc.addImage(logo,"PNG",12+(logoSize-logoWidth)/2,8+(logoSize-logoHeight)/2,logoWidth,logoHeight);
+    doc.setFont(reportFont,"bold");doc.setFontSize(15);doc.text(report.title,36,14);
+    doc.setFont(reportFont,"normal");doc.setFontSize(10);
+    if(report.farmName)doc.text(doc.splitTextToSize(report.farmName,width-50).slice(0,2),36,21);
+    doc.setFontSize(8);doc.text(`Emitido em ${emittedAt} | ${report.recordCount??report.rows.length} registros`,36,29);
+  };
+  let tableStart:number;
+  if(compact){
+    drawCompactHeader();doc.setFontSize(8);
+    const filters=doc.splitTextToSize(`Filtros: ${report.filters}`,width-24);doc.text(filters,12,36);
+    tableStart=36+filters.length*3.5+3;
+    if(report.pdf?.summary){doc.setTextColor(137,81,32);doc.text(report.pdf.summary,12,tableStart);doc.setTextColor(0);tableStart+=5;}
+  }else{
+    doc.addImage(logo, "PNG", 12 + (logoSize - logoWidth) / 2, 10 + (logoSize - logoHeight) / 2, logoWidth, logoHeight);
+    doc.setFont(reportFont, "bold");doc.setFontSize(17);doc.text(report.title,44,21);
+    doc.setFont(reportFont,"normal");doc.setFontSize(9);
+    doc.text(`Emitido em ${emittedAt} | ${report.recordCount??report.rows.length} registros`,44,29);
+    const filterLines=doc.splitTextToSize(`Filtros: ${report.filters}`,width-24);doc.text(filterLines,12,43);
+    const noteLines=doc.splitTextToSize(report.note,width-24);const noteY=45+filterLines.length*4;doc.text(noteLines,12,noteY);
+    tableStart=noteY+noteLines.length*4+4;
+  }
   autoTable(doc, {
-    startY: noteY + noteLines.length * 4 + 4,
+    startY: tableStart,
+    showHead:"everyPage",
+    didDrawPage: data=>{if(compact&&data.pageNumber>1)drawCompactHeader();},
     head: [report.columns.map(column => column.title)],
     body: report.rows.map(row => row.map((value, index) => typeof value === "number" ? formatNumber(value, report.columns[index].decimals ?? 1) : value ?? "—")),
-    margin: { top: 12, right: 12, bottom: 16, left: 12 },
-    styles: { font: reportFont, fontSize: report.pdf?.fontSize ?? 8, cellPadding: 2, overflow: "linebreak" },
+    margin: { top: compact?34:12, right: 12, bottom: compact?28:16, left: 12 },
+    styles: { font: reportFont, fontSize: report.pdf?.fontSize ?? 8, cellPadding: compact?1.8:2, overflow: "linebreak" },
     headStyles: { fillColor: [101, 59, 39], ...(report.pdf?.centerColumns ? { halign: "center" as const } : {}) },
     alternateRowStyles: { fillColor: [247, 242, 237] },
     rowPageBreak: "avoid",
@@ -125,6 +140,7 @@ export async function exportPdf(report: ExportReport) {
   const pages = doc.getNumberOfPages();
   for (let page = 1; page <= pages; page++) {
     doc.setPage(page);
+    if(compact){doc.setFont(reportFont,"normal");doc.setFontSize(7.5);doc.setTextColor(90);const notes=doc.splitTextToSize(report.note,width-24);doc.text(notes,12,doc.internal.pageSize.getHeight()-21);doc.setTextColor(0);}
     doc.setFontSize(8);
     doc.text(`LiBen Agronegócios | Página ${page} de ${pages}`, width - 12, doc.internal.pageSize.getHeight() - 7, { align: "right" });
   }

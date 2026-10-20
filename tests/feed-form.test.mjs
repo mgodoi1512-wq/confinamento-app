@@ -8,6 +8,7 @@ import ts from 'typescript';
 const read=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 const url=source=>'data:text/javascript;base64,'+Buffer.from(source).toString('base64');
 const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+const locationLogic=url(compile(read('../src/lib/location-name.ts')));
 const format=url(compile(read('../src/lib/format.ts')));
 const constants=url(compile(read('../src/lib/constants.ts')));
 const domain=url(compile(read('../src/lib/domain.ts').replace('from "./format"',`from "${format}"`).replace('from "./constants"',`from "${constants}"`)));
@@ -46,13 +47,13 @@ export function Dialog(){} export function DialogContent(){} export function Dia
 `);
 let source=compile(read('../src/pages/feed/feed-form-dialog.tsx'));
 source=source.replace(/from\s+(['"])(.*?)\1/g,(whole,quote,name)=>{
- const target=name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/animal-registration'?tagLogic:name==='@/lib/production-systems'?systemsLogic:name==='@/lib/feed-stock'?stockLogic:name==='@/lib/feed-planning'?planning:name==='@/lib/domain'?domain:name==='@/lib/constants'?constants:name==='@/lib/format'?format:mock;
+ const target=name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/location-name'?locationLogic:name==='@/lib/animal-registration'?tagLogic:name==='@/lib/production-systems'?systemsLogic:name==='@/lib/feed-stock'?stockLogic:name==='@/lib/feed-planning'?planning:name==='@/lib/domain'?domain:name==='@/lib/constants'?constants:name==='@/lib/format'?format:mock;
  return `from "${target}"`;
 });
 const {FeedFormDialog}=await import(url(source));
 let lotSource=compile(read('../src/pages/lots/new/index.tsx'));
 lotSource=lotSource.replace(/from\s+(['"])(.*?)\1/g,(whole,quote,name)=>{
- const target=name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/animal-registration'?tagLogic:name==='@/lib/production-systems'?systemsLogic:name==='@/lib/feed-stock'?stockLogic:name==='@/lib/feed-planning'?planning:name==='@/lib/domain'?domain:name==='@/lib/constants'?constants:name==='@/lib/format'?format:mock;
+ const target=name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/location-name'?locationLogic:name==='@/lib/animal-registration'?tagLogic:name==='@/lib/production-systems'?systemsLogic:name==='@/lib/feed-stock'?stockLogic:name==='@/lib/feed-planning'?planning:name==='@/lib/domain'?domain:name==='@/lib/constants'?constants:name==='@/lib/format'?format:mock;
  return `from "${target}"`;
 });
 const {default:NewLot}=await import(url(lotSource));

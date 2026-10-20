@@ -1,3 +1,4 @@
+import { locationName } from "./location-name";
 import { computeLotMetrics, type Lot, type Pen, type Weighing } from "./domain";
 import { daysBetween, formatDate, formatNumber, isValidIsoDate, todayIso } from "./format";
 import type { ExportReport } from "./export-data";
@@ -41,7 +42,7 @@ export const computeFeedingSuggestions=(lots:Lot[],pens:Pen[],weighings:Weighing
     const feedRaw=!issue&&phase&&weight ? weight*phase.feedPct/100*head : null;
     const roughageRaw=!issue&&phase&&weight ? weight*phase.roughagePct/100*head : null;
     const feeds=feedRaw!==null?splitDailyFeedKg(feedRaw):null,roughages=roughageRaw!==null?splitDailyFeedKg(roughageRaw):null;
-    return {lotId:lot.id,lotCode:lot.code,penCode:pen?.code??"Sem curral",head,day,weight,phase,
+    return {lotId:lot.id,lotCode:lot.code,penCode:locationName(pen,"Sem local"),head,day,weight,phase,
       feedDaily:feedRaw!==null?Math.round(feedRaw*100)/100:null,roughageDaily:roughageRaw!==null?Math.round(roughageRaw*100)/100:null,
       meals:feeds&&roughages?["Manhã","Tarde","Noite"].map((period,i)=>({period,feedKg:feeds[i],roughageKg:roughages[i]})):[],issue};
   }).sort((a,b)=>compare.compare(a.penCode,b.penCode)||compare.compare(a.lotCode,b.lotCode)||a.lotId.localeCompare(b.lotId));

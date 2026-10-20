@@ -1,0 +1,371 @@
+import { useFarm } from "@/hooks/use-farm";
+import { animalMeasurements } from "@/lib/animal-measurements";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ChevronLeft, ChevronRight, ClipboardList, Plus, Search, X } from "lucide-react";
+
+import { ExportButtons } from "@/components/app/export-buttons";
+import { animalReport } from "@/lib/export-data";
+import { useWeighings, useWeightRecords } from "@/hooks/use-weighings";
+import { DataTable, type Column } from "@/components/app/data-table";
+import { EmptyState } from "@/components/app/empty-state";
+import { PageHeader } from "@/components/app/page-header";
+import { StatusBadge } from "@/components/app/status-badge";
+import { SelectField } from "@/components/form/select-field";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAnimals } from "@/hooks/use-animals";
+import { useLots } from "@/hooks/use-lots";
+import { usePens } from "@/hooks/use-pens";
+import { SELECT_ALL, DEFAULT_CARCASS_YIELD } from "@/lib/constants";
+import {
+  animalStatusTone,
+  healthTone,
+  currentHealthStatus,
+  isUnderWithdrawal,
+  liveWeightToArroba,
+  type Animal,
+} from "@/lib/domain";
+import { formatDate, formatNumber, todayIso } from "@/lib/format";
+import { AnimalDetailSheet } from "./animal-detail-sheet";
+import { AnimalFormDialog } from "./animal-form-dialog";
+
+const MOVEMENT_FILTER_OPTIONS = [
+  { value: SELECT_ALL, labelKey: "animals.filter.all" },
+  { value: "presentes", labelKey: "animals.filter.present" },
+  { value: "saidos", labelKey: "animals.filter.exited" },
+];
+
+const isPresent = (animal: Animal) => animal.status === "ativo" || animal.status === "tratamento";
+
+const HEALTH_FILTER_OPTIONS = [
+  { value: "saudavel", labelKey: "status.health.saudavel" },
+  { value: "tratamento", labelKey: "status.health.tratamento" },
+  { value: "observacao", labelKey: "status.health.observacao" },
+  { value: "carencia", labelKey: "status.health.carencia" },
+];
+
+const Animals = () => {
+  const { t } = useTranslation();
+  const today = todayIso();
+  const farmQuery=useFarm();
+
+  const animalsQuery = useAnimals();
+  const pensQuery = usePens();
+  const lotsQuery = useLots();
+  const weighingsQuery = useWeighings();
+  const recordsQuery = useWeightRecords();
+
+  const [movementFilter, setMovementFilter] = useState(SELECT_ALL);
+  const [search, setSearch] = useState("");
+  const [penFilter, setPenFilter] = useState(SELECT_ALL);
+  const [lotFilter, setLotFilter] = useState(SELECT_ALL);
+  const [healthFilter, setHealthFilter] = useState(SELECT_ALL);
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<Animal | null>(null);
+
+  const pens = pensQuery.data ?? [];
+  const lots = lotsQuery.data ?? [];
+
+  const measurements=useMemo(()=>animalMeasurements(animalsQuery.data??[],lotsQuery.data??[],weighingsQuery.data??[],recordsQuery.data??[],today),[animalsQuery.data,lotsQuery.data,weighingsQuery.data,recordsQuery.data,today]);
+  const measurementsLoading=weighingsQuery.isLoading||recordsQuery.isLoading||lotsQuery.isLoading;
+  const measurementsError=weighingsQuery.isError||recordsQuery.isError||lotsQuery.isError;
+  const hasFilters=movementFilter!==SELECT_ALL||search!==""||penFilter!==SELECT_ALL||lotFilter!==SELECT_ALL||healthFilter!==SELECT_ALL;
+  const clearFilters=()=>{setPage(1);setMovementFilter(SELECT_ALL);setSearch("");setPenFilter(SELECT_ALL);setLotFilter(SELECT_ALL);setHealthFilter(SELECT_ALL);};
+  const hint=(value:string,reason:string)=><Tooltip><TooltipTrigger asChild><button type="button" className="rounded underline decoration-dotted underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${value}: ${reason}`} onClick={event=>event.stopPropagation()}>{value}</button></TooltipTrigger><TooltipContent className="max-w-72">{reason}</TooltipContent></Tooltip>;
+  const renderWeight=(row:Animal)=>{const info=measurements.get(row.id);const reason=measurementsLoading?"Carregando histórico de pesagens…":measurementsError?"Não foi possível conferir a data da pesagem.":info?.weightDate?`${info.weightSource==="entry"?"Peso de entrada":"Pesagem individual"}: ${formatDate(info.weightDate)}`:"Peso informado no cadastro; sem data de pesagem individual vinculada ao valor.";return hint(row.current_weight_kg!==null?`${formatNumber(row.current_weight_kg,1)} kg`:"—",reason);};
+  const renderGain=(row:Animal)=>{const info=measurements.get(row.id);if(measurementsLoading||measurementsError)return hint("—",measurementsLoading?"Carregando histórico de pesagens…":"Não foi possível conferir o histórico para calcular o ganho.");return hint(info?.gain!==null&&info?.gain!==undefined?`${formatNumber(info.gain,1)} kg`:"—",info?.gainReason??"Aguardando pesagens suficientes para calcular.");};
+  const renderArrobas=(row:Animal)=>{const value=liveWeightToArroba(row.current_weight_kg);return hint(value!==null?formatNumber(value,1):"—",`Estimativa de carcaça com rendimento de ${DEFAULT_CARCASS_YIELD}%. Cálculo: peso vivo × ${DEFAULT_CARCASS_YIELD}% ÷ 15 kg por arroba.`);};
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return (animalsQuery.data ?? []).filter((animal) => {
+      const present = isPresent(animal);
+      if (movementFilter === "presentes" && !present) return false;
+      if (movementFilter === "saidos" && present) return false;
+      // O filtro sanitário se refere aos animais que ainda estão na fazenda.
+      if (healthFilter !== SELECT_ALL && !present) return false;
+      if (term && !`${animal.ear_tag} ${animal.sisbov ?? ""}`.toLowerCase().includes(term)) {
+        return false;
+      }
+      if (penFilter !== SELECT_ALL && animal.pen_id !== penFilter) return false;
+      if (lotFilter !== SELECT_ALL && animal.lot_id !== lotFilter) return false;
+      if (healthFilter === "carencia" && !isUnderWithdrawal(animal, today)) return false;
+      if (
+        healthFilter !== SELECT_ALL &&
+        healthFilter !== "carencia" &&
+        currentHealthStatus(animal, today) !== healthFilter
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [animalsQuery.data, search, penFilter, lotFilter, movementFilter, healthFilter, today]);
+
+  const pageSize = 15;
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const columns: Column<Animal>[] = [
+    {
+      key: "tag",
+      headerKey: "field.earTag",
+      render: (row) => <span className="font-sans text-sm font-semibold">{row.ear_tag}</span>,
+    },
+    { key: "sisbov", headerKey: "field.sisbov", render: (row) => row.sisbov ?? "—" },
+    {
+      key: "lot",
+      headerKey: "field.lot",
+      render: (row) => lots.find((lot) => lot.id === row.lot_id)?.code ?? "—",
+    },
+    {
+      key: "pen",
+      headerKey: "field.pen",
+      render: (row) => pens.find((pen) => pen.id === row.pen_id)?.code ?? "—",
+    },
+    {
+      key: "entry",
+      headerKey: "Peso de entrada",
+      numeric: true,
+      render: row => row.entry_weight_kg !== null ? `${formatNumber(row.entry_weight_kg,1)} kg` : "—",
+    },
+    {
+      key: "current",
+      headerKey: "Último peso registrado",
+      numeric: true,
+      render: renderWeight,
+    },
+    {
+      key: "gain",
+      headerKey: "Ganho desde a entrada",
+      numeric: true,
+      render: renderGain,
+    },
+    {
+      key: "arroba",
+      headerKey: "Arrobas",
+      numeric: true,
+      render: renderArrobas,
+    },
+    {
+  key: "status",
+  headerKey: "field.status",
+  className: "w-[240px] min-w-[240px] max-w-[240px]",
+  render: (row) => (
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          <StatusBadge
+            tone={animalStatusTone(row.status)}
+            label={t(`status.animal.${row.status}`)}
+            size="sm"
+          />
+          <span
+  className={isPresent(row) ? undefined : "invisible"}
+  aria-hidden={!isPresent(row)}
+>
+  <StatusBadge
+    tone={healthTone(currentHealthStatus(row, today))}
+    label={t(`status.health.${currentHealthStatus(row, today)}`)}
+    size="sm"
+  />
+</span>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        titleKey="animals.title"
+        subtitleKey="Registro individual do rebanho"
+        actions={
+          <>
+          <ExportButtons
+            disabled={[animalsQuery, lotsQuery, pensQuery, weighingsQuery, recordsQuery, farmQuery].some(query => query.isFetching || query.isPending || query.isError) || !rows.length}
+            getReport={() => ({...animalReport(rows, lots, pens, weighingsQuery.data ?? [], recordsQuery.data ?? [], key => t(key), [
+              `Movimentação: ${t(MOVEMENT_FILTER_OPTIONS.find(option => option.value === movementFilter)?.labelKey ?? "common.all")}`,
+              `Busca: ${search.trim() || "Todas"}`,
+              `Curral: ${pens.find(pen => pen.id === penFilter)?.code ?? "Todos"}`,
+              `Lote: ${lots.find(lot => lot.id === lotFilter)?.code ?? "Todos"}`,
+              `Sanitário: ${healthFilter === SELECT_ALL ? "Todos" : t(`status.health.${healthFilter}`)}`,
+            ].join(" | "), today),farmName:farmQuery.data?.name})}
+          />
+          <AnimalFormDialog
+            trigger={
+              <Button className="h-10 w-40 max-w-full shrink-0">
+                <Plus />
+                {t("animals.new")}
+              </Button>
+            }
+          />
+          </>
+        }
+      />
+
+      <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <SelectField
+          label={`${t("animals.filter.movement")} · ${rows.length} ${t("common.results")}`}
+          value={movementFilter}
+          onChange={(value) => {
+            setPage(1);
+            setMovementFilter(value);
+            setHealthFilter(SELECT_ALL);
+          }}
+          options={MOVEMENT_FILTER_OPTIONS}
+        />
+
+        <SelectField
+          label="Local"
+          value={penFilter}
+          onChange={(value) => { setPenFilter(value); setPage(1); }}
+          allowEmpty
+          emptyLabel={t("common.allPens")}
+          options={pens.map((pen) => ({ value: pen.id, labelKey: pen.code }))}
+        />
+        <SelectField
+          label="Lote"
+          value={lotFilter}
+          onChange={(value) => { setLotFilter(value); setPage(1); }}
+          allowEmpty
+          emptyLabel={t("common.allLots")}
+          options={lots.map((lot) => ({ value: lot.id, labelKey: lot.code }))}
+        />
+        <SelectField
+          label="Situação sanitária"
+          value={healthFilter}
+          disabled={movementFilter === "saidos"}
+          onChange={(value) => { setHealthFilter(value); setPage(1); }}
+          allowEmpty
+          emptyLabel="Todas as situações"
+          options={HEALTH_FILTER_OPTIONS}
+        />
+        <div className="space-y-1.5"><label htmlFor="animals-search" className="block text-sm font-medium">Brinco ou SISBOV</label><div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="animals-search"
+            value={search}
+            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            placeholder={t("animals.searchPlaceholder")}
+            aria-label={t("animals.searchPlaceholder")}
+            className="h-11 pl-9"
+          />
+        </div></div>
+      </div>
+      <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="text-muted-foreground" disabled={!hasFilters} onClick={clearFilters}><X className="size-4"/>Limpar filtros</Button></div>
+
+      <DataTable
+        rows={visibleRows}
+        columns={columns.map((column) => ({ ...column, className: `${column.className ?? ""} text-center` }))}
+        getRowKey={(row) => row.id}
+        onRowClick={(row) => setSelected(row)}
+        loading={animalsQuery.isLoading}
+        emptyState={
+          <EmptyState
+            icon={ClipboardList}
+            titleKey={animalsQuery.data?.length ? "animals.emptyFilers" : "animals.empty.title"}
+            descriptionKey={
+              animalsQuery.data?.length ? undefined : "animals.empty.description"
+            }
+            action={
+              animalsQuery.data?.length ? (
+                <Button
+                  variant="outline"
+                  className="h-10"
+                  onClick={() => {
+                    setPage(1);
+                    setMovementFilter(SELECT_ALL);
+                    setSearch("");
+                    setPenFilter(SELECT_ALL);
+                    setLotFilter(SELECT_ALL);
+                    setHealthFilter(SELECT_ALL);
+                  }}
+                >
+                  {t("action.clear")}
+                </Button>
+              ) : (
+                <AnimalFormDialog
+                  trigger={
+                    <Button className="h-10 w-40 max-w-full shrink-0">
+                      <Plus />
+                      {t("animals.new")}
+                    </Button>
+                  }
+                />
+              )
+            }
+          />
+        }
+        renderCard={(row) => (
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-sans text-sm font-semibold">{row.ear_tag}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {lots.find((lot) => lot.id === row.lot_id)?.code ?? "—"} ·{" "}
+                  {pens.find((pen) => pen.id === row.pen_id)?.code ?? "—"}
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-end gap-1.5">
+                <StatusBadge
+                  tone={animalStatusTone(row.status)}
+                  label={t(`status.animal.${row.status}`)}
+                  size="sm"
+                />
+                {isPresent(row) && (
+                  <StatusBadge
+                    tone={healthTone(currentHealthStatus(row, today))}
+                    label={t(`status.health.${currentHealthStatus(row, today)}`)}
+                    size="sm"
+                  />
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-center text-sm">
+              <div><p className="text-xs text-muted-foreground">Peso de entrada</p><p className="num font-medium">{row.entry_weight_kg!==null?`${formatNumber(row.entry_weight_kg,1)} kg`:"—"}</p></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Último peso registrado</p>
+                <p className="num font-medium">
+                  {renderWeight(row)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Ganho desde a entrada</p>
+                <p className="num font-medium">
+                  {renderGain(row)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Arrobas</p>
+                <p className="num font-medium">
+                  {renderArrobas(row)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      />
+
+      {!animalsQuery.isLoading && rows.length > 0 && (
+        <nav aria-label="Paginação dos animais" className="flex flex-wrap items-center justify-between gap-3">
+          <p aria-live="polite" className="text-sm text-muted-foreground">
+            {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, rows.length)} de {rows.length} · Página {currentPage} de {pageCount}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
+              <ChevronLeft className="size-4" />Voltar
+            </Button>
+            <Button variant="outline" size="sm" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>
+              Avançar<ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </nav>
+      )}
+
+      <AnimalDetailSheet animal={selected} onClose={() => setSelected(null)} />
+    </div>
+  );
+};
+
+export default Animals;

@@ -1,3 +1,4 @@
+import { locationName } from "@/lib/location-name";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ClipboardCheck, Save, Wheat } from "lucide-react";
@@ -119,7 +120,7 @@ const ReadingRound = () => {
         recorded_by: user?.id ?? null,
       });
 
-      setLastSavedPen(activePen.pen.code);
+      setLastSavedPen(locationName(activePen.pen));
       setSaving(false);
 
       const following = nextPending(activePen.pen.id);
@@ -217,11 +218,11 @@ const ReadingRound = () => {
                 onClick={() => openPen(item)}
                 className={cn(
                   "flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 text-left shadow-xs transition-colors active:bg-muted/50",
-                  lastSavedPen === item.pen.code && "ring-2 ring-success/40",
+                  lastSavedPen === locationName(item.pen) && "ring-2 ring-success/40",
                 )}
               >
                 <div className="min-w-0">
-                  <p className="font-display text-base font-semibold">{item.pen.code}</p>
+                  <p className="font-display text-base font-semibold">{locationName(item.pen)}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {item.lot?.code} · {formatNumber(basePerHead(item.pen.id), 2)} kg/cab
                   </p>
@@ -261,7 +262,7 @@ const ReadingRound = () => {
                     className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
                   >
                     <span className="font-display font-semibold">
-                      {pens.find((pen) => pen.id === reading.pen_id)?.code ?? "—"}
+                      {locationName(pens.find((pen) => pen.id === reading.pen_id), "—")}
                     </span>
                     <span className="num text-muted-foreground">
                       {formatNumber((reading.base_kg_per_head ?? 0), 2)} →{" "}
@@ -299,7 +300,7 @@ const ReadingRound = () => {
             <div className="mx-auto w-full max-w-xl space-y-5 pb-6">
               <SheetHeader className="text-left">
                 <SheetTitle className="font-display text-xl">
-                  {activePen.pen.code}
+                  {locationName(activePen.pen)}
                 </SheetTitle>
                 <p className="text-sm text-muted-foreground">
                   {t("feed.reading.penContext", {

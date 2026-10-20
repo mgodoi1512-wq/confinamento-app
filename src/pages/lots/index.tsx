@@ -1,3 +1,8 @@
+import { locationName } from "@/lib/location-name";
+import "./lots.css";
+import { selectLots } from "@/lib/lot-list";
+import { TextField } from "@/components/form/text-field";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {systemLabel} from "@/lib/production-systems";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -15,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { useLots } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
 import { useWeighings } from "@/hooks/use-weighings";
-import { CATEGORY_OPTIONS, SELECT_ALL } from "@/lib/constants";
+import { SELECT_ALL } from "@/lib/constants";
 import { computeLotMetrics, computeProjection, type Lot } from "@/lib/domain";
 import { formatDate, formatInteger, formatNumber, todayIso } from "@/lib/format";
 
@@ -27,6 +32,8 @@ type LotRow = {
   daysOnFeed: number;
   projectedDate: string | null;
   ready: boolean;
+  gmdReason: string;
+  projectionReason: string;
 };
 
 const Lots = () => {
@@ -36,6 +43,8 @@ const Lots = () => {
 
   const [statusFilter, setStatusFilter] = useState("ativo");
   const [page, setPage] = useState(1);
+  const [search,setSearch]=useState("");
+  const [order,setOrder]=useState("name");
 
   const lotsQuery = useLots();
   const pensQuery = usePens();
@@ -47,8 +56,7 @@ const Lots = () => {
 
   const rows = useMemo<LotRow[]>(
     () =>
-      lots
-        .filter((lot) => statusFilter === SELECT_ALL || lot.status === statusFilter)
+      selectLots(lots,statusFilter,search,order)
         .map((lot) => {
           const metrics = computeLotMetrics(lot, weighings, today);
           const projection = computeProjection(
@@ -58,9 +66,13 @@ const Lots = () => {
             { today },
           );
 
+          const gmdReason="Aguardando pesagens suficientes para calcular";
+          const projectionReason=!metrics.currentAvgWeight||!lot.target_weight_kg?"Informe o peso médio e o peso-alvo para estimar o abate.":metrics.gmd===null?gmdReason:metrics.gmd<=0?"O GMD precisa ser positivo para estimar quando o peso-alvo será atingido.":"Previsão calculada pelo último peso médio, GMD e peso-alvo.";
           return {
             lot,
-            penCode: pens.find((pen) => pen.id === lot.pen_id)?.code ?? "—",
+            gmdReason,
+            projectionReason,
+            penCode: locationName(pens.find((pen) => pen.id === lot.pen_id), "—"),
             currentAvgWeight: metrics.currentAvgWeight,
             gmd: metrics.gmd,
             daysOnFeed: metrics.daysOnFeed,
@@ -68,7 +80,7 @@ const Lots = () => {
             ready: projection?.ready ?? false,
           };
         }),
-    [lots, weighings, pens, statusFilter, today],
+    [lots, weighings, pens, statusFilter, search, order, today],
   );
 
   const pageSize = 15;
@@ -76,21 +88,20 @@ const Lots = () => {
   const currentPage = Math.min(page, pageCount);
   const visibleRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  const missingValue=(reason:string)=><Tooltip><TooltipTrigger asChild><button type="button" className="rounded px-2 py-1 text-muted-foreground underline decoration-dotted underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={reason} onClick={event=>event.stopPropagation()}>—</button></TooltipTrigger><TooltipContent className="max-w-72">{reason}</TooltipContent></Tooltip>;
   const columns: Column<LotRow>[] = [
-    {key:"production_system",headerKey:"Sistema de criação",render:row=>systemLabel(row.lot.production_system)},
     {
       key: "code",
       headerKey: "field.lot",
       render: (row) => (
         <div className="min-w-0">
-          <p className="font-display text-sm font-semibold">{row.lot.code}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {row.lot.origin ?? t("common.noData")}
-          </p>
+          <p className="font-sans text-sm font-semibold">{row.lot.code}</p>
+          {row.lot.origin?.trim()&&<p className="truncate text-xs text-muted-foreground">Origem: {row.lot.origin}</p>}
         </div>
       ),
     },
-    { key: "pen", headerKey: "field.pen", render: (row) => row.penCode },
+    { key: "pen", headerKey: "Local", render: (row) => row.penCode },
+    {key:"production_system",headerKey:"Sistema de criação",render:row=>systemLabel(row.lot.production_system)},
     {
       key: "category",
       headerKey: "field.category",
@@ -111,7 +122,7 @@ const Lots = () => {
     },
     {
       key: "current",
-      headerKey: "field.currentWeight",
+      headerKey: "Último peso médio",
       numeric: true,
       render: (row) =>
         row.currentAvgWeight ? `${formatNumber(row.currentAvgWeight, 1)} kg` : "—",
@@ -120,7 +131,7 @@ const Lots = () => {
       key: "gmd",
       headerKey: "field.gmd",
       numeric: true,
-      render: (row) => (row.gmd !== null ? formatNumber(row.gmd, 2) : "—"),
+      render: (row) => (row.gmd !== null ? formatNumber(row.gmd, 2) : missingValue(row.gmdReason)),
     },
     {
       key: "days",
@@ -146,14 +157,14 @@ const Lots = () => {
     },
     {
       key: "projection",
-      headerKey: "lots.detail.projectionDate",
+      headerKey: "Previsão de abate",
       numeric: true,
-      render: (row) => formatDate(row.projectedDate),
+      render: (row) => row.projectedDate?formatDate(row.projectedDate):missingValue(row.projectionReason),
     },
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="lots-page space-y-5">
       <PageHeader
         titleKey="lots.title"
         subtitleKey="lots.subtitle"
@@ -161,7 +172,7 @@ const Lots = () => {
           <>
           <ExportButtons
             disabled={[lotsQuery, pensQuery, weighingsQuery].some(query => query.isFetching || query.isPending || query.isError) || !rows.length}
-            getReport={() => lotReport(rows.map(row => row.lot), pens, weighings, key => t(key), `Status: ${statusFilter === SELECT_ALL ? "Todos" : t(`status.lot.${statusFilter}`)}`, today)}
+            getReport={() => lotReport(rows.map(row => row.lot), pens, weighings, key => key==="field.currentWeight"?"Último peso médio":key==="lots.detail.projectionDate"?"Previsão de abate":t(key), `Status: ${statusFilter === SELECT_ALL ? "Todos" : t(`status.lot.${statusFilter}`)}; busca: ${search.trim()||"Todas"}; ordem: ${order==="recent"?"Mais recentes":"Nome do lote"}`, today)}
           />
           <Button asChild className="h-10 w-40 max-w-full shrink-0">
             <Link to="/lotes/novo">
@@ -173,9 +184,9 @@ const Lots = () => {
         }
       />
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <SelectField
-          className="w-full sm:w-72"
+          className="w-full"
           label={`Exibir lotes · ${rows.length} ${t("common.results")}`}
           value={statusFilter}
           onChange={(value) => { setStatusFilter(value); setPage(1); }}
@@ -186,6 +197,8 @@ const Lots = () => {
             { value: "encerrado", labelKey: "status.lot.encerrado" },
           ]}
         />
+        <TextField label="Buscar lote" value={search} placeholder="Digite o nome do lote" onChange={value=>{setSearch(value);setPage(1);}}/>
+        <SelectField label="Ordenar por" value={order} onChange={value=>{setOrder(value);setPage(1);}} options={[{value:"name",labelKey:"Nome do lote (A–Z / 0–9)"},{value:"recent",labelKey:"Mais recentes"}]}/>
       </div>
 
       <DataTable
@@ -197,8 +210,8 @@ const Lots = () => {
         emptyState={
           <EmptyState
             icon={Beef}
-            titleKey="lots.empty.title"
-            descriptionKey="lots.empty.description"
+            titleKey={search.trim()||statusFilter!==SELECT_ALL?"Nenhum lote para os filtros selecionados":"lots.empty.title"}
+            descriptionKey={search.trim()||statusFilter!==SELECT_ALL?"Ajuste a busca ou a situação para consultar outros lotes.":"lots.empty.description"}
             action={
               <Button asChild className="h-10 w-40 max-w-full shrink-0">
                 <Link to="/lotes/novo"><Plus />{t("lots.new")}</Link>
@@ -210,9 +223,9 @@ const Lots = () => {
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="font-display text-base font-semibold">{row.lot.code}</p>
+                <p className="font-sans text-sm font-semibold">{row.lot.code}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {t("field.pen")} {row.penCode} · {row.lot.origin ?? t("common.noData")}
+                  Local: {row.penCode}{row.lot.origin?.trim()?` · Origem: ${row.lot.origin}`:""}
                 </p>
               </div>
               <StatusBadge
@@ -227,7 +240,7 @@ const Lots = () => {
                 <p className="num font-medium">{formatInteger(row.lot.head_count)}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">{t("field.currentWeight")}</p>
+                <p className="text-xs text-muted-foreground">Último peso médio</p>
                 <p className="num font-medium">
                   {row.currentAvgWeight ? `${formatNumber(row.currentAvgWeight, 1)} kg` : "—"}
                 </p>
@@ -235,7 +248,7 @@ const Lots = () => {
               <div>
                 <p className="text-xs text-muted-foreground">{t("field.gmd")}</p>
                 <p className="num font-medium">
-                  {row.gmd !== null ? formatNumber(row.gmd, 2) : "—"}
+                  {row.gmd !== null ? formatNumber(row.gmd, 2) : missingValue(row.gmdReason)}
                 </p>
               </div>
               <div>
@@ -244,9 +257,9 @@ const Lots = () => {
               </div>
               <div className="col-span-2">
                 <p className="text-xs text-muted-foreground">
-                  {t("lots.detail.projectionDate")}
+                  Previsão de abate
                 </p>
-                <p className="num font-medium">{formatDate(row.projectedDate)}</p>
+                <p className="num font-medium">{row.projectedDate?formatDate(row.projectedDate):missingValue(row.projectionReason)}</p>
               </div>
             </div>
           </div>

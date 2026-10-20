@@ -1,6 +1,8 @@
+import { locationName } from "@/lib/location-name";
+import { WeightKgIcon as Scale } from "@/components/app/weight-kg-icon";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Pencil, Scale, ShieldAlert, Trash2 } from "lucide-react";
+import { Pencil, ShieldAlert, Trash2 } from "lucide-react";
 
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
@@ -88,7 +90,7 @@ export const AnimalDetailSheet = ({
             {t("animals.detail.title", { tag: animal.ear_tag })}
           </SheetTitle>
           <SheetDescription>
-            {t("field.lot")} {lot?.code ?? "—"} · {t("field.pen")} {pen?.code ?? "—"}
+            {t("field.lot")} {lot?.code ?? "—"} · {t("field.pen")} {locationName(pen)}
           </SheetDescription>
           <div className="flex flex-wrap gap-2 pt-2">
             <StatusBadge

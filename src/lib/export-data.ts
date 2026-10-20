@@ -1,12 +1,16 @@
+import { locationName } from "./location-name";
+import { animalMeasurements } from "./animal-measurements";
+import { DEFAULT_CARCASS_YIELD } from "./constants";
 import { computeGmd, computeLotMetrics, currentHealthStatus, liveWeightToArroba, type Animal, type Lot, type Pen, type Weighing, type WeightRecord } from "./domain";
 import { daysBetween, formatDate, todayIso } from "./format";
 
 export type ExportColumn = { title: string; decimals?: number };
 export type ExportReport = {
   title: string;
+  farmName?: string;
   feedingSuggestion?: { suggestions: import("./feed-suggestion").FeedingSuggestion[]; farmName: string; date: string };
   adaptation?: { input: import("./adaptation").AdaptationInput; lotName: string };
-  pdf?: { format: "a4" | "a3"; fontSize?: number; embeddedFont?: boolean; columnWidths?: number[]; centerColumns?: boolean };
+  pdf?: { format: "a4" | "a3"; fontSize?: number; embeddedFont?: boolean; columnWidths?: number[]; centerColumns?: boolean; compactHeader?: boolean; summary?: string };
   filename: string;
   recordCount?: number;
   filters: string;
@@ -17,8 +21,9 @@ export type ExportReport = {
 type Translate = (key: string) => string;
 
 export function animalReport(animals: Animal[], lots: Lot[], pens: Pen[], weighings: Weighing[], records: WeightRecord[], translate: Translate, filters: string, today = todayIso()): ExportReport {
+  const measurementInfo=animalMeasurements(animals,lots,weighings,records,today);
   const lotMap = new Map(lots.map(lot => [lot.id, lot]));
-  const penMap = new Map(pens.map(pen => [pen.id, pen.code]));
+  const penMap = new Map(pens.map(pen => [pen.id, locationName(pen)]));
   const weighingMap = new Map(weighings.filter(w => w.date <= today).map(w => [w.id, w]));
   const latest = new Map<string, { record: WeightRecord; weighing: Weighing }>();
   for (const record of records) {
@@ -31,12 +36,12 @@ export function animalReport(animals: Animal[], lots: Lot[], pens: Pen[], weighi
   }
   return {
     title: "Relatório de animais", filename: "animais", filters,
-    pdf: { format: "a3", centerColumns: true },
-    note: "GMD individual = (peso atual - peso de entrada) / dias entre a entrada do lote atual e a última pesagem individual. Sem base compatível, o GMD fica em branco. Pesos em kg; GMD em kg/dia. A data de entrada é a do lote.",
+    pdf: { format: "a3", centerColumns: true, compactHeader:true, embeddedFont:true, fontSize:8, summary: animals.some(a=>a.current_weight_kg===null)?`${animals.filter(a=>a.current_weight_kg===null).length} animal(is) sem peso individual informado.`:undefined },
+    note: `Arrobas: estimativa de carcaça (peso vivo x ${DEFAULT_CARCASS_YIELD}% / 15). Ganho e GMD: entrada do lote atual até a última pesagem individual compatível. Sem base: traço. Sem nova pesagem, o último peso pode ser o de entrada. Pesos em kg; GMD em kg/dia.`,
     columns: [
       { title: "Brinco" }, { title: "SISBOV" }, { title: "Lote" }, { title: "Local" },
       { title: "Entrada do lote" }, { title: "Peso de entrada (kg)", decimals: 1 },
-      { title: "Peso atual (kg)", decimals: 1 }, { title: "Última pesagem" },
+      { title: "Último peso registrado (kg)", decimals: 1 }, { title: "Última pesagem" },
       { title: "Ganho (kg)", decimals: 1 }, { title: "GMD (kg/dia)", decimals: 2 },
       { title: "Arrobas", decimals: 2 }, { title: "Status" }, { title: "Situação sanitária" },
     ],
@@ -50,8 +55,8 @@ export function animalReport(animals: Animal[], lots: Lot[], pens: Pen[], weighi
       return [
         animal.ear_tag, animal.sisbov, lot?.code ?? null, animal.pen_id ? penMap.get(animal.pen_id) ?? null : null,
         lot ? formatDate(lot.entry_date) : null, animal.entry_weight_kg, animal.current_weight_kg,
-        measurement ? formatDate(measurement.weighing.date) : null,
-        animal.entry_weight_kg != null && animal.current_weight_kg != null ? animal.current_weight_kg - animal.entry_weight_kg : null,
+        measurementInfo.get(animal.id)?.weightSource==="individual"?formatDate(measurementInfo.get(animal.id)!.weightDate):null,
+        measurementInfo.get(animal.id)?.gain??null,
         gmd, liveWeightToArroba(animal.current_weight_kg), translate(`status.animal.${animal.status}`),
         animal.status === "ativo" || animal.status === "tratamento" ? translate(`status.health.${currentHealthStatus(animal, today)}`) : null,
       ];
@@ -60,7 +65,7 @@ export function animalReport(animals: Animal[], lots: Lot[], pens: Pen[], weighi
 }
 
 export function lotReport(lots: Lot[], pens: Pen[], weighings: Weighing[], translate: Translate, filters: string, today = todayIso()): ExportReport {
-  const penMap = new Map(pens.map(pen => [pen.id, pen.code]));
+  const penMap = new Map(pens.map(pen => [pen.id, locationName(pen)]));
   return {
     title: "Relatório de lotes", filename: "lotes", filters,
     note: "Pesos e ganho por cabeça, em kg. GMD em kg/dia, calculado até a última pesagem do lote, conforme os indicadores da plataforma. Sem pesagem, o peso atual corresponde ao peso médio de entrada.",

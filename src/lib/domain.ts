@@ -30,7 +30,7 @@ export type HealthEvent = Tables["health_events"]["Row"];
 
 export type Role = "gestor" | "operador";
 export type LotStatus = "ativo" | "encerrado";
-export type PenStatus = "ativo" | "vazio" | "manutencao" | "adaptacao";
+export type PenStatus = "ativo" | "vazio" | "manutencao" | "adaptacao" | "inativo";
 export type AnimalStatus = "ativo" | "tratamento" | "abatido" | "vendido" | "morto";
 export type HealthStatus = "saudavel" | "tratamento" | "observacao" | "carencia";
 export type WeighingKind = "amostral" | "lote_completo" | "individual";

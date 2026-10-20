@@ -217,7 +217,7 @@
   "weighings.subtitle": "Sessões de pesagem, GMD e evolução do lote",
   "weighings.new": "Nova pesagem",
   "weighings.empty.title": "Nenhuma pesagem registrada",
-  "weighings.empty.description": "A primeira pesagem define a base de cálculo do GMD.",
+  "weighings.empty.description": "Registre uma pesagem para acompanhar a evolução do peso e calcular o GMD em relação à entrada.",
   "weighings.kind.amostral": "Amostragem",
   "weighings.kind.lote_completo": "Lote completo",
   "weighings.kind.individual": "Individual",

@@ -13,9 +13,11 @@ import { EXIT_REASON_OPTIONS } from "@/lib/constants";
 import { isUnderWithdrawal, type Lot } from "@/lib/domain";
 import { formatNumber, isValidIsoDate, parseNumberInput, todayIso } from "@/lib/format";
 
-export const ExitDialog = ({ lot, readyHead }: { lot: Lot; readyHead: number }) => {
+export const ExitDialog = ({ lot, readyHead, open: externalOpen, onOpenChange, hideTrigger = false }: { lot: Lot; readyHead: number; open?: boolean; onOpenChange?: (open: boolean) => void; hideTrigger?: boolean }) => {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = externalOpen ?? localOpen;
+  const setOpen = (value: boolean) => { setLocalOpen(value); onOpenChange?.(value); };
   const [reason, setReason] = useState("abate");
   const [animalIds, setAnimalIds] = useState<string[]>([]);
   const [anonymousHead, setAnonymousHead] = useState("");
@@ -54,7 +56,7 @@ export const ExitDialog = ({ lot, readyHead }: { lot: Lot; readyHead: number }) 
     } catch (error) { toast.error(error instanceof Error ? error.message : t("toast.error.generic")); }
   };
   return <Dialog open={open} onOpenChange={(value) => { setOpen(value); setError(null); }}>
-    <DialogTrigger asChild><Button variant="outline" className="h-10"><LogOut />{t("action.registerExit")}</Button></DialogTrigger>
+    {!hideTrigger && <DialogTrigger asChild><Button variant="outline" className="h-10"><LogOut />{t("action.registerExit")}</Button></DialogTrigger>}
     <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
       <DialogHeader><DialogTitle>{t("lots.exit.title")}</DialogTitle><DialogDescription>
         {lot.code} · {formatNumber(lot.head_count, 0)} cabeças · {readyHead} com peso alvo e carência liberada

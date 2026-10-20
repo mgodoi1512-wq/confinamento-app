@@ -1,13 +1,12 @@
+import { CattleNavIcon, FloorPlanIcon } from "./navigation-icons";
 import {
   BarChart3,
   TrendingUp,
   Wallet,
-  ClipboardList,
+  MapPin,
   Cog,
   LayoutDashboard,
-  Leaf,
   Package,
-  Scale,
   Sprout,
   ShieldAlert,
   Syringe,
@@ -16,6 +15,8 @@ import {
   Wheat,
   type LucideIcon,
 } from "lucide-react";
+
+import { WeightKgIcon } from "./weight-kg-icon";
 
 export type NavItem = {
   to: string;
@@ -36,10 +37,10 @@ export const navGroups: NavGroup[] = [
     labelKey: "nav.group.operation",
     items: [
       { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
-      { to: "/currais", labelKey: "nav.pens", icon: Package },
-      { to: "/lotes", labelKey: "nav.lots", icon: Leaf },
-      { to: "/animais", labelKey: "nav.animals", icon: ClipboardList },
-      { to: "/pesagens", labelKey: "nav.weighings", icon: Scale },
+      { to: "/currais", labelKey: "nav.pens", icon: MapPin },
+      { to: "/lotes", labelKey: "nav.lots", icon: FloorPlanIcon },
+      { to: "/animais", labelKey: "nav.animals", icon: CattleNavIcon },
+      { to: "/pesagens", labelKey: "nav.weighings", icon: WeightKgIcon },
     ],
   },
   {
@@ -64,7 +65,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { to: "/gestao/mercado", labelKey: "nav.market", icon: TrendingUp },
       { to: "/gestao/financeiro", labelKey: "nav.finance", icon: Wallet, gestorOnly: true },
-      { to: "/config/currais", labelKey: "nav.pens", icon: Package, gestorOnly: true },
+      { to: "/config/currais", labelKey: "Cadastro de locais", icon: Package, gestorOnly: true },
       { to: "/config/usuarios", labelKey: "nav.users", icon: Users, gestorOnly: true },
       { to: "/config", labelKey: "nav.settings", icon: Cog, end: true },
     ],
@@ -97,7 +98,7 @@ export const routeTitles: { pattern: RegExp; labelKey: string }[] = [
 
 export const bottomNavItems: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
-  { to: "/currais", labelKey: "nav.pens", icon: Package },
+  { to: "/currais", labelKey: "nav.pens", icon: MapPin },
   { to: "/trato", labelKey: "nav.feed", icon: UtensilsCrossed },
-  { to: "/pesagens", labelKey: "nav.weighings", icon: Scale },
+  { to: "/pesagens", labelKey: "nav.weighings", icon: WeightKgIcon },
 ];

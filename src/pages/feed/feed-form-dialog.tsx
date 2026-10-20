@@ -1,3 +1,4 @@
+import { locationName } from "@/lib/location-name";
 import { useFeedStock } from "@/hooks/use-feed-stock";
 import { feedStockNeeds, stockItemFor } from "@/lib/feed-stock";
 import { useRef, useState, type ReactNode } from "react";
@@ -39,7 +40,7 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
   const stockQuery=useFeedStock(open);
   const request=useRef<{key:string;id:string}|null>(null),busy=useRef(false);
   const pens=pensQuery.data??[],allDiets=dietsQuery.data??[];
-  const lots=(lotsQuery.data??[]).filter(l=>l.status==="ativo"&&l.head_count>0&&pens.some(p=>p.id===l.pen_id&&p.status!=="manutencao"))
+  const lots=(lotsQuery.data??[]).filter(l=>l.status==="ativo"&&l.head_count>0&&pens.some(p=>p.id===l.pen_id&&!["manutencao","inativo"].includes(p.status)))
     .sort((a,b)=>nameOrder.compare(pens.find(p=>p.id===a.pen_id)?.code??"",pens.find(p=>p.id===b.pen_id)?.code??"")||nameOrder.compare(a.code,b.code)||a.id.localeCompare(b.id));
   const availableLots=lots.filter(item=>{
     const saved=(plansQuery.data??[]).find(plan=>plan.lot_id===item.id);
@@ -103,7 +104,7 @@ export const FeedFormDialog = ({ trigger }: { trigger: ReactNode }) => {
       {ready&&availableLots.length===0&&<p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">{lots.length?"Todos os lotes com local disponível já concluíram os tratos de hoje.":"Nenhum lote ativo com local disponível para registrar trato."}</p>}
       <fieldset disabled={pending} className="min-w-0 space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <SelectField label="Local e lote" value={lotId} onChange={selectLot} disabled={!ready||pending||availableLots.length===0} placeholder="Selecione o local e o lote" options={availableLots.map(l=>({value:l.id,labelKey:`${pens.find(p=>p.id===l.pen_id)?.code??"—"} · ${l.code}`}))} />
+          <SelectField label="Local e lote" value={lotId} onChange={selectLot} disabled={!ready||pending||availableLots.length===0} placeholder="Selecione o local e o lote" options={availableLots.map(l=>({value:l.id,labelKey:`${locationName(pens.find(p=>p.id===l.pen_id), "—")} · ${l.code}`}))} />
           <SelectField label={t("feed.dietUsed")} value={effectiveDietId} onChange={value=>{setDietId(value);setOverride(null);setError(null);}} options={dietOptions} disabled={!ready||!!plan} placeholder="Selecione a dieta" />
         </div>
         {lot&&<div className="rounded-lg border bg-muted/40 p-3 text-sm"><p className="font-semibold">Dia {Math.max(daysBetween(lot.system_started_on??lot.entry_date,today),0)+1} no manejo atual · {formatDate(today)}</p><p className="text-xs text-muted-foreground">Início do manejo: {formatDate(lot.system_started_on??lot.entry_date)} (dia 1). {plan?"Referência do dia fixada no primeiro trato.":"Escolha a dieta de acordo com o dia de adaptação."}</p></div>}

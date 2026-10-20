@@ -1,13 +1,16 @@
+import { locationName } from "@/lib/location-name";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, LockKeyhole, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { NumericField } from "@/components/app/numeric-field";
 import { PageHeader } from "@/components/app/page-header";
 import { SelectField } from "@/components/form/select-field";
-import { StatusBadge } from "@/components/app/status-badge";
+import { useAuth } from "@/hooks/use-auth";
+import { PageLoading } from "@/components/app/page-loading";
+import { readWeighingDraft, writeWeighingDraft, weighingDraftKey, type WeighingDraft } from "@/lib/weighing-draft";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAnimals } from "@/hooks/use-animals";
@@ -18,9 +21,9 @@ import { WEIGHING_KIND_OPTIONS } from "@/lib/constants";
 import { computeLotMetrics, findWeightOutliers } from "@/lib/domain";
 import { formatNumber, parseNumberInput, todayIso } from "@/lib/format";
 import { useWeighings } from "@/hooks/use-weighings";
-import { cn } from "@/lib/utils";
+import { IndividualWeighing } from "./individual-weighing";
 
-const NewWeighing = () => {
+const WeighingForm = ({ draftKey }: { draftKey: string }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -34,32 +37,29 @@ const NewWeighing = () => {
   const pens = pensQuery.data ?? [];
   const weighings = weighingsQuery.data ?? [];
 
-  const [lotId, setLotId] = useState("");
-  const [kind, setKind] = useState("amostral");
-  const [date, setDate] = useState(todayIso());
-  const [headCount, setHeadCount] = useState("");
-  const [avgWeight, setAvgWeight] = useState("");
-  const [weights, setWeights] = useState<Record<string, string>>({});
-  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const [form, setForm] = useState<WeighingDraft>(() => {
+    let restored: WeighingDraft | null = null;
+    try { restored = readWeighingDraft(window.localStorage, draftKey); } catch { /* Storage unavailable. */ }
+    return restored ?? {
+      lotId: "", kind: "amostral", date: todayIso(), headCount: "", avgWeight: "",
+      weights: {}, inputs: {}, cursor: "", requestId: crypto.randomUUID(),
+    };
+  });
+  const { lotId, kind, date, headCount, avgWeight, weights, inputs, cursor, requestId } = form;
+  const [draftFailed, setDraftFailed] = useState(false);
+  const [pendingWeight, setPendingWeight] = useState(false);
+  useEffect(() => {
+    if (!form.lotId) return;
+    try { setDraftFailed(!writeWeighingDraft(window.localStorage, draftKey, form)); }
+    catch { setDraftFailed(true); }
+  }, [draftKey, form]);
   const [error, setError] = useState<string | null>(null);
 
   const lot = activeLots.find((item) => item.id === lotId) ?? null;
   const lotAnimals = useMemo(
-    () => (animalsQuery.data ?? []).filter((animal) => animal.lot_id === lotId && (animal.status === "ativo" || animal.status === "tratamento")),
+    () => (animalsQuery.data ?? []).filter((animal) => animal.lot_id === lotId && (animal.status === "ativo" || animal.status === "tratamento")).sort((a, b) => a.ear_tag.localeCompare(b.ear_tag, "pt-BR", { numeric: true, sensitivity: "base" })),
     [animalsQuery.data, lotId],
   );
-
-  useEffect(() => {
-    setWeights({});
-    setAvgWeight("");
-    setHeadCount("");
-  }, [lotId]);
-
-  useEffect(() => {
-    if (kind === "amostral" && headCount === "" && lotAnimals.length > 0) {
-      setHeadCount(String(lotAnimals.length));
-    }
-  }, [kind, lotAnimals.length, headCount]);
 
   const individualEntries = lotAnimals
     .map((animal) => ({ key: animal.id, weight: parseNumberInput(weights[animal.id] ?? "") }))
@@ -80,6 +80,10 @@ const NewWeighing = () => {
   const metrics = lot ? computeLotMetrics(lot, weighings, todayIso()) : null;
 
   const submit = async () => {
+    if (kind === "individual" && pendingWeight) {
+      setError("Registre o peso do animal atual antes de salvar a pesagem.");
+      return;
+    }
     if (!lot) {
       setError(t("weighings.form.noLot"));
       return;
@@ -90,7 +94,7 @@ const NewWeighing = () => {
     }
 
     const head = kind === "individual" ? individualEntries.length : parseNumberInput(headCount);
-    if (!head || !Number.isInteger(head) || head > lot.head_count ||
+    if (!head || head < 1 || !Number.isInteger(head) || head > lot.head_count ||
       (kind === "individual" && individualEntries.some((entry) => entry.weight <= 0)) ||
       (kind === "lote_completo" && head !== lot.head_count) || !date || date < lot.entry_date || date > todayIso()) {
       setError("Confira a data, a quantidade de cabeças e os pesos informados."); return;
@@ -115,7 +119,7 @@ const NewWeighing = () => {
             : [],
       });
 
-      setRequestId(crypto.randomUUID());
+      try { window.localStorage.removeItem(draftKey); } catch { /* Save already succeeded. */ }
       toast.success(
         t("weighings.saved", { weight: formatNumber(effectiveAverage, 1) }),
       );
@@ -140,27 +144,29 @@ const NewWeighing = () => {
         }
       />
 
-      <Card>
-        <CardContent className="max-w-2xl space-y-4 pt-6">
+      <Card className="mx-auto w-full max-w-3xl">
+        <CardContent className="space-y-3 p-4 sm:p-5">
           <SelectField
             label={t("weighings.form.lot")}
             value={lotId}
             onChange={(value) => {
-              setLotId(value);
+              setForm(current => ({ ...current, lotId: value, kind: "amostral", weights: {}, inputs: {},
+                cursor: "", avgWeight: "", headCount: "", requestId: crypto.randomUUID() }));
+              setPendingWeight(false);
               setError(null);
             }}
             placeholder={t("weighings.form.noLot")}
             options={activeLots.map((item) => ({
               value: item.id,
-              labelKey: `${item.code} · ${pens.find((pen) => pen.id === item.pen_id)?.code ?? "—"}`,
+              labelKey: `${item.code} · ${locationName(pens.find((pen) => pen.id === item.pen_id), "—")}`,
             }))}
           />
 
           {lot ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-[#eee8e0] px-3 py-2 text-sm text-[#65594f] dark:bg-[#262f29] dark:text-[#bac5be]">
               <span className="text-muted-foreground">{t("field.pen")}</span>
               <span className="font-display font-semibold">
-                {pens.find((pen) => pen.id === lot.pen_id)?.code ?? "—"}
+                {locationName(pens.find((pen) => pen.id === lot.pen_id), "—")}
               </span>
               <span className="text-muted-foreground">
                 · {t("field.currentWeight")}:
@@ -170,16 +176,21 @@ const NewWeighing = () => {
                   ? `${formatNumber(metrics.currentAvgWeight, 1)} kg`
                   : "—"}
               </span>
-              <span className="text-muted-foreground">· {t("field.daysOnFeed")}:</span>
-              <span className="num font-medium">{metrics?.daysOnFeed ?? "—"}</span>
+              <span className="text-muted-foreground">· Animais no lote:</span>
+              <span className="num font-medium">{lot.head_count}</span>
             </div>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             <SelectField
               label={t("weighings.form.kind")}
               value={kind}
-              onChange={setKind}
+              onChange={(value) => {
+                setForm(current => ({ ...current, kind: value,
+                  headCount: value === "lote_completo" && lot ? String(lot.head_count) : "" }));
+                setPendingWeight(false);
+                setError(null);
+              }}
               options={WEIGHING_KIND_OPTIONS}
             />
             <div className="space-y-1.5">
@@ -189,19 +200,46 @@ const NewWeighing = () => {
               <input
                 id="weighing-date"
                 type="date"
+                min={lot?.entry_date}
+                max={todayIso()}
                 value={date}
-                onChange={(event) => setDate(event.target.value)}
+                onChange={(event) => setForm(current => ({ ...current, date: event.target.value }))}
                 className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               />
             </div>
-            <NumericField
+            {kind !== "amostral" ? (
+              <div className="space-y-1.5">
+                <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                  <LockKeyhole className="size-3.5" aria-hidden="true" /> {t("weighings.form.headCount")}
+                </p>
+                <output aria-label="Animais pesados, calculado automaticamente" title="Calculado automaticamente; não editável"
+                  className="flex h-11 items-center justify-end gap-2 rounded-md border border-dashed border-[#cbbbad] bg-[#eee8e0] px-3 text-[#65594f] dark:border-[#536057] dark:bg-[#262f29] dark:text-[#bac5be]">
+                  <span className="num font-semibold">{kind === "individual" ? individualEntries.length : headCount || "—"}</span>
+                  <span className="text-sm">cab.</span>
+                </output>
+              </div>
+            ) : (
+              <NumericField
               label={t("weighings.form.headCount")}
               unit="cab."
               inputMode="numeric"
               value={headCount}
-              onValueChange={setHeadCount}
+              onValueChange={value => setForm(current => ({ ...current, headCount: value }))}
+              helper={lot && kind === "amostral" ? `Disponíveis: ${lot.head_count} animais.` : undefined}
+              error={kind === "amostral" && lot && parseNumberInput(headCount) !== null &&
+                (parseNumberInput(headCount)! < 1 || !Number.isInteger(parseNumberInput(headCount)) || parseNumberInput(headCount)! > lot.head_count)
+                ? `Informe um número inteiro entre 1 e ${lot.head_count}.` : undefined}
             />
+            )}
           </div>
+
+          <p className="rounded-md bg-[#f3efe9] px-3 py-2 text-xs leading-relaxed text-[#65594f] dark:bg-[#262f29] dark:text-[#bac5be]">
+            {kind === "individual"
+              ? "Informe o peso, registre e avance. Ao concluir, salve a pesagem."
+              : kind === "lote_completo"
+                ? "Informe a média de todos os animais do lote. Esta sessão atualiza a referência do lote, sem alterar os pesos individuais."
+                : "Informe quantos animais foram pesados e a média da amostra. Esta sessão atualiza a referência do lote, sem alterar os pesos individuais."}
+          </p>
 
           {kind === "individual" ? (
             lotAnimals.length === 0 ? (
@@ -210,53 +248,15 @@ const NewWeighing = () => {
               </p>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm font-medium">{t("weighings.form.individual")}</p>
-                <div className="space-y-2">
-                  {lotAnimals.map((animal) => {
-                    const isOutlier = outlierKeys.includes(animal.id);
-                    return (
-                      <div
-                        key={animal.id}
-                        className={cn(
-                          "flex items-center gap-3 rounded-md px-2 py-1",
-                          isOutlier && "bg-warning/12",
-                        )}
-                      >
-                        <span className="w-20 font-display text-sm font-semibold">
-                          {animal.ear_tag}
-                        </span>
-                        <NumericField
-                          className="flex-1"
-                          compact
-                          label={t("field.weight")}
-                          unit="kg"
-                          value={weights[animal.id] ?? ""}
-                          onValueChange={(value) =>
-                            setWeights((current) => ({ ...current, [animal.id]: value }))
-                          }
-                        />
-                        {isOutlier ? (
-                          <AlertTriangle className="size-4 shrink-0 text-warning" />
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
+                <IndividualWeighing key={`${lotId}:${kind}`} animals={lotAnimals} weights={weights}
+                  inputs={inputs} cursor={cursor} average={computedAverage}
+                  onRegister={(id, value) => setForm(current => ({ ...current,
+                    weights: { ...current.weights, [id]: value }, inputs: { ...current.inputs, [id]: value } }))}
+                  onInputChange={(id, value) => setForm(current => ({ ...current, inputs: { ...current.inputs, [id]: value } }))}
+                  onCursorChange={value => setForm(current => ({ ...current, cursor: value }))}
+                  onPendingChange={setPendingWeight} />
 
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <span className="text-muted-foreground">{t("weighings.form.computedAvg")}</span>
-                  <StatusBadge
-                    tone="agro"
-                    label={
-                      computedAverage !== null
-                        ? `${formatNumber(computedAverage, 1)} kg`
-                        : t("common.noData")
-                    }
-                  />
-                  {outlierKeys.length > 0 ? (
-                    <span className="text-xs text-warning">{t("weighings.form.outlierHint")}</span>
-                  ) : null}
-                </div>
+                {outlierKeys.length > 0 ? <p className="text-xs text-warning">{t("weighings.form.outlierHint")}</p> : null}
               </div>
             )
           ) : (
@@ -264,7 +264,7 @@ const NewWeighing = () => {
               label={t("weighings.form.avgWeight")}
               unit="kg"
               value={avgWeight}
-              onValueChange={setAvgWeight}
+              onValueChange={value => setForm(current => ({ ...current, avgWeight: value }))}
               error={error ?? undefined}
             />
           )}
@@ -275,23 +275,35 @@ const NewWeighing = () => {
             </p>
           ) : null}
 
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button variant="outline" className="h-11" onClick={() => navigate("/pesagens")}>
+          {lotId ? <p role="status" className={`text-xs ${draftFailed ? "text-warning" : "text-muted-foreground"}`}>
+            {draftFailed ? "Não foi possível guardar o rascunho. Salve a pesagem antes de sair."
+              : "Rascunho automático neste navegador. Clique em Salvar pesagem para concluir."}
+          </p> : null}
+          {lotId && !lotsQuery.isLoading && !lot ? <p className="text-xs text-warning">O lote do rascunho não está disponível. Selecione um lote ativo para iniciar outra pesagem.</p> : null}
+          <div className="sticky bottom-2 z-10 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-border bg-card p-2 shadow-sm">
+            <Button variant="outline" className="h-10 w-40 max-w-full" onClick={() => navigate("/pesagens")}>
               {t("action.cancel")}
             </Button>
             <Button
-              className="h-11"
+              className="h-10 w-40 max-w-full"
               onClick={() => void submit()}
-              disabled={saveWeighing.isPending || !lot}
+              disabled={saveWeighing.isPending || !lot || animalsQuery.isLoading || animalsQuery.isError || lotsQuery.isError || (kind === "individual" && (pendingWeight || individualEntries.length === 0))}
             >
               <Save />
-              {t("action.save")}
+              {kind === "individual" ? "Salvar pesagem" : t("action.save")}
             </Button>
           </div>
         </CardContent>
       </Card>
     </div>
   );
+};
+
+const NewWeighing = () => {
+  const { user, tenant } = useAuth();
+  if (!user || !tenant?.farmId) return <PageLoading />;
+  const key = weighingDraftKey(user.id, tenant.farmId);
+  return <WeighingForm key={key} draftKey={key} />;
 };
 
 export default NewWeighing;

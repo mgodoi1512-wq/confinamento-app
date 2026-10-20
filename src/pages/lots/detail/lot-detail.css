@@ -1,0 +1,11 @@
+.lot-detail{font-family:Inter,"Segoe UI",sans-serif;}
+.lot-detail .font-display{font-family:inherit;}
+.lot-detail .lot-detail-metric{height:100%;min-height:144px;border-radius:12px;padding:18px;background:hsl(var(--card));border-color:hsl(var(--border));}
+.lot-detail .lot-detail-metric>div:first-child{min-height:32px;align-items:center;gap:10px;}
+.lot-detail .lot-detail-metric>div:first-child p{font-size:11px;line-height:1.4;font-weight:700;}
+.lot-detail .lot-detail-metric>div:first-child svg{width:30px;height:30px;flex-shrink:0;color:#60381f;}
+.lot-detail .lot-detail-metric>div:nth-child(2)>span:first-child{font-family:Inter,"Segoe UI",sans-serif;font-size:clamp(26px,2.2vw,36px);font-weight:700;letter-spacing:-1px;}
+.lot-detail .lot-detail-metric>div:nth-child(2)>span:nth-child(2){font-size:13px;}
+.lot-detail .lot-projection .lot-detail-metric{min-height:116px;padding:14px;}
+.dark .lot-detail .lot-detail-metric>div:first-child svg{color:#c49c77;}
+@media(max-width:639px){.lot-detail .lot-detail-metric{min-height:136px;padding:13px;}.lot-detail .lot-detail-metric>div:nth-child(2)>span:first-child{font-size:24px;}}

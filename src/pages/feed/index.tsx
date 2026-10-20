@@ -1,8 +1,15 @@
+import { locationName } from "@/lib/location-name";
+import "./feed.css";
+import "@/components/app/feed-shift.css";
+import { filterFeedHistory } from "@/lib/feed-history";
+import { TextField } from "@/components/form/text-field";
+import { SelectField } from "@/components/form/select-field";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { FeedSuggestionExport } from "@/components/app/feed-suggestion-export";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ClipboardCheck, Plus, Trash2, UtensilsCrossed } from "lucide-react";
+import { ClipboardCheck, Plus, Trash2, UtensilsCrossed, Info, Sunrise, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable, type Column } from "@/components/app/data-table";
@@ -22,6 +29,13 @@ import { FeedFormDialog } from "./feed-form-dialog";
 const Feed = () => {
   const { t } = useTranslation();
   const today = todayIso();
+  const [from,setFrom]=useState("");
+  const [to,setTo]=useState("");
+  const [penFilter,setPenFilter]=useState("all");
+  const [shiftFilter,setShiftFilter]=useState("all");
+  const [page,setPage]=useState(1);
+  const [helpOpen,setHelpOpen]=useState(false);
+  const [pendingDelete,setPendingDelete]=useState<FeedLog|null>(null);
 
   const feedQuery = useFeedLogs();
   const pensQuery = usePens();
@@ -33,6 +47,11 @@ const Feed = () => {
   const pens = useMemo(() => pensQuery.data ?? [], [pensQuery.data]);
   const lots = useMemo(() => lotsQuery.data ?? [], [lotsQuery.data]);
 
+  const history = useMemo(()=>filterFeedHistory(feedLogs,{from,to,pen:penFilter,shift:shiftFilter}),[feedLogs,from,to,penFilter,shiftFilter]);
+  const invalidDates=!!from&&!!to&&from>to;
+  const pageSize=15,pageCount=Math.max(1,Math.ceil(history.length/pageSize)),currentPage=Math.min(page,pageCount);
+  const historyPage=history.slice((currentPage-1)*pageSize,currentPage*pageSize);
+  const renderShift=(log:FeedLog)=>{const Icon=log.shift==="noite"?Moon:log.shift==="tarde"?Sun:Sunrise;return <span className={`feed-shift ${log.shift==="manha"?"is-morning":log.shift==="tarde"?"is-afternoon":"is-night"}`}><Icon className="size-4" aria-hidden="true"/>{t(`feed.shift.${log.shift}`)}</span>;};
   const occupancy = useMemo(() => computePenOccupancy(pens, lots), [pens, lots]);
   const pensWithLot = occupancy.filter((item) => item.lot);
 
@@ -42,7 +61,7 @@ const Feed = () => {
     const summary = summarizeFeedLogs(logs);
     return {
       id: item.pen.id,
-      penCode: item.pen.code,
+      penCode: locationName(item.pen),
       lotCode: lots.filter(lot=>lot.status==="ativo" && lot.pen_id===item.pen.id).map(lot=>lot.code).join(", ") || "—",
       feeding: feeding.forPen(item.pen.id),
       hasFeed: logs.length > 0,
@@ -58,11 +77,11 @@ const Feed = () => {
       headerKey: "feed.pen",
       render: (log) => (
         <span className="font-display text-sm font-semibold">
-          {pens.find((pen) => pen.id === log.pen_id)?.code ?? "—"}
+          {locationName(pens.find((pen) => pen.id === log.pen_id), "—")}
         </span>
       ),
     },
-    { key: "shift", headerKey: "feed.shift", render: (log) => t(`feed.shift.${log.shift}`) },
+    { key: "shift", headerKey: "feed.shift", render: renderShift },
     {
       key: "head",
       headerKey: "field.headCount",
@@ -71,7 +90,7 @@ const Feed = () => {
     },
     {
       key: "perHead",
-      headerKey: "feed.kgPerHead",
+      headerKey: "Fornecido por animal",
       numeric: true,
       render: (log) => `${formatNumber(log.kg_per_head, 2)} kg`,
     },
@@ -83,9 +102,11 @@ const Feed = () => {
     },
   ];
 
-  const remove = async (id: string) => {
+  const remove = async () => {
+    if(!pendingDelete||deleteFeedLog.isPending)return;
     try {
-      await deleteFeedLog.mutateAsync(id);
+      await deleteFeedLog.mutateAsync(pendingDelete.id);
+      setPendingDelete(null);
       toast.success(t("toast.saved"));
     } catch {
       toast.error(t("toast.error.generic"));
@@ -93,7 +114,7 @@ const Feed = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="feed-page space-y-5">
       <PageHeader
         titleKey="feed.title"
         subtitleKey="feed.subtitle"
@@ -120,8 +141,8 @@ const Feed = () => {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle className="font-display text-lg">{t("feed.today")}</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-3"><CardTitle className="font-display text-lg">{t("feed.today")}</CardTitle><Button type="button" variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" aria-expanded={helpOpen} aria-controls="feed-today-help" onClick={()=>setHelpOpen(!helpOpen)}><Info className="size-4"/>Como funciona</Button></div>
             <span className="text-sm num text-muted-foreground">
               {todayLoading ? "—" : t("feed.todayProgress", {
                 done: todayRows.filter(row => row.feeding?.shifts.every(shift => shift.complete || shift.total === 0)).length,
@@ -131,7 +152,7 @@ const Feed = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <p className="mb-3 text-xs text-muted-foreground">Tratos de hoje: verde = fornecido para todos os lotes; vermelho = pendente ou parcial. A barra compara a mistura fornecida (ração + volumoso) com a recomendação diária da dieta, pelo planejamento fixado no primeiro trato; antes disso, pela referência atual do lote. A média é por lançamento; os registros representam oferta, não ingestão medida.</p>
+          <p id="feed-today-help" hidden={!helpOpen} className="mb-3 text-xs leading-relaxed text-muted-foreground">Tratos de hoje: verde = fornecido para todos os lotes; vermelho = pendente ou parcial. A barra compara a mistura fornecida (ração + volumoso) com a recomendação diária da dieta, pelo planejamento fixado no primeiro trato; antes disso, pela referência atual do lote. A média é por lançamento; os registros representam oferta, não ingestão medida.</p>
           <div className="overflow-x-auto"><div className="md:min-w-[900px]">
           <DataTable
             rows={todayRows}
@@ -198,57 +219,29 @@ const Feed = () => {
         </CardContent>
       </Card>
 
-      <div className="space-y-3">
-        <h2 className="font-display text-lg font-semibold">{t("feed.history")}</h2>
-        <DataTable
-          rows={feedLogs.slice(0, 60)}
+      <Card className="feed-history"><CardHeader className="pb-3"><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="font-display text-lg">Histórico de fornecimento</CardTitle><span className="text-sm text-muted-foreground" aria-live="polite">{feedQuery.isLoading||feedQuery.isError?"—":`${history.length} registro(s)`}</span></div></CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <TextField label="De" type="date" value={from} onChange={value=>{setFrom(value);setPage(1);}}/>
+          <TextField label="Até" type="date" value={to} onChange={value=>{setTo(value);setPage(1);}}/>
+          <SelectField label="Local" value={penFilter} onChange={value=>{setPenFilter(value);setPage(1);}} options={[{value:"all",labelKey:"Todos os locais"},...pens.slice().sort((a,b)=>a.code.localeCompare(b.code,"pt-BR",{numeric:true})).map(pen=>({value:pen.id,labelKey:locationName(pen)}))]}/>
+          <SelectField label="Turno" value={shiftFilter} onChange={value=>{setShiftFilter(value);setPage(1);}} options={[{value:"all",labelKey:"Todos os turnos"},...(["manha","tarde","noite"] as const).map(shift=>({value:shift,labelKey:`feed.shift.${shift}`}))]}/>
+        </div>
+        {invalidDates&&<p role="alert" className="text-sm text-destructive">A data inicial deve ser anterior ou igual à data final.</p>}
+        {feedQuery.isError?<div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-destructive">Não foi possível carregar o histórico.<Button variant="outline" size="sm" onClick={()=>void feedQuery.refetch()}>Tentar novamente</Button></div>:<DataTable
+          rows={historyPage}
           columns={[
             ...columns,
-            {
-              key: "actions",
-              headerKey: "common.actions",
-              render: (log) => (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-muted-foreground"
-                  aria-label={t("action.delete")}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void remove(log.id);
-                  }}
-                >
-                  <Trash2 />
-                </Button>
-              ),
-            },
-          ]}
-          getRowKey={(log) => log.id}
+            {key:"actions",headerKey:"common.actions",render:(log:FeedLog)=><Button variant="ghost" size="icon" className="size-9 text-muted-foreground" aria-label={`Excluir trato de ${locationName(pens.find(pen=>pen.id===log.pen_id), "local")}, ${formatDate(log.date)}, ${t(`feed.shift.${log.shift}`)}`} disabled={deleteFeedLog.isPending} onClick={()=>setPendingDelete(log)}><Trash2 className="size-4"/></Button>},
+          ].map(column=>({...column,className:"text-center"}))}
+          getRowKey={log=>log.id}
           loading={feedQuery.isLoading}
-          emptyState={
-            <EmptyState
-              icon={UtensilsCrossed}
-              titleKey="feed.empty.title"
-              descriptionKey="feed.empty.description"
-            />
-          }
-          renderCard={(log) => (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-display text-base font-semibold">
-                  {pens.find((pen) => pen.id === log.pen_id)?.code ?? "—"}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {formatDate(log.date)} · {t(`feed.shift.${log.shift}`)}
-                </span>
-              </div>
-              <p className="text-sm num text-muted-foreground">
-                {formatNumber(log.kg_per_head, 2)} kg/cab · {formatNumber(log.total_kg, 0)} kg
-              </p>
-            </div>
-          )}
-        />
-      </div>
+          emptyState={<EmptyState icon={UtensilsCrossed} titleKey="Nenhum registro para os filtros selecionados" descriptionKey="Ajuste o período, o local ou o turno para consultar outros fornecimentos."/>}
+          renderCard={log=><div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="font-display text-base">{locationName(pens.find(pen=>pen.id===log.pen_id), "—")}</strong><span className="text-xs text-muted-foreground">{formatDate(log.date)}</span></div><div className="flex flex-wrap items-center justify-between gap-2 text-sm">{renderShift(log)}<span>{formatInteger(log.head_count)} animais</span></div><div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-sm"><span>{formatNumber(log.kg_per_head,2)} kg/animal</span><strong>{formatNumber(log.total_kg,2)} kg</strong><Button variant="ghost" size="icon" className="size-10 text-muted-foreground" aria-label="Excluir trato" disabled={deleteFeedLog.isPending} onClick={()=>setPendingDelete(log)}><Trash2 className="size-4"/></Button></div></div>}
+        />}
+        {!feedQuery.isLoading&&!feedQuery.isError&&<nav aria-label="Paginação do histórico de tratos" className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground" aria-live="polite">{history.length?`Mostrando ${(currentPage-1)*pageSize+1} a ${Math.min(currentPage*pageSize,history.length)} de ${history.length}`:"0 registros"} · 15 por página</p><div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" className="min-h-10" disabled={currentPage===1} onClick={()=>setPage(currentPage-1)}>Anterior</Button><span className="text-xs">Página {currentPage} de {pageCount}</span><Button type="button" variant="outline" size="sm" className="min-h-10" disabled={currentPage===pageCount} onClick={()=>setPage(currentPage+1)}>Próxima</Button></div></nav>}
+      </CardContent></Card>
+      <AlertDialog open={!!pendingDelete} onOpenChange={open=>{if(!open&&!deleteFeedLog.isPending)setPendingDelete(null);}}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir registro de trato?</AlertDialogTitle><AlertDialogDescription>{pendingDelete&&`${formatDate(pendingDelete.date)} · ${locationName(pens.find(pen=>pen.id===pendingDelete.pen_id), "Local")} · ${t(`feed.shift.${pendingDelete.shift}`)} · ${formatNumber(pendingDelete.total_kg,2)} kg. `}Confirme para remover este fornecimento do histórico e dos totais.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleteFeedLog.isPending}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={deleteFeedLog.isPending} onClick={event=>{event.preventDefault();void remove();}}>{deleteFeedLog.isPending?"Excluindo…":"Excluir registro"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   );
 };

@@ -1,6 +1,10 @@
+import { locationName } from "@/lib/location-name";
+import { useFarm } from "@/hooks/use-farm";
+import { animalMeasurements } from "@/lib/animal-measurements";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, ClipboardList, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList, Plus, Search, X } from "lucide-react";
 
 import { ExportButtons } from "@/components/app/export-buttons";
 import { animalReport } from "@/lib/export-data";
@@ -15,9 +19,8 @@ import { Input } from "@/components/ui/input";
 import { useAnimals } from "@/hooks/use-animals";
 import { useLots } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
-import { SELECT_ALL } from "@/lib/constants";
+import { SELECT_ALL, DEFAULT_CARCASS_YIELD } from "@/lib/constants";
 import {
-  animalGain,
   animalStatusTone,
   healthTone,
   currentHealthStatus,
@@ -25,7 +28,7 @@ import {
   liveWeightToArroba,
   type Animal,
 } from "@/lib/domain";
-import { formatNumber, todayIso } from "@/lib/format";
+import { formatDate, formatNumber, todayIso } from "@/lib/format";
 import { AnimalDetailSheet } from "./animal-detail-sheet";
 import { AnimalFormDialog } from "./animal-form-dialog";
 
@@ -47,6 +50,7 @@ const HEALTH_FILTER_OPTIONS = [
 const Animals = () => {
   const { t } = useTranslation();
   const today = todayIso();
+  const farmQuery=useFarm();
 
   const animalsQuery = useAnimals();
   const pensQuery = usePens();
@@ -65,6 +69,15 @@ const Animals = () => {
   const pens = pensQuery.data ?? [];
   const lots = lotsQuery.data ?? [];
 
+  const measurements=useMemo(()=>animalMeasurements(animalsQuery.data??[],lotsQuery.data??[],weighingsQuery.data??[],recordsQuery.data??[],today),[animalsQuery.data,lotsQuery.data,weighingsQuery.data,recordsQuery.data,today]);
+  const measurementsLoading=weighingsQuery.isLoading||recordsQuery.isLoading||lotsQuery.isLoading;
+  const measurementsError=weighingsQuery.isError||recordsQuery.isError||lotsQuery.isError;
+  const hasFilters=movementFilter!==SELECT_ALL||search!==""||penFilter!==SELECT_ALL||lotFilter!==SELECT_ALL||healthFilter!==SELECT_ALL;
+  const clearFilters=()=>{setPage(1);setMovementFilter(SELECT_ALL);setSearch("");setPenFilter(SELECT_ALL);setLotFilter(SELECT_ALL);setHealthFilter(SELECT_ALL);};
+  const hint=(value:string,reason:string)=><Tooltip><TooltipTrigger asChild><button type="button" className="rounded underline decoration-dotted underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${value}: ${reason}`} onClick={event=>event.stopPropagation()}>{value}</button></TooltipTrigger><TooltipContent className="max-w-72">{reason}</TooltipContent></Tooltip>;
+  const renderWeight=(row:Animal)=>{const info=measurements.get(row.id);const reason=measurementsLoading?"Carregando histórico de pesagens…":measurementsError?"Não foi possível conferir a data da pesagem.":info?.weightDate?`${info.weightSource==="entry"?"Peso de entrada":"Pesagem individual"}: ${formatDate(info.weightDate)}`:"Peso informado no cadastro; sem data de pesagem individual vinculada ao valor.";return hint(row.current_weight_kg!==null?`${formatNumber(row.current_weight_kg,1)} kg`:"—",reason);};
+  const renderGain=(row:Animal)=>{const info=measurements.get(row.id);if(measurementsLoading||measurementsError)return hint("—",measurementsLoading?"Carregando histórico de pesagens…":"Não foi possível conferir o histórico para calcular o ganho.");return hint(info?.gain!==null&&info?.gain!==undefined?`${formatNumber(info.gain,1)} kg`:"—",info?.gainReason??"Aguardando pesagens suficientes para calcular.");};
+  const renderArrobas=(row:Animal)=>{const value=liveWeightToArroba(row.current_weight_kg);return hint(value!==null?formatNumber(value,1):"—",`Estimativa de carcaça com rendimento de ${DEFAULT_CARCASS_YIELD}%. Cálculo: peso vivo × ${DEFAULT_CARCASS_YIELD}% ÷ 15 kg por arroba.`);};
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase();
 
@@ -100,7 +113,7 @@ const Animals = () => {
     {
       key: "tag",
       headerKey: "field.earTag",
-      render: (row) => <span className="font-display text-sm font-semibold">{row.ear_tag}</span>,
+      render: (row) => <span className="font-sans text-sm font-semibold">{row.ear_tag}</span>,
     },
     { key: "sisbov", headerKey: "field.sisbov", render: (row) => row.sisbov ?? "—" },
     {
@@ -111,32 +124,31 @@ const Animals = () => {
     {
       key: "pen",
       headerKey: "field.pen",
-      render: (row) => pens.find((pen) => pen.id === row.pen_id)?.code ?? "—",
+      render: (row) => locationName(pens.find((pen) => pen.id === row.pen_id), "—"),
+    },
+    {
+      key: "entry",
+      headerKey: "Peso de entrada",
+      numeric: true,
+      render: row => row.entry_weight_kg !== null ? `${formatNumber(row.entry_weight_kg,1)} kg` : "—",
     },
     {
       key: "current",
-      headerKey: "field.currentWeight",
+      headerKey: "Último peso registrado",
       numeric: true,
-      render: (row) =>
-        row.current_weight_kg ? `${formatNumber(row.current_weight_kg, 1)} kg` : "—",
+      render: renderWeight,
     },
     {
       key: "gain",
-      headerKey: "animals.detail.gain",
+      headerKey: "Ganho desde a entrada",
       numeric: true,
-      render: (row) => {
-        const gain = animalGain(row);
-        return gain !== null ? `${formatNumber(gain, 1)} kg` : "—";
-      },
+      render: renderGain,
     },
     {
       key: "arroba",
-      headerKey: "field.arroba",
+      headerKey: "Arrobas",
       numeric: true,
-      render: (row) => {
-        const arroba = liveWeightToArroba(row.current_weight_kg);
-        return arroba !== null ? formatNumber(arroba, 1) : "—";
-      },
+      render: renderArrobas,
     },
     {
   key: "status",
@@ -168,18 +180,18 @@ const Animals = () => {
     <div className="space-y-5">
       <PageHeader
         titleKey="animals.title"
-        subtitleKey="animals.subtitle"
+        subtitleKey="Registro individual do rebanho"
         actions={
           <>
           <ExportButtons
-            disabled={[animalsQuery, lotsQuery, pensQuery, weighingsQuery, recordsQuery].some(query => query.isFetching || query.isPending || query.isError) || !rows.length}
-            getReport={() => animalReport(rows, lots, pens, weighingsQuery.data ?? [], recordsQuery.data ?? [], key => t(key), [
+            disabled={[animalsQuery, lotsQuery, pensQuery, weighingsQuery, recordsQuery, farmQuery].some(query => query.isFetching || query.isPending || query.isError) || !rows.length}
+            getReport={() => ({...animalReport(rows, lots, pens, weighingsQuery.data ?? [], recordsQuery.data ?? [], key => t(key), [
               `Movimentação: ${t(MOVEMENT_FILTER_OPTIONS.find(option => option.value === movementFilter)?.labelKey ?? "common.all")}`,
               `Busca: ${search.trim() || "Todas"}`,
-              `Curral: ${pens.find(pen => pen.id === penFilter)?.code ?? "Todos"}`,
+              `Local: ${locationName(pens.find(pen => pen.id === penFilter), "Todos")}`,
               `Lote: ${lots.find(lot => lot.id === lotFilter)?.code ?? "Todos"}`,
               `Sanitário: ${healthFilter === SELECT_ALL ? "Todos" : t(`status.health.${healthFilter}`)}`,
-            ].join(" | "), today)}
+            ].join(" | "), today),farmName:farmQuery.data?.name})}
           />
           <AnimalFormDialog
             trigger={
@@ -206,13 +218,15 @@ const Animals = () => {
         />
 
         <SelectField
+          label="Local"
           value={penFilter}
           onChange={(value) => { setPenFilter(value); setPage(1); }}
           allowEmpty
           emptyLabel={t("common.allPens")}
-          options={pens.map((pen) => ({ value: pen.id, labelKey: pen.code }))}
+          options={pens.map((pen) => ({ value: pen.id, labelKey: locationName(pen) }))}
         />
         <SelectField
+          label="Lote"
           value={lotFilter}
           onChange={(value) => { setLotFilter(value); setPage(1); }}
           allowEmpty
@@ -220,24 +234,27 @@ const Animals = () => {
           options={lots.map((lot) => ({ value: lot.id, labelKey: lot.code }))}
         />
         <SelectField
+          label="Situação sanitária"
           value={healthFilter}
           disabled={movementFilter === "saidos"}
           onChange={(value) => { setHealthFilter(value); setPage(1); }}
           allowEmpty
-          emptyLabel={t("field.healthStatus")}
+          emptyLabel="Todas as situações"
           options={HEALTH_FILTER_OPTIONS}
         />
-        <div className="relative">
+        <div className="space-y-1.5"><label htmlFor="animals-search" className="block text-sm font-medium">Brinco ou SISBOV</label><div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            id="animals-search"
             value={search}
             onChange={(event) => { setSearch(event.target.value); setPage(1); }}
             placeholder={t("animals.searchPlaceholder")}
             aria-label={t("animals.searchPlaceholder")}
             className="h-11 pl-9"
           />
-        </div>
+        </div></div>
       </div>
+      <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="text-muted-foreground" disabled={!hasFilters} onClick={clearFilters}><X className="size-4"/>Limpar filtros</Button></div>
 
       <DataTable
         rows={visibleRows}
@@ -285,10 +302,10 @@ const Animals = () => {
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="font-display text-base font-semibold">{row.ear_tag}</p>
+                <p className="font-sans text-sm font-semibold">{row.ear_tag}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {lots.find((lot) => lot.id === row.lot_id)?.code ?? "—"} ·{" "}
-                  {pens.find((pen) => pen.id === row.pen_id)?.code ?? "—"}
+                  {locationName(pens.find((pen) => pen.id === row.pen_id), "—")}
                 </p>
               </div>
               <div className="flex flex-wrap justify-end gap-1.5">
@@ -306,25 +323,24 @@ const Animals = () => {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-center text-sm">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-center text-sm">
+              <div><p className="text-xs text-muted-foreground">Peso de entrada</p><p className="num font-medium">{row.entry_weight_kg!==null?`${formatNumber(row.entry_weight_kg,1)} kg`:"—"}</p></div>
               <div>
-                <p className="text-xs text-muted-foreground">{t("field.currentWeight")}</p>
+                <p className="text-xs text-muted-foreground">Último peso registrado</p>
                 <p className="num font-medium">
-                  {row.current_weight_kg ? `${formatNumber(row.current_weight_kg, 1)} kg` : "—"}
+                  {renderWeight(row)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">{t("animals.detail.gain")}</p>
+                <p className="text-xs text-muted-foreground">Ganho desde a entrada</p>
                 <p className="num font-medium">
-                  {animalGain(row) !== null ? `${formatNumber(animalGain(row) ?? 0, 1)} kg` : "—"}
+                  {renderGain(row)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">{t("field.arroba")}</p>
+                <p className="text-xs text-muted-foreground">Arrobas</p>
                 <p className="num font-medium">
-                  {liveWeightToArroba(row.current_weight_kg) !== null
-                    ? formatNumber(liveWeightToArroba(row.current_weight_kg) ?? 0, 1)
-                    : "—"}
+                  {renderArrobas(row)}
                 </p>
               </div>
             </div>

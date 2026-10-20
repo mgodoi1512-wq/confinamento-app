@@ -1,4 +1,5 @@
-import { compatibleLocation,locationLabel } from "@/lib/production-systems";
+import { locationName } from "@/lib/location-name";
+import { compatibleLocation } from "@/lib/production-systems";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -19,9 +20,11 @@ import { usePens } from "@/hooks/use-pens";
 import { computePenOccupancy, type Lot } from "@/lib/domain";
 import { ArrowRightLeft } from "lucide-react";
 
-export const TransferDialog = ({ lot }: { lot: Lot }) => {
+export const TransferDialog = ({ lot, open: externalOpen, onOpenChange, hideTrigger = false }: { lot: Lot; open?: boolean; onOpenChange?: (open: boolean) => void; hideTrigger?: boolean }) => {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = externalOpen ?? localOpen;
+  const setOpen = (value: boolean) => { setLocalOpen(value); onOpenChange?.(value); };
   const [penId, setPenId] = useState("");
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,7 @@ export const TransferDialog = ({ lot }: { lot: Lot }) => {
 
   const pens = pensQuery.data ?? [];
   const occupancy = computePenOccupancy(pens, lotsQuery.data ?? []).filter(
-    (item) => compatibleLocation(lot.production_system,item.pen.location_type)&&item.pen.id !== lot.pen_id && item.pen.status !== "manutencao" && item.free >= lot.head_count,
+    (item) => compatibleLocation(lot.production_system,item.pen.location_type)&&item.pen.id !== lot.pen_id && !["manutencao","inativo"].includes(item.pen.status) && item.free >= lot.head_count,
   );
 
   const submit = async () => {
@@ -45,7 +48,7 @@ export const TransferDialog = ({ lot }: { lot: Lot }) => {
       await transfer.mutateAsync({ lot, penId, requestId });
       setRequestId(crypto.randomUUID());
       toast.success(
-        t("lots.transfer.saved", { code: pens.find((pen) => pen.id === penId)?.code ?? "" }),
+        t("lots.transfer.saved", { code: locationName(pens.find((pen) => pen.id === penId), "") }),
       );
       setOpen(false);
       setPenId("");
@@ -56,18 +59,18 @@ export const TransferDialog = ({ lot }: { lot: Lot }) => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+      {!hideTrigger && <DialogTrigger asChild>
         <Button variant="outline" className="h-10">
           <ArrowRightLeft />
           {t("action.transfer")}
         </Button>
-      </DialogTrigger>
+      </DialogTrigger>}
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("lots.transfer.title")}</DialogTitle>
           <DialogDescription>
             {t("lots.transfer.from")}:{" "}
-            {pens.find((pen) => pen.id === lot.pen_id)?.code ?? t("common.noData")}
+            {locationName(pens.find((pen) => pen.id === lot.pen_id), t("common.noData"))}
           </DialogDescription>
         </DialogHeader>
 
@@ -82,7 +85,7 @@ export const TransferDialog = ({ lot }: { lot: Lot }) => {
           placeholder={t("field.pen")}
           options={occupancy.map((item) => ({
             value: item.pen.id,
-            labelKey: `${locationLabel(item.pen.location_type)} · ${item.pen.code} · ${t("dashboard.occupancy.free", { head: item.free })}`,
+            labelKey: `${locationName(item.pen)} · ${t("dashboard.occupancy.free", { head: item.free })}`,
           }))}
         />
 

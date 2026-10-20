@@ -1,4 +1,5 @@
-import {locationLabel} from "@/lib/production-systems";
+import { locationName } from "@/lib/location-name";
+import { occupancyBadge, operationalPenLabel } from "@/lib/pen-status";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -25,7 +26,7 @@ import { useFeedLogs } from "@/hooks/use-feed";
 import { useLots } from "@/hooks/use-lots";
 import { usePens } from "@/hooks/use-pens";
 import { useTroughReadings } from "@/hooks/use-trough";
-import { computePenOccupancy, penStatusTone, type PenOccupancy } from "@/lib/domain";
+import { computePenOccupancy, type PenOccupancy } from "@/lib/domain";
 import { formatDate, formatInteger, formatNumber } from "@/lib/format";
 
 const Pens = () => {
@@ -49,6 +50,7 @@ const Pens = () => {
   const occupancy = useMemo(() => computePenOccupancy(pens, lots), [pens, lots]);
 
   if ([pensQuery, lotsQuery, dietsQuery, troughQuery, feedQuery].some(query => query.isLoading)) return <PageLoading rows={4} />;
+  if(pensQuery.isError||lotsQuery.isError)return <div role="alert" className="space-y-3"><p>Não foi possível conferir a ocupação dos locais.</p><Button variant="outline" onClick={()=>{void pensQuery.refetch();void lotsQuery.refetch();}}>Tentar novamente</Button></div>;
 
   return (
     <div className="space-y-5">
@@ -92,18 +94,18 @@ const Pens = () => {
                 <CardContent className="flex flex-1 flex-col gap-4 pt-6">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-display text-xl font-semibold">{item.pen.code} · {locationLabel(item.pen.location_type)}</p>
+                      <p className="font-display text-xl font-semibold">{locationName(item.pen)}</p>
                       <p className="truncate text-xs text-muted-foreground">
                         {item.lot ? item.lot.code : t("pens.noLot")}
                         {diet ? ` · ${diet.name}` : ""}
                       </p>
                     </div>
                     <StatusBadge
-                      tone={penStatusTone(item.pen.status)}
-                      label={t(`status.pen.${item.pen.status}`)}
+                      {...occupancyBadge(item.head,item.capacity)}
                     />
                   </div>
 
+                  {(item.pen.status==="manutencao"||item.pen.status==="inativo")&&<div><StatusBadge label={operationalPenLabel(item.pen.status)} tone={item.pen.status==="manutencao"?"warning":"muted"} size="sm"/></div>}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">{t("field.occupancy")}</span>
@@ -152,7 +154,7 @@ const Pens = () => {
                       <DialogContent className="max-w-lg">
                         <DialogHeader>
                           <DialogTitle>
-                            {item.pen.code} · {locationLabel(item.pen.location_type)} · {t("pens.lastReading")}
+                            {locationName(item.pen)} · {t("pens.lastReading")}
                           </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4">

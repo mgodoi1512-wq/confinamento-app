@@ -1,3 +1,5 @@
+import { locationName } from "@/lib/location-name";
+import { operationalPenStatus, operationalPenLabel, occupancyBadge } from "@/lib/pen-status";
 import { locationTypes, locationLabel } from "@/lib/production-systems";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -46,7 +48,7 @@ const SettingsPens = () => {
   const [code, setCode] = useState("");
   const [capacity, setCapacity] = useState("");
   const [area, setArea] = useState("");
-  const [status, setStatus] = useState("vazio");
+  const [status, setStatus] = useState("ativo");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +58,7 @@ const SettingsPens = () => {
     setCode(pen?.code ?? "");
     setCapacity(pen ? String(pen.capacity_head) : "");
     setArea(pen?.area_m2 ? String(pen.area_m2) : "");
-    setStatus(pen?.status ?? "vazio");
+    setStatus(operationalPenStatus(pen?.status ?? "ativo"));
     setNotes(pen?.notes ?? "");
     setError(null);
     setOpen(true);
@@ -98,16 +100,16 @@ const SettingsPens = () => {
     {
       key: "code",
       headerKey: "field.code",
-      render: (row) => <span className="font-display text-sm font-semibold">{row.pen.code} · {locationLabel(row.pen.location_type)}</span>,
+      render: (row) => <span className="font-display text-sm font-semibold">{locationName(row.pen)}</span>,
     },
     {key:"location_type",headerKey:"Tipo de local",render:row=>locationLabel(row.pen.location_type)},
     {
       key: "status",
-      headerKey: "field.status",
+      headerKey: "Situação do local",
       render: (row) => (
         <StatusBadge
-          tone={penStatusTone(row.pen.status)}
-          label={t(`status.pen.${row.pen.status}`)}
+          tone={penStatusTone(operationalPenStatus(row.pen.status))}
+          label={operationalPenLabel(row.pen.status)}
           size="sm"
         />
       ),
@@ -129,6 +131,7 @@ const SettingsPens = () => {
       headerKey: "field.occupancy",
       render: (row) => (
         <div className="w-32 space-y-1">
+          <StatusBadge {...occupancyBadge(row.head,row.capacity)} size="sm"/>
           <OccupancyBar percent={row.percent} overCapacity={row.overCapacity} />
           <p className="text-xs num text-muted-foreground">
             {formatInteger(row.head)} / {formatInteger(row.capacity)}
@@ -199,7 +202,7 @@ const SettingsPens = () => {
         }
       />
 
-      <p className="text-xs text-muted-foreground">{t("pens.statusHint")}</p>
+      <p className="text-xs text-muted-foreground">A situação indica se o local está ativo, em manutenção ou inativo. A ocupação é calculada automaticamente pelos animais dos lotes ativos. Locais inativos ou em manutenção não recebem novos lotes.</p>
 
       <DataTable
         rows={occupancy}
@@ -221,10 +224,10 @@ const SettingsPens = () => {
         renderCard={(row) => (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-display text-base font-semibold">{row.pen.code} · {locationLabel(row.pen.location_type)}</span>
+              <span className="font-display text-base font-semibold">{locationName(row.pen)}</span>
               <StatusBadge
-                tone={penStatusTone(row.pen.status)}
-                label={t(`status.pen.${row.pen.status}`)}
+                tone={penStatusTone(operationalPenStatus(row.pen.status))}
+                label={operationalPenLabel(row.pen.status)}
                 size="sm"
               />
             </div>
@@ -267,7 +270,7 @@ const SettingsPens = () => {
               required
             />
             <SelectField
-              label={t("field.status")}
+              label="Situação do local"
               value={status}
               onChange={setStatus}
               options={PEN_STATUS_OPTIONS}

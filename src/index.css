@@ -10,7 +10,7 @@
     --background: 38 30% 92%;
     --foreground: 150 14% 12%;
 
-    --card: 20 52% 90%; /*fundo card painel*/
+    --card: 36 100% 99.019608%; /* Painéis: #FFFDFA */
     --card-foreground: 150 14% 12%;
 
     --popover: 0 0% 100%;
@@ -35,7 +35,7 @@
     --destructive: 4 72% 43%;
     --destructive-foreground: 40 40% 98%;
 
-    --border: 20 52% 40%;
+    --border: 28 22.388060% 73.725490%; /* Bordas: #CBBBAD */
     --input: 20 52% 26%;
     --ring: 30 92% 40%;
 
@@ -115,7 +115,7 @@
     --destructive: 4 74% 60%;
     --destructive-foreground: 4 40% 8%;
 
-    --border: 150 10% 20%;
+    --border: 150 10% 27%; /* Contraste das bordas no dark */
     --input: 150 10% 20%;
     --ring: 38 92% 60%;
 

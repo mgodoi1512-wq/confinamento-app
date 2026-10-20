@@ -9,10 +9,12 @@ const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const moduleUrl = source => 'data:text/javascript;base64,' + Buffer.from(ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText).toString('base64');
+const locationUrl=moduleUrl(read('../src/lib/location-name.ts'));
 const formatUrl = moduleUrl(read('../src/lib/format.ts'));
 const constantsUrl = moduleUrl(read('../src/lib/constants.ts'));
 const domainUrl = moduleUrl(read('../src/lib/domain.ts').replace('from "./constants"', `from "${constantsUrl}"`).replace('from "./format"', `from "${formatUrl}"`));
-const { animalReport, lotReport } = await import(moduleUrl(read('../src/lib/export-data.ts').replace('from "./domain"', `from "${domainUrl}"`).replace('from "./format"', `from "${formatUrl}"`)));
+const animalMeasurementsUrl=moduleUrl(read('../src/lib/animal-measurements.ts'));
+const { animalReport, lotReport } = await import(moduleUrl(read('../src/lib/export-data.ts').replace('from "./location-name"',`from "${locationUrl}"`).replace('from "./animal-measurements"',`from "${animalMeasurementsUrl}"`).replace('from "./constants"',`from "${constantsUrl}"`).replace('from "./domain"', `from "${domainUrl}"`).replace('from "./format"', `from "${formatUrl}"`)));
 let fileSource = read('../src/lib/export-files.ts').replace('from "./format"', `from "${formatUrl}"`);
 for (const name of ['exceljs', 'jspdf', 'jspdf-autotable']) fileSource = fileSource.replace(`import("${name}")`, `import("${import.meta.resolve(name)}")`);
 let suggestionPdfSource=read('../src/lib/feed-suggestion-pdf.ts').replace('from "./format"', `from "${formatUrl}"`);
@@ -73,28 +75,33 @@ test('Excel real mantém números, zeros iniciais, textos de fórmula e metadado
 });
 test('PDF real pagina tabelas extensas e repete o cabeçalho', async () => {
   const report=reportFor();
+  report.farmName="Fazenda de Exemplo";
   report.rows=Array.from({length:180},(_,index)=>[String(index).padStart(6,'0'),...report.rows[0].slice(1)]);
   const save=jsPDF.API.save;
   const originalFetch=globalThis.fetch;
-  globalThis.fetch=async () => new Response(fs.readFileSync(new URL('../public/logo-liben-2.png',import.meta.url)), {status:200});
+  globalThis.fetch=async url => new Response(fs.readFileSync(new URL(String(url).endsWith('.ttf')?'../public'+String(url):'../public/logo-liben-2.png',import.meta.url)), {status:200});
   let document;
   jsPDF.API.save=function(){ document=this; return this; };
   try {
     await exportPdf(report);
     assert.ok(document.getNumberOfPages()>1);
     const text=document.output();
-    assert.ok(text.includes('GMD'));
+    assert.ok(document.lastAutoTable.head[0].cells[9].text.join(' ').includes('GMD'));
+    assert.ok(text.includes('/FontFile2'),'Fonte incorporada');
     assert.ok(text.includes('/Subtype /Image'), 'Logo incorporada ao PDF');
-    assert.ok(text.includes('000179'));
+    assert.ok(document.lastAutoTable.body.at(-1).cells[0].text.includes('000179'));
     // Optional local QA outputs; never include real farm data in fixtures.
     if(process.env.EXPORT_QA_DIR){
       fs.mkdirSync(process.env.EXPORT_QA_DIR,{recursive:true});
       fs.writeFileSync(`${process.env.EXPORT_QA_DIR}/animais-exemplo.pdf`,Buffer.from(document.output('arraybuffer')));
+      const preview=reportFor(Array.from({length:20},(_,i)=>({...animal,id:`animal-${i}`,ear_tag:String(i+1).padStart(2,'0'),current_weight_kg:i>=15?null:animal.current_weight_kg})),[],[]);
+      preview.farmName='Fazenda demonstrativa';preview.rows.forEach(row=>{row[11]='Ativo';row[12]='Saudável';});
+      await exportPdf(preview);fs.writeFileSync(`${process.env.EXPORT_QA_DIR}/animais-compacto.pdf`,Buffer.from(document.output('arraybuffer')));
     }
   } finally { jsPDF.API.save=save; globalThis.fetch=originalFetch; }
 });
 
-const { computeFeedingSuggestions, feedingSuggestionReport, gradeForDay, splitDailyFeedKg }=await import(moduleUrl(read('../src/lib/feed-suggestion.ts').replace('from "./domain"',`from "${domainUrl}"`).replace('from "./format"',`from "${formatUrl}"`)));
+const { computeFeedingSuggestions, feedingSuggestionReport, gradeForDay, splitDailyFeedKg }=await import(moduleUrl(read('../src/lib/feed-suggestion.ts').replace('from "./location-name"',`from "${locationUrl}"`).replace('from "./domain"',`from "${domainUrl}"`).replace('from "./format"',`from "${formatUrl}"`)));
 test('sugestão aplica todos os limites da grade e não sobrepõe dia 15',()=>{
  for(const [day,feed,rough] of [[1,.3,3],[3,.3,3],[4,.8,2.5],[6,.8,2.5],[7,1.3,2],[9,1.3,2],[10,1.8,1.5],[12,1.8,1.5],[13,2.3,1],[15,2.3,1],[16,2.5,.8],[90,2.5,.8]]){
   const grade=gradeForDay(day);assert.equal(grade.feedPct,feed);assert.equal(grade.roughagePct,rough);
@@ -147,3 +154,30 @@ test('PDF real da sugestão usa A4, logo e valores por refeição',async()=>{
  }finally{jsPDF.API.save=originalSave;globalThis.fetch=originalFetch;}
 });
 function formatAddDays(date,days){const d=new Date(date+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
+
+// Exercita o menu usando os exportadores simulados; os arquivos reais são validados acima.
+const menuMock=moduleUrl(`
+export const useState=initial=>{const h=globalThis.__exportMenu,i=h.cursor++;if(!(i in h.state))h.state[i]=initial;return[h.state[i],v=>h.state[i]=v];};
+export const useRef=initial=>{const h=globalThis.__exportMenu,i=h.cursor++;if(!(i in h.state))h.state[i]={current:initial};return h.state[i];};
+export function DropdownMenu(){}export function DropdownMenuTrigger(){}export function DropdownMenuContent(){}export function DropdownMenuItem(){}export function Button(){}export function Download(){}export function ChevronDown(){}export function FileDown(){}export function FileSpreadsheet(){}export function Loader2(){}
+export const toast={info:()=>globalThis.__exportMenu.empty++,success:()=>{},error:()=>globalThis.__exportMenu.errors++};
+export async function exportPdf(report){const h=globalThis.__exportMenu;h.calls.push(['pdf',report]);if(h.fail)throw new Error('Falha simulada');}
+export async function exportExcel(report){globalThis.__exportMenu.calls.push(['excel',report]);}
+`);
+let menuSource=ts.transpileModule(read('../src/components/app/export-buttons.tsx'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+menuSource=menuSource.replace(/from\s+(['"])(.*?)\1/g,(_,q,name)=>`from "${name==='react/jsx-runtime'?import.meta.resolve(name):menuMock}"`).replace('import("@/lib/export-files")',`import("${menuMock}")`);
+const {ExportButtons:ExportMenu}=await import('data:text/javascript;base64,'+Buffer.from(menuSource).toString('base64'));
+const menuNodes=root=>{const out=[];const visit=n=>{if(Array.isArray(n))return n.forEach(visit);if(n?.props){out.push(n);visit(n.props.children);}};visit(root);return out;};
+const drawMenu=(h,report,disabled=false)=>{globalThis.__exportMenu=h;h.cursor=0;return ExportMenu({getReport:()=>report,disabled});};
+const flushMenu=()=>new Promise(resolve=>setImmediate(resolve));
+test('menu Exportar oferece PDF/Excel, usa o relatório recebido e bloqueia clique duplicado',async()=>{
+ const h={state:[],cursor:0,calls:[],errors:0,empty:0};const report={rows:[[1]],filters:'Busca: lote 2'};
+ const options=menuNodes(drawMenu(h,report)).filter(n=>n.type.name==='DropdownMenuItem');assert.equal(options.length,2);
+ options[0].props.onSelect();options[1].props.onSelect();await flushMenu();assert.deepEqual(h.calls,[['pdf',report]]);
+ menuNodes(drawMenu(h,report)).filter(n=>n.type.name==='DropdownMenuItem')[1].props.onSelect();await flushMenu();assert.deepEqual(h.calls.map(c=>c[0]),['pdf','excel']);
+});
+test('menu não exporta relatório vazio ou desabilitado',async()=>{
+ const h={state:[],cursor:0,calls:[],errors:0,empty:0};
+ menuNodes(drawMenu(h,{rows:[]})).find(n=>n.type.name==='DropdownMenuItem').props.onSelect();await flushMenu();assert.equal(h.empty,1);assert.equal(h.calls.length,0);
+ menuNodes(drawMenu(h,{rows:[[1]]},true)).find(n=>n.type.name==='DropdownMenuItem').props.onSelect();await flushMenu();assert.equal(h.calls.length,0);
+});

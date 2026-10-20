@@ -178,3 +178,41 @@ test('últimos tratos são do dia escolhido e ordenados por cadastro, sem altera
  const date='2026-10-18';const logs=[{id:'a',date,created_at:'2026-10-18T10:00:00Z'},{id:'b',date,created_at:'2026-10-18T21:00:00Z'},{id:'c',date:'2026-10-17',created_at:'2026-10-18T22:00:00Z'}];
  assert.deepEqual(dashboardFeeding.recentDashboardFeed(logs,date).map(l=>l.id),['b','a']);assert.equal(logs[0].id,'a');
 });
+
+const feedHistory=await import(moduleUrl(fs.readFileSync(new URL('../src/lib/feed-history.ts',import.meta.url),'utf8')));
+test('histórico de trato filtra período inclusivo, local e turno sem limitar a 60 registros',()=>{
+ const logs=Array.from({length:75},(_,i)=>({id:String(i),date:'2026-10-19',created_at:'2026-10-19T10:00:00Z',pen_id:'p1',shift:'manha'}));
+ const all={from:'',to:'',pen:'all',shift:'all'};assert.equal(feedHistory.filterFeedHistory(logs,all).length,75);
+ const others=[...logs,{id:'outro',date:'2026-10-18',created_at:'2026-10-19T12:00:00Z',pen_id:'p2',shift:'noite'}];
+ assert.equal(feedHistory.filterFeedHistory(others,{...all,from:'2026-10-19',to:'2026-10-19',pen:'p1',shift:'manha'}).length,75);
+ assert.equal(feedHistory.filterFeedHistory(others,{...all,pen:'p2',shift:'noite'}).length,1);
+ assert.equal(feedHistory.filterFeedHistory(others,{...all,from:'2026-10-20',to:'2026-10-19'}).length,0);
+});
+test('histórico usa data operacional e horário de criação, mantendo a lista original',()=>{
+ const logs=[{id:'a',date:'2026-10-19',created_at:'2026-10-19T10:00:00Z'},{id:'b',date:'2026-10-19',created_at:'2026-10-19T20:00:00Z'},{id:'c',date:'2026-10-18',created_at:'2026-10-20T10:00:00Z'}].map(r=>({...r,pen_id:'p',shift:'manha'}));
+ assert.deepEqual(feedHistory.filterFeedHistory(logs,{from:'',to:'',pen:'all',shift:'all'}).map(r=>r.id),['b','a','c']);assert.deepEqual(logs.map(r=>r.id),['a','b','c']);
+});
+
+const penStatus=await import(moduleUrl(fs.readFileSync(new URL('../src/lib/pen-status.ts',import.meta.url),'utf8')));
+test('ocupação é automática, independente do status legado do cadastro',()=>{
+ assert.equal(penStatus.occupancyBadge(0,10).label,'Vazio');assert.equal(penStatus.occupancyBadge(5,10).label,'Ocupado');assert.equal(penStatus.occupancyBadge(10,10).label,'Lotado');assert.equal(penStatus.occupancyBadge(11,10).label,'Acima da capacidade');assert.equal(penStatus.occupancyBadge(1,0).tone,'destructive');
+ for(const legacy of ['vazio','adaptacao','ativo'])assert.equal(penStatus.operationalPenStatus(legacy),'ativo');
+ assert.equal(penStatus.operationalPenLabel('manutencao'),'Em manutenção');assert.equal(penStatus.operationalPenLabel('inativo'),'Inativo');
+});
+
+const lotList=await import(moduleUrl(fs.readFileSync(new URL('../src/lib/lot-list.ts',import.meta.url),'utf8')));
+test('lista de lotes busca sem acentos, respeita situação e ordena naturalmente sem alterar a origem',()=>{
+ const rows=[{id:'10',code:'Lote 10',status:'ativo',created_at:'2026-10-10',entry_date:'2026-10-01'},{id:'2',code:'Lote 2',status:'ativo',created_at:'2026-10-19',entry_date:'2026-10-01'},{id:'1',code:'Lote Á',status:'encerrado',created_at:'2026-10-18',entry_date:'2026-10-01'}];
+ assert.deepEqual(lotList.selectLots(rows,'ativo','','name').map(r=>r.id),['2','10']);assert.deepEqual(lotList.selectLots(rows,'all','lote a','name').map(r=>r.id),['1']);assert.deepEqual(lotList.selectLots(rows,'all','','recent').map(r=>r.id),['2','1','10']);assert.deepEqual(rows.map(r=>r.id),['10','2','1']);
+});
+
+const animalMeasurements=await import(moduleUrl(fs.readFileSync(new URL('../src/lib/animal-measurements.ts',import.meta.url),'utf8')));
+test('ganho individual diferencia falta de pesagem de ganho zero medido e ignora futuro/outro lote',()=>{
+ const animal={id:'a',lot_id:'l',entry_weight_kg:300,current_weight_kg:300};const lot={id:'l',entry_date:'2026-10-01'};
+ const session={id:'w',lot_id:'l',date:'2026-10-10',created_at:'2026-10-10T12:00:00Z'},record={id:'r',animal_id:'a',weighing_id:'w',weight_kg:300};
+ const info=(sessions=[],records=[],row=animal)=>animalMeasurements.animalMeasurements([row],[lot],sessions,records,'2026-10-19').get('a');
+ assert.equal(info().gain,null);assert.equal(info().weightSource,'entry');assert.equal(info([session],[record]).gain,0);
+ assert.equal(info([{...session,date:'2026-10-20'}],[record]).gain,null);assert.equal(info([{...session,lot_id:'other'}],[record]).gain,null);
+ assert.equal(info([session],[record],{...animal,current_weight_kg:320}).gain,null);
+ assert.equal(info([session],[{...record,weight_kg:330}],{...animal,current_weight_kg:330}).gain,30);
+});

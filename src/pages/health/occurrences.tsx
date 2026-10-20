@@ -1,3 +1,4 @@
+import { locationName } from "@/lib/location-name";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Plus, Save } from "lucide-react";
@@ -130,7 +131,7 @@ const Occurrences = () => {
     {
       key: "pen",
       headerKey: "field.pen",
-      render: (event) => pens.find((pen) => pen.id === event.pen_id)?.code ?? "—",
+      render: (event) => locationName(pens.find((pen) => pen.id === event.pen_id), "—"),
     },
     {
       key: "cause",

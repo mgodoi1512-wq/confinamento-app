@@ -49,3 +49,15 @@ test('projeção histórica mantém conta quitada só no mês seguinte como pend
 test('mês anterior à abertura não apresenta saldo inicial de uma data futura',()=>{
  const s=cashSummary([],{opening_date:'2026-10-01',opening_balance:10000},'2026-09','2026-10-18');assert.equal(s.actual,0);assert.equal(s.opening,0);
 });
+
+const {dashboardFinance,matchesCashScope}=await import(url(compile(read('../src/lib/dashboard-finance.ts'))));
+test('painel financeiro calcula saldo desde a abertura e separa hoje, atrasados e futuros',()=>{
+ const rows=[entry('entrada',100,'2026-09-02','2026-09-02'),entry('saida',30,'2026-10-19','2026-10-19'),entry('entrada',999,'2026-08-01','2026-08-01'),entry('saida',400,'2026-10-20','2026-10-20'),entry('saida',25.10,'2026-10-19'),entry('saida',0.20,'2026-10-19'),entry('saida',10,'2026-10-18'),entry('entrada',55,'2026-10-19'),entry('saida',70,'2026-10-20')];
+ const result=dashboardFinance(rows,settings,'2026-10-19');
+ assert.equal(result.balance,10070);assert.deepEqual(result.payable,{amount:25.3,count:2});assert.deepEqual(result.receivable,{amount:55,count:1});assert.deepEqual(result.overdue,{amount:10,count:1});
+ assert.equal(matchesCashScope(rows[1],'hoje','2026-10-19'),false);
+});
+test('painel não apresenta saldo presumido quando falta configuração ou abertura é futura',()=>{
+ for(const setup of [null,{...settings,cash_configured:false},{...settings,opening_date:'2026-11-01'}])assert.equal(dashboardFinance([],setup,'2026-10-19').balance,null);
+ assert.equal(dashboardFinance([],settings,'2026-10-19').balance,10000);
+});

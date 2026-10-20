@@ -1,8 +1,11 @@
 import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Plus, Scale } from "lucide-react";
+import { Plus } from "lucide-react";
 
+import { WeightKgIcon } from "@/components/app/weight-kg-icon";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { weighingGmd } from "@/lib/weighing-gmd";
 import { DataTable, type Column } from "@/components/app/data-table";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -10,7 +13,7 @@ import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { useLots } from "@/hooks/use-lots";
 import { useWeighings } from "@/hooks/use-weighings";
-import { computeGmd, liveWeightToArroba, type Weighing } from "@/lib/domain";
+import { liveWeightToArroba } from "@/lib/domain";
 import { formatDate, formatInteger, formatNumber } from "@/lib/format";
 
 const Weighings = () => {
@@ -23,31 +26,17 @@ const Weighings = () => {
   const lots = useMemo(() => lotsQuery.data ?? [], [lotsQuery.data]);
   const weighings = useMemo(() => weighingsQuery.data ?? [], [weighingsQuery.data]);
 
-  const rows = useMemo(
-    () =>
-      weighings.map((weighing) => {
-        const previous = weighings
-          .filter((item) => item.lot_id === weighing.lot_id && item.date < weighing.date)
-          .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
-
-        return {
-          weighing,
-          previous,
-          gmd:
-            previous && previous.date !== weighing.date
-              ? computeGmd(
-                  previous.avg_weight_kg,
-                  weighing.avg_weight_kg,
-                  Math.round(
-                    (new Date(`${weighing.date}T00:00:00`).getTime() -
-                      new Date(`${previous.date}T00:00:00`).getTime()) /
-                      86_400_000,
-                  ),
-                )
-              : null,
-        };
-      }),
-    [weighings],
+  const rows = useMemo(() => weighings.map(weighing => ({
+    weighing,
+    ...weighingGmd(weighing, lots.find(lot => lot.id === weighing.lot_id) ?? null, weighings),
+  })), [weighings, lots]);
+  const gmdCell = (row: (typeof rows)[number]) => (
+    <Tooltip><TooltipTrigger asChild>
+      <button type="button" onClick={event => event.stopPropagation()}
+        className={`cursor-help border-b border-dotted border-current/40 ${row.gmd === null || row.gmd === 0 ? "text-muted-foreground" : row.gmd > 0 ? "text-success" : "text-destructive"}`}>
+        {row.gmd === null ? "—" : formatNumber(row.gmd, 2)}
+      </button>
+    </TooltipTrigger><TooltipContent className="max-w-xs">{row.reason}</TooltipContent></Tooltip>
   );
 
   const columns: Column<(typeof rows)[number]>[] = [
@@ -56,7 +45,7 @@ const Weighings = () => {
       key: "lot",
       headerKey: "field.lot",
       render: (row) => (
-        <span className="font-display text-sm font-semibold">
+        <span className="font-sans text-sm font-semibold">
           {lots.find((lot) => lot.id === row.weighing.lot_id)?.code ?? "—"}
         </span>
       ),
@@ -88,14 +77,7 @@ const Weighings = () => {
       key: "gmd",
       headerKey: "field.gmd",
       numeric: true,
-      render: (row) =>
-        row.gmd !== null ? (
-          <span className={row.gmd > 0 ? "text-success" : "text-destructive"}>
-            {formatNumber(row.gmd, 2)}
-          </span>
-        ) : (
-          "—"
-        ),
+      render: gmdCell,
     },
     {
       key: "arroba",
@@ -122,13 +104,15 @@ const Weighings = () => {
 
       <DataTable
         rows={rows}
-        columns={columns}
+        columns={columns.map(column => ({ ...column, className: "text-center" }))}
         getRowKey={(row) => row.weighing.id}
         onRowClick={(row) => navigate(`/pesagens/${row.weighing.id}`)}
-        loading={weighingsQuery.isLoading}
+        loading={weighingsQuery.isLoading || lotsQuery.isLoading}
         emptyState={
           <EmptyState
-            icon={Scale}
+            icon={WeightKgIcon}
+            iconContainerClassName="bg-transparent text-primary dark:text-foreground"
+            iconClassName="size-10"
             titleKey="weighings.empty.title"
             descriptionKey="weighings.empty.description"
             action={
@@ -149,15 +133,7 @@ const Weighings = () => {
                   {formatDate(row.weighing.date)} · {t(`weighings.kind.${row.weighing.kind}`)}
                 </p>
               </div>
-              <StatusBadge
-                tone={row.gmd !== null && row.gmd > 0 ? "success" : "muted"}
-                label={
-                  row.gmd !== null
-                    ? `${formatNumber(row.gmd, 2)} ${t("common.unit.kgPerDay")}`
-                    : t("common.noData")
-                }
-                size="sm"
-              />
+              <span className="text-sm">{gmdCell(row)} <span className="text-xs text-muted-foreground">kg/dia</span></span>
             </div>
             <div className="grid grid-cols-3 gap-x-3 text-sm">
               <div>

@@ -1,0 +1,10 @@
+.weighing-detail{font-family:Inter,"Segoe UI",sans-serif;}
+.weighing-detail .font-display{font-family:inherit;}
+.weighing-detail .weighing-detail-metric{height:100%;min-height:144px;border-radius:12px;padding:18px;background:hsl(var(--card));border-color:hsl(var(--border));}
+.weighing-detail .weighing-detail-metric>div:first-child{min-height:32px;align-items:center;gap:10px;}
+.weighing-detail .weighing-detail-metric>div:first-child p{font-size:11px;line-height:1.4;font-weight:700;}
+.weighing-detail .weighing-detail-metric>div:first-child svg{width:30px;height:30px;flex-shrink:0;color:#60381f;}
+.weighing-detail .weighing-detail-metric>div:nth-child(2)>span:first-child{font-family:Inter,"Segoe UI",sans-serif;font-size:clamp(26px,2.2vw,36px);font-weight:700;letter-spacing:-1px;}
+.weighing-detail .weighing-detail-metric>div:nth-child(2)>span:nth-child(2){font-size:13px;}
+.dark .weighing-detail .weighing-detail-metric>div:first-child svg{color:#c49c77;}
+@media(max-width:639px){.weighing-detail .weighing-detail-metric{min-height:136px;padding:13px;}.weighing-detail .weighing-detail-metric>div:nth-child(2)>span:first-child{font-size:24px;}}

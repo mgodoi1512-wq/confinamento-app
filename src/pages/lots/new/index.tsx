@@ -1,5 +1,6 @@
+import { locationName } from "@/lib/location-name";
 import { useFarm } from "@/hooks/use-farm";
-import { compatibleLocation, productionSystems, locationLabel, validSystems } from "@/lib/production-systems";
+import { compatibleLocation, productionSystems, validSystems } from "@/lib/production-systems";
 import { AnimalTagsEditor } from "@/components/lots/animal-tags-editor";
 import { buildAnimalTags, emptyAnimalTagInput } from "@/lib/animal-registration";
 import { useNextEarTag } from "@/hooks/use-animal-registration";
@@ -97,7 +98,7 @@ const NewLot = () => {
 
   const occupancy = useMemo(() => computePenOccupancy(pens, lotsQuery.data ?? []), [pens, lotsQuery.data]);
 
-  const usablePens = occupancy.filter((item) => item.pen.status !== "manutencao"&&compatibleLocation(effectiveSystem,item.pen.location_type));
+  const usablePens = occupancy.filter((item) => !["manutencao","inativo"].includes(item.pen.status)&&compatibleLocation(effectiveSystem,item.pen.location_type));
   const requiredHead = Math.max(1, parseNumberInput(headCount) ?? 0);
   const availablePens = usablePens.filter((item) => item.free >= requiredHead);
   const requiredQueries = [farmQuery,pensQuery, lotsQuery];
@@ -135,7 +136,7 @@ const NewLot = () => {
     else if (availablePens.length === 0) next.pen = "Nenhum local tem vagas suficientes para a quantidade de animais informada.";
     if (dietsQuery.isLoading || protocolsQuery.isLoading) next.setup = "Aguarde a verificação de dietas e protocolos.";
     if (target >= 2 && !selectedOccupancy) next.pen = "Selecione o local em que o lote ficará.";
-    if (target >= 2 && selectedOccupancy?.pen.status === "manutencao") next.pen = "Escolha um local que não esteja em manutenção.";
+    if (target >= 2 && selectedOccupancy && ["manutencao","inativo"].includes(selectedOccupancy.pen.status)) next.pen = "Escolha um local ativo, fora de manutenção.";
     if (target >= 2 && protocolId && protocolId!=="all" && !protocols.some(protocol => protocol.id === protocolId)) next.protocol = "O protocolo selecionado está inativo. Escolha um protocolo ativo ou deixe sem protocolo.";
     if (target >= 2 && applyProtocol && !protocols.some(protocol => protocol.id === protocolId)) next.protocol = "Selecione um protocolo para aplicá-lo ao lote.";
 
@@ -567,7 +568,7 @@ const NewLot = () => {
                 error={errors.pen}
                 options={availablePens.slice().sort((a,b)=>a.pen.code.localeCompare(b.pen.code,"pt-BR",{numeric:true})).map((item) => ({
                   value: item.pen.id,
-                  labelKey: `${locationLabel(item.pen.location_type)} · ${item.pen.code} · ${item.free} ${t("common.unit.head")} livres`,
+                  labelKey: `${locationName(item.pen)} · ${item.free} ${t("common.unit.head")} livres`,
                 }))}
               />
 
@@ -581,7 +582,7 @@ const NewLot = () => {
                   Number(parseNumberInput(headCount)) > selectedOccupancy.free ? (
                     <span className="ml-1 font-semibold text-warning">
                       {t("lots.new.penCapacityWarning", {
-                        code: selectedOccupancy.pen.code,
+                        code: locationName(selectedOccupancy.pen),
                         capacity: selectedOccupancy.capacity,
                       })}
                     </span>

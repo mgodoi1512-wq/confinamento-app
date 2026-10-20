@@ -41,14 +41,13 @@ export const BREED_OPTIONS: Option[] = [
 ];
 
 export const PEN_STATUS_OPTIONS: Option[] = [
-  { value: "ativo", labelKey: "status.pen.ativo" },
-  { value: "vazio", labelKey: "status.pen.vazio" },
-  { value: "adaptacao", labelKey: "status.pen.adaptacao" },
-  { value: "manutencao", labelKey: "status.pen.manutencao" },
+  { value: "ativo", labelKey: "Ativo" },
+  { value: "manutencao", labelKey: "Em manutenção" },
+  { value: "inativo", labelKey: "Inativo" },
 ];
 
 /** Currais nestes status não recebem novos lotes. */
-export const PEN_BLOCKED_STATUSES = ["manutencao"];
+export const PEN_BLOCKED_STATUSES = ["manutencao", "inativo"];
 
 export const WEIGHING_KIND_OPTIONS: Option[] = [
   { value: "amostral", labelKey: "weighings.kind.amostral" },

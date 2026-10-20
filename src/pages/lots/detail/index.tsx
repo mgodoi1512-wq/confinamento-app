@@ -1,8 +1,15 @@
+import { locationName } from "@/lib/location-name";
+import "./lot-detail.css";
+import { weightHistory } from "@/lib/weight-history";
+import { systemLabel } from "@/lib/production-systems";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { WeightKgIcon as Scale } from "@/components/app/weight-kg-icon";
 import { LotSystemManager } from "@/components/lots/lot-system-manager";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Beef, CheckCircle2, Scale, TrendingUp, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, LogOut, MoreHorizontal, Plus, Beef, CheckCircle2, TrendingUp, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 
 import { ExportButtons } from "@/components/app/export-buttons";
@@ -36,7 +43,7 @@ import {
   type Lot,
   type Weighing,
 } from "@/lib/domain";
-import { formatDate, formatInteger, formatNumber, todayIso } from "@/lib/format";
+import { daysBetween, formatDate, formatInteger, formatNumber, todayIso } from "@/lib/format";
 import { ExitDialog } from "./exit-dialog";
 import { ProjectionCard } from "./projection-card";
 import { TransferDialog } from "./transfer-dialog";
@@ -47,6 +54,9 @@ const LotDetail = () => {
   const navigate = useNavigate();
   const today = todayIso();
 
+  const [activeTab, setActiveTab] = useState("animals");
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [exitOpen, setExitOpen] = useState(false);
   const [scenario, setScenario] = useState<WeightScenario>("realistic");
 
   const lotsQuery = useLots();
@@ -69,7 +79,7 @@ const LotDetail = () => {
   );
 
   const animals = useMemo(
-    () => (animalsQuery.data ?? []).filter((item) => item.lot_id === id),
+    () => (animalsQuery.data ?? []).filter((item) => item.lot_id === id).sort((a,b) => a.ear_tag.localeCompare(b.ear_tag,"pt-BR",{numeric:true,sensitivity:"base"})),
     [animalsQuery.data, id],
   );
 
@@ -99,18 +109,13 @@ const LotDetail = () => {
       />
     );
   }
-const pen = lot
-  ? (pensQuery.data ?? []).find(
-      (item) => item.id === lot.pen_id
-    )
-  : null;
   const metrics = computeLotMetrics(lot, weighings, today);
   const projection = computeProjection(metrics.currentAvgWeight, metrics.gmd, lot.target_weight_kg, {
     today,
     scenario,
   });
 
-  const penCode = (pensQuery.data ?? []).find((item) => item.id === lot.pen_id)?.code ?? "—";
+  const penCode = locationName((pensQuery.data ?? []).find((item) => item.id === lot.pen_id));
 
   const readyAnimals = animals.filter(
     (animal) =>
@@ -119,12 +124,10 @@ const pen = lot
       !isUnderWithdrawal(animal, today),
   );
 
-  const ordered = [...weighings].sort((a, b) => (a.date < b.date ? -1 : 1));
-  const chartPoints: WeightPoint[] = ordered.map((weighing) => ({
-    date: weighing.date,
-    weight: weighing.avg_weight_kg,
-    projection: weighing.id === ordered[ordered.length - 1]?.id ? weighing.avg_weight_kg : null,
-  }));
+  const chartPoints: WeightPoint[] = weightHistory(lot, weighings, today);
+  const lastPoint = chartPoints[chartPoints.length - 1];
+  if (lastPoint) lastPoint.projection = lastPoint.weight;
+  const gmdDays = metrics.latestWeighing ? daysBetween(lot.entry_date, metrics.latestWeighing.date) : 0;
 
   if (projection && projection.days > 0) {
     chartPoints.push({
@@ -232,42 +235,46 @@ const pen = lot
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="lot-detail space-y-4">
       <PageHeader
-        titleKey="lots.detail.title"
+        titleKey={lot.code}
         actions={
           <>
             <Button variant="outline" className="h-10" onClick={() => navigate("/lotes")}>
               <ArrowLeft />
               {t("action.back")}
             </Button>
-            <TransferDialog lot={lot} />
-            <ExitDialog lot={lot} readyHead={readyAnimals.length} />
-            {lot.status === "ativo" ? (
-              <Button variant="secondary" className="h-10" onClick={() => void closeLot()}>
-                <CheckCircle2 />
-                {t("lots.detail.close")}
-              </Button>
-            ) : null}
+            <Button asChild className="h-10"><Link to="/pesagens/nova"><Plus />Registrar pesagem</Link></Button>
+            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="h-10"><MoreHorizontal />Ações do lote</Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setTransferOpen(true)}><ArrowRightLeft className="mr-2 size-4" />{t("action.transfer")}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setExitOpen(true)}><LogOut className="mr-2 size-4" />{t("action.registerExit")}</DropdownMenuItem>
+                {lot.status === "ativo" ? <><DropdownMenuSeparator /><DropdownMenuItem disabled={updateLot.isPending} onSelect={() => void closeLot()}><CheckCircle2 className="mr-2 size-4" />{t("lots.detail.close")}</DropdownMenuItem></> : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         }
       />
-      <LotSystemManager lot={lot}/>
+      <TransferDialog lot={lot} open={transferOpen} onOpenChange={setTransferOpen} hideTrigger />
+      <ExitDialog lot={lot} readyHead={readyAnimals.length} open={exitOpen} onOpenChange={setExitOpen} hideTrigger />
+      <div className="space-y-2 rounded-lg border border-border bg-card px-4 py-3">
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-display text-xl font-semibold">{lot.code}</span>
         <StatusBadge
           tone={lot.status === "ativo" ? "success" : "muted"}
           label={t(`status.lot.${lot.status}`)}
         />
         <span className="text-sm text-muted-foreground">
-          {t("field.pen")} {penCode} · {lot.origin ?? t("common.noData")} ·{" "}
-          {t("field.entryDate")} {formatDate(lot.entry_date)}
+          {penCode} · Manejo: {systemLabel(lot.production_system)} · Entrada em {formatDate(lot.entry_date)}
+          {lot.origin?.trim() ? ` · Origem: ${lot.origin}` : ""}
         </span>
       </div>
 
+      <LotSystemManager lot={lot} compact />
+      </div>
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         <StatCard
+          className="lot-detail-metric"
           labelKey="field.animalCount"
           value={formatInteger(lot.head_count)}
           unitKey="common.unit.head"
@@ -275,25 +282,24 @@ const pen = lot
           note={`${animals.length} ${t("common.individualRecords")}`}
         />
         <StatCard
+          className="lot-detail-metric"
           labelKey="field.entryWeight"
           value={formatNumber(lot.entry_avg_weight_kg, 1)}
           unitKey="common.unit.kg"
           icon={Scale}
         />
         <StatCard
-          labelKey="field.currentWeight"
+          className="lot-detail-metric"
+          labelKey="Último peso médio registrado"
           value={metrics.currentAvgWeight ? formatNumber(metrics.currentAvgWeight, 1) : "—"}
           unitKey="common.unit.kg"
           icon={Scale}
-          variant="agro"
-          note={
-            metrics.arroba !== null
-              ? `${formatNumber(metrics.arroba, 1)} ${t("common.unit.arroba")}`
-              : undefined
-          }
+          note={metrics.latestWeighing ? `Pesagem de ${formatDate(metrics.latestWeighing.date)}` : `Peso de entrada · ${formatDate(lot.entry_date)}` }
         />
+        <Tooltip><TooltipTrigger asChild><div tabIndex={0} className="h-full rounded-xl outline-offset-2 focus-visible:outline focus-visible:outline-ring">
         <StatCard
-          labelKey="field.gmd"
+          className="lot-detail-metric"
+          labelKey="GMD observado"
           value={metrics.gmd !== null ? formatNumber(metrics.gmd, 2) : "—"}
           unitKey="common.unit.kgPerDay"
           icon={TrendingUp}
@@ -303,11 +309,13 @@ const pen = lot
               : undefined
           }
         />
+        </div></TooltipTrigger><TooltipContent className="max-w-xs">{gmdDays > 0 ? `GMD observado desde a entrada até a última pesagem, em ${gmdDays} dias.` : "Aguardando pesagem posterior à entrada para calcular."}</TooltipContent></Tooltip>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
-          <ProjectionCard
+        <CardContent className="p-4 sm:p-5">
+          <ProjectionCard key={`${lot.id}:${lot.target_weight_kg}`}
+            gmdDays={gmdDays}
             targetWeight={lot.target_weight_kg}
             metrics={metrics}
             scenario={scenario}
@@ -331,24 +339,27 @@ const pen = lot
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="animals">
-        <TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <TabsList className="h-auto min-h-10 flex-wrap justify-start">
           <TabsTrigger value="animals">{t("lots.detail.animals")}</TabsTrigger>
           <TabsTrigger value="weighings">{t("lots.detail.weighings")}</TabsTrigger>
           <TabsTrigger value="health">{t("animals.detail.health")}</TabsTrigger>
           <TabsTrigger value="feed">{t("lots.detail.feed")}</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="animals" className="space-y-4 pt-4">
-          <div className="flex flex-wrap justify-end gap-2">
+        {activeTab === "animals" ? (
             <ExportButtons
               disabled={[animalsQuery, lotsQuery, pensQuery, weighingsQuery, recordsQuery].some(query => query.isFetching || query.isPending || query.isError) || !animals.length}
               getReport={() => animalReport(animals, lotsQuery.data ?? [], pensQuery.data ?? [], weighingsQuery.data ?? [], recordsQuery.data ?? [], key => t(key), `Lote: ${lot.code} | Todos os animais vinculados`, today)}
             />
-          </div>
+        ) : null}
+        </div>
+
+        <TabsContent value="animals" className="mt-2 space-y-2 pt-0">
+
           <DataTable
             rows={animals}
-            columns={animalColumns}
+            columns={animalColumns.map(column => ({...column,className:"text-center"}))}
             getRowKey={(row) => row.id}
             emptyState={
               <EmptyState icon={Beef} titleKey="lots.detail.noAnimals" />
@@ -356,25 +367,25 @@ const pen = lot
           />
         </TabsContent>
 
-        <TabsContent value="weighings" className="pt-4">
+        <TabsContent value="weighings" className="mt-2 pt-0">
           <DataTable
             rows={weighings}
-            columns={weighingColumns}
+            columns={weighingColumns.map(column => ({...column,className:"text-center"}))}
             getRowKey={(row) => row.id}
             emptyState={<EmptyState icon={Scale} titleKey="weighings.empty.title" descriptionKey="weighings.empty.description" />}
           />
         </TabsContent>
 
-        <TabsContent value="health" className="pt-4">
+        <TabsContent value="health" className="mt-2 pt-0">
           <DataTable
             rows={healthEvents}
-            columns={healthColumns}
+            columns={healthColumns.map(column => ({...column,className:"text-center"}))}
             getRowKey={(row) => row.id}
             emptyState={<EmptyState titleKey="animals.detail.noEvents" />}
           />
         </TabsContent>
 
-        <TabsContent value="feed" className="pt-4">
+        <TabsContent value="feed" className="mt-2 pt-0">
           {feedLogs.length === 0 ? (
             <EmptyState
               icon={UtensilsCrossed}

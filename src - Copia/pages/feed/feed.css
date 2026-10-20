@@ -1,0 +1,10 @@
+/* Aparência restrita ao histórico de tratos. */
+.feed-page .feed-history table th,.feed-page .feed-history table td{text-align:center;border-inline:0;}
+.feed-page .feed-history table tbody tr:hover {
+  background: #f0e5d8;
+}
+
+/* Cor ao passar o mouse no tema dark */
+.dark .feed-page .feed-history table tbody tr:hover {
+  background: #29372f;
+}
