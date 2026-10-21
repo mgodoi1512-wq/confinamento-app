@@ -153,7 +153,7 @@ const Feed = () => {
         </CardHeader>
         <CardContent>
           <p id="feed-today-help" hidden={!helpOpen} className="mb-3 text-xs leading-relaxed text-muted-foreground">Tratos de hoje: verde = fornecido para todos os lotes; vermelho = pendente ou parcial. A barra compara a mistura fornecida (ração + volumoso) com a recomendação diária da dieta, pelo planejamento fixado no primeiro trato; antes disso, pela referência atual do lote. A média é por lançamento; os registros representam oferta, não ingestão medida.</p>
-          <div className="overflow-x-auto"><div className="md:min-w-[900px]">
+          <div className="overflow-x-auto"><div className="md:min-w-225">
           <DataTable
             rows={todayRows}
             columns={[
@@ -192,8 +192,8 @@ const Feed = () => {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="break-words font-display text-base font-semibold">{row.penCode}</p>
-                    <p className="break-words text-xs text-muted-foreground">{t("field.lot")}: {row.lotCode}</p>
+                    <p className="wrap-break-word font-display text-base font-semibold">{row.penCode}</p>
+                    <p className="wrap-break-word text-xs text-muted-foreground">{t("field.lot")}: {row.lotCode}</p>
                   </div>
                   <PenFeedingStatus summary={row.feeding} error={feeding.error} />
                 </div>
