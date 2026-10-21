@@ -1,0 +1,17 @@
+[
+  {
+    "path": "src/pages/feed/reading.tsx",
+    "existed": true,
+    "backupName": "src__pages__feed__reading.tsx.bak"
+  },
+  {
+    "path": "src/pages/feed/reading-overview.tsx",
+    "existed": false,
+    "backupName": "src__pages__feed__reading-overview.tsx.bak"
+  },
+  {
+    "path": "CodeGuideline.md",
+    "existed": true,
+    "backupName": "CodeGuideline.md.bak"
+  }
+]

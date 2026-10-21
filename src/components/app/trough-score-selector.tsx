@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { TroughScoreTooltip } from "@/components/app/trough-score-info";
@@ -11,15 +12,16 @@ export type TroughScoreSelectorProps = {
   value: number | null;
   onChange: (score: number) => void;
   className?: string;
+  variant?: "default" | "cards";
 };
 
 /** Leitura de cocho 0-5 com ajuste implícito de oferta. */
-export const TroughScoreSelector = ({ value, onChange, className }: TroughScoreSelectorProps) => {
+export const TroughScoreSelector = ({ value, onChange, className, variant = "default" }: TroughScoreSelectorProps) => {
   const { t } = useTranslation();
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="grid grid-cols-3 gap-1.5 rounded-lg bg-muted p-1.5 md:grid-cols-6">
+      <div className={cn("grid grid-cols-3 gap-1.5 rounded-lg md:grid-cols-6", variant === "cards" ? "reading-score-cards" : "bg-muted p-1.5")}>
         {SCORES.map((score) => {
           const selected = value === score;
           const tone = troughScoreTone(score);
@@ -31,12 +33,14 @@ export const TroughScoreSelector = ({ value, onChange, className }: TroughScoreS
               onClick={() => onChange(score)}
               aria-pressed={selected}
               className={cn(
-                "flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-center transition-[background-color,transform,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.97] md:min-h-14",
+                "relative flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-center transition-[background-color,transform,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.97] md:min-h-14",
+                variant === "cards" && "border border-border bg-card",
                 selected
-                  ? toneClasses[tone].solid
+                  ? cn(toneClasses[tone].solid, variant === "cards" && "reading-score-selected ring-2 ring-foreground ring-offset-2 ring-offset-background")
                   : "text-muted-foreground hover:bg-background hover:text-foreground",
               )}
             >
+              {selected && variant === "cards" ? <Check className="absolute right-1 top-1 size-3" aria-hidden="true" /> : null}
               <span className="font-display text-lg font-semibold num">{score}</span>
               <span className="text-[10px] leading-tight">{t(`trough.score.${score}`)}</span>
             </button>

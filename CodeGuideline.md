@@ -215,3 +215,10 @@ O fluxo não envia convites por e-mail automaticamente. Os gestores criam convit
 - `src/pages/login/index.tsx` usa `ResizeObserver` e `framer-motion` já instalado para acompanhar altura, mensagens e mudanças de largura; os campos preservam seus valores ao mudar de aba.
 - `src/pages/login/login.css` define grafite para painel e campos do tema escuro, detalhes em cobre, textos claros e estilos de foco. Fundos e logos existentes permanecem intactos.
 - Animações em React e CSS respeitam a preferência do aparelho por movimento reduzido. Não há dependências novas nem mudanças no banco.
+
+
+## Visão geral da leitura de cocho (20/10/2026)
+
+- `src/pages/feed/reading-overview.tsx`: resumo compacto da ronda, filtros Todos/Pendentes/Lidos, tabela em telas a partir de 768px e cartões com ações acessíveis no celular. Usa os temas existentes.
+- `src/pages/feed/reading.tsx`: integra a apresentação sem alterar cálculos da oferta base, gravação ou aplicação de ajustes; ordena os locais naturalmente por nome.
+- A oferta exibida é identificada como referência para ajuste da manhã (não como último trato, pois pode vir da dieta). O progresso conta somente os locais com lote ativo exibidos na ronda.

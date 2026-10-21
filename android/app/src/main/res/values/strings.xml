@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LiBen Gestão de Fazendas</string>
+    <string name="title_activity_main">LiBen Gestão de Fazendas</string>
+    <string name="package_name">com.libenagro.gestao</string>
+    <string name="custom_url_scheme">com.libenagro.gestao</string>
+</resources>
