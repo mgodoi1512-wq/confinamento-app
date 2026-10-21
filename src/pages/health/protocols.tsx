@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Portal } from "@radix-ui/react-tooltip";
 import { Info, MoreHorizontal, Pencil, Plus, Save, ShieldPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,7 +43,31 @@ const emptyItem = (): ItemDraft => ({
 const searchText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
 const WithdrawalHelp = () => {
   const [open, setOpen] = useState(false);
-  return <Tooltip open={open} onOpenChange={setOpen} delayDuration={150}><TooltipTrigger asChild><button type="button" aria-label="Como preencher a carência?" onClick={()=>setOpen(value=>!value)} className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><Info className="size-4" /></button></TooltipTrigger><TooltipContent className="max-w-[min(20rem,calc(100vw-2rem))] text-xs leading-relaxed">Informe a carência em dias indicada na bula para a finalidade de uso. Preencha 0 somente quando a carência for zero. O sistema não define esse prazo automaticamente.</TooltipContent></Tooltip>;
+  return (
+    <Tooltip open={open} onOpenChange={setOpen} delayDuration={150}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Como preencher a carência?"
+          onClick={event => { event.preventDefault(); setOpen(true); }}
+          className="relative inline-flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none before:absolute before:-inset-2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Info className="size-3.5" />
+        </button>
+      </TooltipTrigger>
+      <Portal>
+        <TooltipContent
+          side="top"
+          align="end"
+          sideOffset={8}
+          collisionPadding={16}
+          className="z-[100] max-w-[min(20rem,calc(100vw-2rem))] text-xs leading-relaxed"
+        >
+          Informe a carência em dias indicada na bula para a finalidade de uso. Preencha 0 somente quando a carência for zero. O sistema não define esse prazo automaticamente.
+        </TooltipContent>
+      </Portal>
+    </Tooltip>
+  );
 };
 
 const Protocols = () => {
@@ -232,15 +257,15 @@ const Protocols = () => {
               </div>
               <label className="flex w-fit items-center gap-2 text-sm"><input type="checkbox" checked={isActive} onChange={event=>setIsActive(event.target.checked)} className="size-4 rounded border-input accent-primary" />{t("config.diets.active")}</label>
               <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2"><h3 className="text-sm font-semibold">{t("health.protocols.items")}</h3><WithdrawalHelp /></div>
+                <h3 className="text-sm font-semibold">{t("health.protocols.items")}</h3>
                 <p className="text-xs text-muted-foreground">Registre a dose com unidade e referência de aplicação, conforme o produto. Dose e carência não são preenchidas automaticamente.</p>
                 {drafts.map((draft,index)=><div key={draft.key} className="space-y-2 rounded-lg border border-border bg-card p-3">
                   <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold">Item {index+1}</span><Button variant="ghost" size="icon" className="size-10 text-muted-foreground hover:text-destructive" aria-label={`Remover item ${index+1}`} onClick={()=>setDrafts(current=>current.filter(item=>item.key!==draft.key))}><Trash2 className="size-4" /></Button></div>
-                  <div className="grid min-w-0 grid-cols-2 items-start gap-3 md:grid-cols-[110px_minmax(0,1fr)_140px_110px] [&>div]:min-w-0 [&_label]:text-xs [&_label]:text-muted-foreground [&_input]:h-10">
+                  <div className="grid min-w-0 grid-cols-2 items-start gap-3 md:grid-cols-[110px_minmax(0,1fr)_140px_140px] [&>div]:min-w-0 [&_label]:text-xs [&_label]:text-muted-foreground [&_input]:h-10">
                     <SelectField className="col-span-2 md:col-span-1" label={t("field.kind")} triggerClassName="h-10" value={draft.kind} onChange={value=>setDrafts(current=>current.map(item=>item.key===draft.key?{...item,kind:value}:item))} options={PROTOCOL_ITEM_KIND_OPTIONS} />
                     <TextField className="col-span-2 md:col-span-1" label={t("field.product")} value={draft.product} onChange={value=>setDrafts(current=>current.map(item=>item.key===draft.key?{...item,product:value}:item))} placeholder="Nome do produto" />
-                    <TextField label={t("field.dose")} value={draft.dose} onChange={value=>setDrafts(current=>current.map(item=>item.key===draft.key?{...item,dose:value}:item))} placeholder="Qtd. + unidade" />
-                    <NumericField compact label={t("field.withdrawalDays")} inputMode="numeric" placeholder="Informe" value={draft.withdrawal} onValueChange={value=>setDrafts(current=>current.map(item=>item.key===draft.key?{...item,withdrawal:value}:item))} />
+                    <TextField className="col-span-2 min-[360px]:col-span-1" label={t("field.dose")} value={draft.dose} onChange={value=>setDrafts(current=>current.map(item=>item.key===draft.key?{...item,dose:value}:item))} placeholder="Qtd. + unidade" />
+                    <NumericField className="col-span-2 min-[360px]:col-span-1" compact label={t("field.withdrawalDays")} labelAccessory={<WithdrawalHelp />} inputMode="numeric" placeholder="Informe" value={draft.withdrawal} onValueChange={value=>setDrafts(current=>current.map(item=>item.key===draft.key?{...item,withdrawal:value}:item))} />
                   </div>
                 </div>)}
                 <Button variant="outline" className="h-10 w-full" onClick={()=>setDrafts(current=>[...current,emptyItem()])}><Plus />{t("health.protocols.addItem")}</Button>

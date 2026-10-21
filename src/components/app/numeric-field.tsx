@@ -1,10 +1,11 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { Calculator } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 export type NumericFieldProps = {
   label?: string;
+  labelAccessory?: ReactNode;
   unit?: string;
   value: string;
   onValueChange: (value: string) => void;
@@ -23,6 +24,7 @@ export type NumericFieldProps = {
 /** Campo numérico pt-BR com vírgula, sufixo de unidade e teclado numérico no celular. */
 export const NumericField = ({
   label,
+  labelAccessory,
   unit,
   value,
   onValueChange,
@@ -42,13 +44,16 @@ export const NumericField = ({
   return (
     <div className={cn("space-y-1.5", className)}>
       {label ? (
-        <label
-          htmlFor={id}
-          className="flex items-center gap-1 text-xs font-medium text-muted-foreground"
-        >
-          {label}
-          {readOnly ? <Calculator className="size-3.5" /> : null}
-        </label>
+        <div className="flex min-h-4 items-center gap-1">
+          <label
+            htmlFor={id}
+            className="flex items-center gap-1 text-xs font-medium text-muted-foreground"
+          >
+            {label}
+            {readOnly ? <Calculator className="size-3.5" /> : null}
+          </label>
+          {labelAccessory}
+        </div>
       ) : null}
 
       <div
