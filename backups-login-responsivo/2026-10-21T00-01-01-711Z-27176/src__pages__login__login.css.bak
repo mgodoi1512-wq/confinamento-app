@@ -1,0 +1,167 @@
+/* Login responsivo: celular em coluna; computador em duas colunas. Fundos existentes preservados. */
+
+  .login-screen-page {
+    isolation: isolate;
+    position: relative;
+    padding: max(18px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+  }
+
+  .login-screen-page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgb(31 15 7 / 12%), rgb(27 13 6 / 35%) 32%, rgb(20 10 5 / 72%) 100%);
+  }
+
+  .login-screen-content { max-width: 440px; }
+  .login-screen-content > :not([hidden]) ~ :not([hidden]) { margin-top: 22px; }
+
+  .login-screen-theme {
+    position: absolute;
+    top: max(22px, env(safe-area-inset-top));
+    right: max(20px, env(safe-area-inset-right));
+    border: 1px solid rgb(255 240 218 / 65%);
+    border-radius: 50%;
+    background: rgb(42 23 13 / 58%);
+    color: #fff3df;
+  }
+  .login-screen-theme button { width: 44px; height: 44px; border-radius: inherit; color: inherit; }
+  .login-screen-theme button:hover { background: rgb(255 240 218 / 12%); }
+
+  .login-screen-hero { color: #fffaf1; }
+  .login-screen-hero h1, .login-screen-hero > p { animation: login-screen-arrive 450ms ease-out both; }
+  .login-screen-brand { width: 180px; height: 158px; margin: -8px 0 8px -16px; }
+  .login-screen-brand img {
+    width: 180px;
+    height: 180px;
+    object-fit: contain;
+    /* Reutiliza a marca original: o fundo claro fica preto e desaparece na mesclagem. */
+    filter: grayscale(1) invert(1) contrast(4) brightness(1.6);
+    mix-blend-mode: screen;
+  }
+  .login-screen-hero h1 { font-size: clamp(28px, 8.3vw, 38px); font-weight: 750; line-height: 1.12; letter-spacing: -.035em; text-shadow: 0 2px 18px rgb(0 0 0 / 25%); }
+  .login-screen-hero h1 span { color: #ffebcc; }
+  .login-screen-hero > p { margin-top: 10px; font-size: 14px; line-height: 1.5; color: #fff5e6; text-shadow: 0 1px 8px #26170e; }
+
+  .login-screen-highlights {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 20px;
+    padding: 12px 4px;
+    border: 1px solid rgb(255 225 190 / 36%);
+    border-radius: 16px;
+    background: rgb(49 28 16 / 76%);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  .login-screen-highlights li { display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 0 2px; font-size: 10px; color: #fff4e4; }
+  .login-screen-highlights li + li { border-left: 1px solid rgb(255 225 190 / 25%); }
+  .login-screen-highlights svg { width: 20px; height: 20px; stroke-width: 1.6; }
+
+  .login-screen-card {
+    --ring: 29 80% 70%;
+    --ring-offset-background: 23 47% 12%;
+    padding: 20px;
+    border: 1px solid #d79b67;
+    border-radius: 24px;
+    background: linear-gradient(135deg, rgb(72 40 22 / 92%), rgb(27 17 12 / 94%));
+    color: #fff8ed;
+    box-shadow: 0 18px 48px rgb(0 0 0 / 22%), inset 0 1px 0 rgb(255 255 255 / 6%);
+    animation: login-screen-arrive 500ms 70ms ease-out both;
+  }
+  @supports ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
+    .login-screen-card { background: linear-gradient(135deg, rgb(72 40 22 / 78%), rgb(27 17 12 / 86%)); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  }
+  .login-screen-tabs { height: 44px; padding: 0; border-radius: 0; border-bottom: 1px solid rgb(255 224 191 / 32%); background: transparent; color: #e4c9ae; }
+  .login-screen-tabs [role="tab"] { height: 44px; border-radius: 0; border-bottom: 3px solid transparent; padding: 6px 8px; font-size: 15px; color: #e4c9ae; box-shadow: none; }
+  .login-screen-tabs [role="tab"][data-state="inactive"] { color: #e4c9ae; }
+  .login-screen-tabs [role="tab"][data-state="active"] { border-bottom-color: #e4a365; background: transparent; color: #fffaf2; }
+  .login-screen-welcome { margin-top: 22px; font-size: clamp(21px, 6vw, 26px); line-height: 1.2; font-weight: 700; letter-spacing: -.025em; }
+  .login-screen-card form { margin-top: 18px; }
+  .login-screen-card label { display: inline-block; color: #fff2e1; }
+  .login-screen-card input {
+    height: 48px;
+    border: 1px solid rgb(250 221 189 / 75%);
+    border-radius: 12px;
+    background: rgb(19 12 8 / 35%);
+    color: #fff8ef;
+    font-size: 16px;
+    caret-color: #f1b077;
+  }
+  .login-screen-card input:focus-visible { border-color: #f3b378; }
+  .login-screen-card input:-webkit-autofill { -webkit-text-fill-color: #fff8ef; box-shadow: 0 0 0 1000px #34241a inset; }
+  .login-screen-field { position: relative; }
+  .login-screen-field input { padding-left: 42px; }
+  .login-screen-field input#password { padding-right: 48px; }
+  .login-screen-field-icon { display: block; position: absolute; top: 14px; left: 13px; width: 20px; height: 20px; color: #e8d2ba; pointer-events: none; }
+  .login-screen-placeholder { display: block; position: absolute; inset: 0 auto 0 43px; align-content: center; font-size: 16px; color: #c9b8a8; pointer-events: none; }
+  .login-screen-field:has(input:-webkit-autofill) .login-screen-placeholder { display: none; }
+  .login-screen-password { display: flex; position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; align-items: center; justify-content: center; border-radius: 10px; color: #fff0da; }
+  .login-screen-password svg { width: 21px; height: 21px; }
+  .login-screen-password:focus-visible { outline: 2px solid #f3b378; outline-offset: 2px; }
+  .login-screen-card a { display: inline-flex; min-height: 44px; align-items: center; color: #ffefda; }
+  .login-screen-card .text-muted-foreground { color: #e3cab4; }
+  .login-screen-card [role="status"] { background: #483424; color: #fff3e2; }
+  .login-screen-card [role="alert"] { border: 1px solid #f5b7ac; background: #572821; color: #ffe0da; }
+  .login-screen-card .login-screen-submit {
+    position: relative;
+    height: 52px;
+    padding: 0 34px;
+    border: 1px solid #dfa26b;
+    border-radius: 12px;
+    background: linear-gradient(115deg, #ac5f2d, #85421e);
+    color: #fffaf4;
+    font-size: 15px;
+    font-weight: 650;
+    transition: filter 160ms ease, transform 160ms ease;
+  }
+  .login-screen-submit:hover { filter: brightness(1.12); }
+  .login-screen-submit:active { transform: translateY(1px); }
+  .login-screen-submit .login-screen-submit-arrow { display: block; position: absolute; right: 12px; width: 19px; height: 19px; }
+  .login-screen-signup-hint { display: block; color: #e6ceb6; font-size: 12px; line-height: 1.6; }
+
+
+@keyframes login-screen-arrive {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-screen-hero h1, .login-screen-hero > p, .login-screen-card { animation: none; }
+  .login-screen-card .login-screen-submit { transition: none; }
+}
+
+/* Computador: apresentação à esquerda e formulário à direita, conforme a prévia aprovada. */
+@media (min-width: 1024px) {
+  .login-screen-page {
+    display: flex;
+    align-items: center;
+    padding: 44px clamp(36px, 6vw, 112px);
+  }
+  .login-responsive-main { width: 100%; }
+  .login-screen-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(360px, 440px);
+    align-items: center;
+    gap: clamp(40px, 5vw, 96px);
+    max-width: 1320px;
+  }
+  .login-screen-content > :not([hidden]) ~ :not([hidden]) { margin-top: 0; }
+  .login-screen-theme { position: fixed; top: 28px; right: 30px; }
+  .login-screen-brand { width: 240px; height: 204px; margin: -12px 0 34px -22px; }
+  .login-screen-brand img { width: 240px; height: 240px; }
+  .login-screen-hero h1 { font-size: clamp(38px, 3.65vw, 60px); line-height: 1.1; }
+  .login-screen-hero > p { margin-top: 18px; font-size: clamp(15px, 1.4vw, 20px); }
+  .login-screen-highlights { margin-top: 36px; padding: 19px 5px; border-radius: 18px; }
+  .login-screen-highlights li { flex-direction: row; gap: 8px; font-size: clamp(10px, .88vw, 13px); }
+  .login-screen-highlights svg { width: 22px; height: 22px; flex-shrink: 0; }
+  .login-screen-card { padding: 30px; border-radius: 26px; }
+  .login-screen-welcome { margin-top: 28px; font-size: 28px; }
+  .login-screen-card form { margin-top: 24px; }
+  .login-screen-card input { height: 52px; }
+  .login-screen-field-icon { top: 16px; }
+  .login-screen-password { top: 4px; }
+  .login-screen-card .login-screen-submit { height: 56px; font-size: 16px; }
+}

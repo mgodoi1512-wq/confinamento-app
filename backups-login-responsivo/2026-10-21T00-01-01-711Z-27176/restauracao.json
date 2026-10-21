@@ -1,0 +1,22 @@
+[
+  {
+    "path": "src/pages/login/index.tsx",
+    "existed": true,
+    "backupName": "src__pages__login__index.tsx.bak"
+  },
+  {
+    "path": "src/pages/login/login.css",
+    "existed": true,
+    "backupName": "src__pages__login__login.css.bak"
+  },
+  {
+    "path": "src/pages/login/mobile.css",
+    "existed": false,
+    "backupName": "src__pages__login__mobile.css.bak"
+  },
+  {
+    "path": "CodeGuideline.md",
+    "existed": true,
+    "backupName": "CodeGuideline.md.bak"
+  }
+]

@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
-import { BarChart3, Beef, ShieldCheck, UtensilsCrossed } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowRight, BarChart3, Beef, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UtensilsCrossed } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeContactPhone } from "@/lib/contact-phone";
 import { useAuth } from "@/hooks/use-auth";
+import "./login.css";
 
 const Login = () => {
   const { t } = useTranslation();
@@ -17,10 +19,25 @@ const Login = () => {
   const { session, loading, passwordRecovery } = useAuth();
 
   const [mode, setMode] = useState("login");
+  const reduceMotion = useReducedMotion();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelHeight, setPanelHeight] = useState<number | null>(null);
+
+  // Mede o conteúdo natural para animar a altura sem cortar cadastro ou mensagens.
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const measure = () => setPanelHeight(panel.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [mode]);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [notice, setNotice] = useState<string | null>(location.state?.accountConfirmed ? "Sua conta foi confirmada. Entre com seu e-mail e senha." : null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -93,50 +110,36 @@ const Login = () => {
   ];
 
   return (
-    <div className="login-background min-h-dvh w-full px-4 pb-8 pt-20 sm:px-6 lg:grid lg:grid-cols-[minmax(0,46fr)_minmax(0,54fr)] lg:items-center lg:gap-8 lg:px-10 lg:py-20">
-      <div className="fixed right-4 top-4 z-50 rounded-lg bg-background text-foreground">
+    <div className="login-screen-page login-background min-h-dvh w-full">
+      <div className="login-screen-theme fixed right-4 top-4 z-50 rounded-lg bg-background text-foreground">
         <ThemeToggle />
       </div>
 
-      {/* Marca no computador */}
-      <aside className="hidden min-w-0 items-center justify-center lg:flex">
-        <img
-          src="/logo-liben-2.png"
-          alt="LiBen Agronegócios"
-          className="h-auto w-full max-w-sm rounded-3xl object-contain dark:hidden"
-        />
-        <img
-          src="/logo-liben-dark.png"
-          alt="LiBen Agronegócios"
-          className="hidden h-auto w-full max-w-sm rounded-3xl object-contain dark:block"
-        />
-      </aside>
+      <main className="login-responsive-main min-w-0">
+        <div className="login-screen-content mx-auto w-full">
+          <header className="login-screen-hero">
+            <div className="login-screen-brand">
+              <img src="/logo-liben-2.png" alt="LiBen Agronegócios" width={180} height={180} />
+            </div>
+            <h1>Sua fazenda.<br /><span>Na palma da mão.</span></h1>
+            <p>Mais controle para o seu dia a dia.</p>
+            <ul className="login-screen-highlights" aria-label="Recursos do sistema">
+              {highlights.map((item) => (
+                <li key={item.key}><item.icon aria-hidden="true" /><span>{t(item.key)}</span></li>
+              ))}
+            </ul>
+          </header>
 
-      {/* Logo e formulário compartilham o mesmo eixo no celular. */}
-      <main className="flex min-w-0 items-center justify-center">
-        <div className="mx-auto w-full max-w-md space-y-6">
-          <div className="flex justify-center lg:hidden">
-            <img
-              src="/logo-liben-2.png"
-              alt="LiBen Agronegócios"
-              className="h-40 w-40 rounded-2xl object-contain dark:hidden"
-            />
-            <img
-              src="/logo-liben-dark.png"
-              alt="LiBen Agronegócios"
-              className="hidden h-40 w-40 rounded-2xl object-contain dark:block"
-            />
-          </div>
-
-          <div className="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xs md:p-6">
+          <div className="login-screen-card mx-auto w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xs md:p-6">
             <Tabs
               value={mode}
               onValueChange={(value) => {
                 setMode(value);
+                setShowPassword(false);
                 setError(null);
               }}
             >
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList data-mode={mode} className="login-screen-tabs grid w-full grid-cols-2">
                 <TabsTrigger value="login">{t("auth.loginTab")}</TabsTrigger>
                 <TabsTrigger
                   value="signup"
@@ -146,99 +149,113 @@ const Login = () => {
                 </TabsTrigger>
               </TabsList>
 
-              <form onSubmit={submit} className="mt-5 space-y-4">
-                {mode === "signup" ? (
-                  <div className="space-y-2">
-                    <label htmlFor="fullName" className="text-sm font-medium">
-                      {t("auth.fullName")}
-                    </label>
-                    <Input
-                      id="fullName"
-                      value={fullName}
-                      onChange={(event) => setFullName(event.target.value)}
-                      autoComplete="name"
-                      className="h-11"
-                    />
-                  </div>
-                ) : null}
+              <motion.div
+                className="login-screen-panel"
+                initial={false}
+                animate={{ height: panelHeight ?? "auto" }}
+                transition={{ duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <motion.div
+                  key={mode}
+                  ref={panelRef}
+                  className="login-screen-panel-content"
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.24 }}
+                >
+                  <h2 className="login-screen-welcome">
+                    {mode === "signup" ? "Crie sua conta" : "Bem-vindo de volta"}
+                  </h2>
 
-                {mode === "signup" ? <div className="space-y-2">
-                  <label htmlFor="phone" className="text-sm font-medium">Telefone com DDD</label>
-                  <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => setPhone(event.target.value)} maxLength={22} required className="h-11" />
-                  <p className="text-xs text-muted-foreground">Telefone para contato. Seu acesso continua por e-mail e senha.</p>
-                </div> : null}
+                  <form onSubmit={submit} className="mt-5 space-y-4">
+                    {mode === "signup" ? (
+                      <div className="space-y-2">
+                        <label htmlFor="fullName" className="text-sm font-medium">
+                          {t("auth.fullName")}
+                        </label>
+                        <Input
+                          id="fullName"
+                          value={fullName}
+                          onChange={(event) => setFullName(event.target.value)}
+                          autoComplete="name"
+                          className="h-11"
+                        />
+                      </div>
+                    ) : null}
 
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    {t("auth.email")}
-                  </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    autoComplete="email"
-                    inputMode="email"
-                    className="h-11"
-                  />
-                </div>
+                    {mode === "signup" ? <div className="space-y-2">
+                      <label htmlFor="phone" className="text-sm font-medium">Telefone com DDD</label>
+                      <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => setPhone(event.target.value)} maxLength={22} required className="h-11" />
+                      <p className="text-xs text-muted-foreground">Telefone para contato. Seu acesso continua por e-mail e senha.</p>
+                    </div> : null}
 
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium">
-                    {t("auth.password")}
-                  </label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                    className="h-11"
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <label htmlFor="email" className="text-sm font-medium">
+                        {t("auth.email")}
+                      </label>
+                      <div className="login-screen-field">
+                        <Mail className="login-screen-field-icon hidden" aria-hidden="true" />
+                        <Input
+                          id="email"
+                          type="email"
+                          value={email}
+                          onChange={(event) => setEmail(event.target.value)}
+                          autoComplete="email"
+                          inputMode="email"
+                          className="h-11"
+                        />
+                        {!email && <span className="login-screen-placeholder hidden" aria-hidden="true">seu@email.com</span>}
+                      </div>
+                    </div>
 
-                {mode === "login" ? <div className="text-right"><Link to="/recuperar-senha" className="text-sm font-medium text-primary underline underline-offset-4">Esqueci minha senha</Link></div> : null}
+                    <div className="space-y-2">
+                      <label htmlFor="password" className="text-sm font-medium">
+                        {t("auth.password")}
+                      </label>
+                      <div className="login-screen-field">
+                        <LockKeyhole className="login-screen-field-icon hidden" aria-hidden="true" />
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                          className="h-11"
+                        />
+                        <button
+                          type="button"
+                          className="login-screen-password hidden"
+                          aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                          aria-pressed={showPassword}
+                          aria-controls="password"
+                          onClick={() => setShowPassword((visible) => !visible)}
+                        >
+                          {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                        </button>
+                      </div>
+                    </div>
 
-                {notice && <p role="status" className="rounded-md bg-muted p-3 text-sm">{notice}</p>}
-                {error ? (
-                  <p className="rounded-md bg-destructive/12 px-3 py-2 text-sm text-destructive">
-                    {error}
-                  </p>
-                ) : null}
+                    {mode === "login" ? <div className="text-right"><Link to="/recuperar-senha" className="text-sm font-medium text-primary underline underline-offset-4">Esqueci minha senha</Link></div> : null}
 
-                <Button type="submit" size="lg" className="h-12 w-full" disabled={submitting}>
-                  {mode === "signup" ? t("action.signUp") : t("action.signIn")}
-                </Button>
-              </form>
+                    {notice && <p role="status" className="rounded-md bg-muted p-3 text-sm">{notice}</p>}
+                    {error ? (
+                      <p role="alert" className="rounded-md bg-destructive/12 px-3 py-2 text-sm text-destructive">
+                        {error}
+                      </p>
+                    ) : null}
+
+                    <Button type="submit" size="lg" className="login-screen-submit h-12 w-full" disabled={submitting}>
+                      <span>{submitting ? "Aguarde…" : mode === "signup" ? t("action.signUp") : "Acessar minha fazenda"}</span>
+                      <ArrowRight className="login-screen-submit-arrow hidden" aria-hidden="true" />
+                    </Button>
+                    {mode === "signup" && <p className="login-screen-signup-hint hidden">{t("auth.signupHint")}</p>}
+                  </form>
+                </motion.div>
+              </motion.div>
             </Tabs>
 
           </div>
 
-          <div className="space-y-4 text-center text-white/50">
-            <h1 className="font-display text-2xl font-semibold leading-tight tracking-tight lg:text-3xl">
-  {t("auth.title")}
-</h1>
-
-            <p className="text-sm text-white/50">
-              {t("auth.subtitle")}
-            </p>
-
-            <ul className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
-              {highlights.map((item) => (
-                <li
-                  key={item.key}
-                  className="flex min-w-0 items-center gap-2 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-sm text-white/40"
-                >
-                  <item.icon className="size-4 shrink-0" />
-                  {t(item.key)}
-                </li>
-              ))}
-            </ul>
-
-            <p className="text-xs text-white/40">
-              {t("auth.signupHint")}
-            </p>
-          </div>
         </div>
       </main>
     </div>

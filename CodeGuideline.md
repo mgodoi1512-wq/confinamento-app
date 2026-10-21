@@ -199,3 +199,19 @@ O fluxo não envia convites por e-mail automaticamente. Os gestores criam convit
 - `/recuperar-senha` e `/redefinir-senha` são rotas fora do bloqueio de aprovação de fazenda.
 - AuthProvider mantém estado de PASSWORD_RECOVERY por aba, inclusive após F5, e limpa ao concluir ou encerrar sessão.
 - Supabase Auth: habilitar confirmação de e-mail, URLs autorizadas e SMTP para clientes externos. Não colocar senha SMTP no código.
+
+
+## Login responsivo (20/10/2026)
+
+- `src/pages/login/login.css`: apresentação em coluna abaixo de 1024px e duas colunas no computador, com painel translúcido, botão em cobre e a marca original.
+- `src/pages/login/index.tsx`: formulário único com opção acessível de mostrar/ocultar senha, temas existentes e aviso de cadastro apenas na aba Criar conta.
+- Substitui a entrega anterior exclusiva de celular; `src/pages/login/mobile.css` deixa de ser utilizado.
+- Os fundos `/bg-luz.png` e `/bg-dark.png` continuam intactos. Animações respeitam a preferência de movimento reduzido.
+
+
+## Login animado e tema escuro (20/10/2026)
+
+- Complementa o login responsivo de celular e computador com uma barra de cobre que desliza entre Entrar e Criar conta, aparição suave do conteúdo e ajuste animado da altura.
+- `src/pages/login/index.tsx` usa `ResizeObserver` e `framer-motion` já instalado para acompanhar altura, mensagens e mudanças de largura; os campos preservam seus valores ao mudar de aba.
+- `src/pages/login/login.css` define grafite para painel e campos do tema escuro, detalhes em cobre, textos claros e estilos de foco. Fundos e logos existentes permanecem intactos.
+- Animações em React e CSS respeitam a preferência do aparelho por movimento reduzido. Não há dependências novas nem mudanças no banco.
