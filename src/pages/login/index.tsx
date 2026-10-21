@@ -120,12 +120,12 @@ const Login = () => {
           <header className="login-screen-hero">
             <div className="login-screen-brand">
   <img
-    src="/logo-marrom-claro.png"
+    src="../public/logo-marrom-claro.png"
     alt="LiBen Gestão de Fazendas"
     className="login-logo-claro"
   />
   <img
-    src="/logo-cinza.png"
+    src="../public/logo-cinza.png"
     alt="LiBen Gestão de Fazendas"
     className="login-logo-dark"
   />
