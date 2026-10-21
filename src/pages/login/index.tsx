@@ -119,8 +119,17 @@ const Login = () => {
         <div className="login-screen-content mx-auto w-full">
           <header className="login-screen-hero">
             <div className="login-screen-brand">
-              <img src="/logo-liben-2.png" alt="LiBen Agronegócios" width={180} height={180} />
-            </div>
+  <img
+    src="public/logo-marrom-claro.png"
+    alt="LiBen Gestão de Fazendas"
+    className="login-logo-claro"
+  />
+  <img
+    src="public/logo-cinza.png"
+    alt="LiBen Gestão de Fazendas"
+    className="login-logo-dark"
+  />
+</div>
             <h1>Sua fazenda.<br /><span>Na palma da mão.</span></h1>
             <p>Mais controle para o seu dia a dia.</p>
             <ul className="login-screen-highlights" aria-label="Recursos do sistema">
@@ -153,7 +162,7 @@ const Login = () => {
                 className="login-screen-panel"
                 initial={false}
                 animate={{ height: panelHeight ?? "auto" }}
-                transition={{ duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: reduceMotion ? 0 : 0.80, ease: [0.22, 1, 0.36, 1] }}
               >
                 <motion.div
                   key={mode}

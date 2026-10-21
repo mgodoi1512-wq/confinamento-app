@@ -38,8 +38,7 @@
     height: 180px;
     object-fit: contain;
     /* Reutiliza a marca original: o fundo claro fica preto e desaparece na mesclagem. */
-    filter: grayscale(1) invert(1) contrast(4) brightness(1.6);
-    mix-blend-mode: screen;
+   
   }
   .login-screen-hero h1 { font-size: clamp(28px, 8.3vw, 38px); font-weight: 750; line-height: 1.12; letter-spacing: -.035em; text-shadow: 0 2px 18px rgb(0 0 0 / 25%); }
   .login-screen-hero h1 span { color: #ffebcc; }
@@ -222,4 +221,29 @@
 
 @media (prefers-reduced-motion: reduce) {
   .login-screen-tabs::after { transition: none; }
+}
+/* Mantém as cores originais das imagens */
+
+.login-screen-brand img,
+.dark .login-screen-brand img {
+  filter: none;
+  mix-blend-mode: normal;
+}
+
+/* Modo claro */
+.login-logo-claro {
+  display: block;
+}
+
+.login-logo-dark {
+  display: none;
+}
+
+/* Modo escuro */
+.dark .login-logo-claro {
+  display: none;
+}
+
+.dark .login-logo-dark {
+  display: block;
 }
