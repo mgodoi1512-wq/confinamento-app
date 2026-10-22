@@ -119,11 +119,10 @@ const Login = () => {
         <div className="login-screen-content mx-auto w-full">
           <header className="login-screen-hero">
             <div className="login-screen-brand">
-  <img
-    src="/logo-marrom-claro.png"
-    alt="LiBen Gestão de Fazendas"
-    className="login-logo-claro"
-  />
+  <picture className="login-logo-claro">
+    <source media="(max-width: 1023px)" srcSet="/logo-marrom.png" />
+    <img src="/logo-marrom-claro.png" alt="LiBen Gestão de Fazendas" />
+  </picture>
   <img
     src="/logo-cinza.png"
     alt="LiBen Gestão de Fazendas"
