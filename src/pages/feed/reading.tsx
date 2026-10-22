@@ -1,20 +1,19 @@
+import "./reading-round.css";
 import { locationName } from "@/lib/location-name";
+import { ReadingOverview } from "./reading-overview";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, ClipboardCheck, Save, Wheat } from "lucide-react";
+import { ArrowRight, Check, Info, Play, Save } from "lucide-react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/app/empty-state";
 import { NumericField } from "@/components/app/numeric-field";
-import { OccupancyBar } from "@/components/app/occupancy-bar";
 import { PageHeader } from "@/components/app/page-header";
-import { TroughScoreBadge } from "@/components/app/trough-score-info";
 import { StatusBadge } from "@/components/app/status-badge";
 import { TroughScoreSelector } from "@/components/app/trough-score-selector";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useDietItems } from "@/hooks/use-diets";
 import { useFeedLogs } from "@/hooks/use-feed";
@@ -29,8 +28,7 @@ import {
   dietTotalKg,
   type PenOccupancy,
 } from "@/lib/domain";
-import { formatDate, formatNumber, parseNumberInput, todayIso } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { formatNumber, parseNumberInput, todayIso } from "@/lib/format";
 
 const ReadingRound = () => {
   const { t } = useTranslation();
@@ -64,7 +62,10 @@ const ReadingRound = () => {
   const [applying, setApplying] = useState(false);
 
   const occupancy = useMemo(() => computePenOccupancy(pens, lots), [pens, lots]);
-  const pensWithLot = occupancy.filter((item) => item.lot);
+  const pensWithLot = occupancy.filter((item) => item.lot).sort((a, b) =>
+    locationName(a.pen).localeCompare(locationName(b.pen), "pt-BR", { numeric: true, sensitivity: "base" }),
+  );
+  const loading = [pensQuery, lotsQuery, troughQuery, feedQuery, dietItemsQuery, weighingsQuery].some(query => query.isLoading);
 
   const todayReadings = readings.filter((reading, index) => reading.date === today && readings.findIndex((other) => other.date === today && other.pen_id === reading.pen_id) === index);
   const readPenIds = new Set(todayReadings.map((reading) => reading.pen_id));
@@ -81,7 +82,7 @@ const ReadingRound = () => {
   const openPen = (item: PenOccupancy) => {
     setActivePen(item);
     const base = basePerHead(item.pen.id);
-    setBaseInput(base === null ? "" : String(base));
+    setBaseInput(base === null ? "" : String(base).replace(".", ","));
     setScore(null);
     setLeftover("");
     setAdjustmentPct("");
@@ -90,7 +91,7 @@ const ReadingRound = () => {
 
   const selectScore = (value: number) => {
     setScore(value);
-    setAdjustmentPct(String(TROUGH_ADJUSTMENT[value] ?? 0));
+    setAdjustmentPct(String(TROUGH_ADJUSTMENT[value] ?? 0).replace(".", ","));
   };
 
   const pct = parseNumberInput(adjustmentPct) ?? 0;
@@ -103,7 +104,7 @@ const ReadingRound = () => {
   const save = async () => {
     if (!activePen || score === null) return;
 
-    if (parseNumberInput(baseInput) === null || unitBase < 0 || pct < -100 || (leftover.trim() && (parseNumberInput(leftover) === null || parseNumberInput(leftover) < 0))) { toast.error("Confira oferta base, sobras e ajuste."); return; }
+    if (parseNumberInput(baseInput) === null || parseNumberInput(adjustmentPct) === null || unitBase < 0 || pct < -100 || (leftover.trim() && (parseNumberInput(leftover) === null || parseNumberInput(leftover) < 0))) { toast.error("Confira oferta base, sobras e ajuste."); return; }
     setSaving(true);
 
     try {
@@ -165,86 +166,25 @@ const ReadingRound = () => {
               const first = pending[0];
               if (first) openPen(first);
             }}
-            disabled={pending.length === 0}
+            disabled={loading || pending.length === 0}
           >
-            <ClipboardCheck />
-            {pending.length > 0 ? t("action.startRound") : t("common.noData")}
+            <Play />
+            {pensWithLot.length > 0 && pending.length === 0 && !loading ? "Ronda concluída" : t("action.startRound")}
           </Button>
         }
       />
 
-      <Card className="bg-surface">
-        <CardContent className="pt-6">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t("feed.reading")}
-              </p>
-              <p className="font-display text-3xl leading-none num">
-                {todayReadings.length}
-                <span className="text-lg text-muted-foreground">/{pensWithLot.length}</span>
-              </p>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {t("feed.reading.roundProgress", {
-                done: todayReadings.length,
-                total: pensWithLot.length,
-              })}
-            </span>
-          </div>
-          <OccupancyBar
-            className="mt-4"
-            percent={pensWithLot.length ? (todayReadings.length / pensWithLot.length) * 100 : 0}
-          />
-        </CardContent>
-      </Card>
-
-      {pensWithLot.length === 0 ? (
-        <EmptyState
-          icon={Wheat}
-          titleKey="pens.empty.title"
-          descriptionKey="pens.empty.description"
-        />
-      ) : (
-        <div className="space-y-2">
-          {pensWithLot.map((item) => {
-            const reading = todayReadings.find((entry) => entry.pen_id === item.pen.id);
-            const isPending = !reading;
-
-            return (
-              <button
-                key={item.pen.id}
-                type="button"
-                onClick={() => openPen(item)}
-                className={cn(
-                  "flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 text-left shadow-xs transition-colors active:bg-muted/50",
-                  lastSavedPen === locationName(item.pen) && "ring-2 ring-success/40",
-                )}
-              >
-                <div className="min-w-0">
-                  <p className="font-display text-base font-semibold">{locationName(item.pen)}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {item.lot?.code} · {formatNumber(basePerHead(item.pen.id), 2)} kg/cab
-                  </p>
-                </div>
-                {reading ? (
-                  <div className="flex shrink-0 items-center gap-2">
-                    <TroughScoreBadge score={reading.score}
-                      label={`${t("feed.reading.score")} ${reading.score}`} />
-                    <Check className="size-4 text-success" />
-                  </div>
-                ) : (
-                  <StatusBadge
-                    tone={isPending ? "muted" : "success"}
-                    label={t("common.noData")}
-                    size="sm"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <ReadingOverview
+        rows={pensWithLot.map(item => ({
+          occupancy: item,
+          base: basePerHead(item.pen.id),
+          reading: todayReadings.find(entry => entry.pen_id === item.pen.id),
+        }))}
+        date={today}
+        loading={loading}
+        onOpen={openPen}
+        lastSavedPen={lastSavedPen}
+      />
 
       {/* Resumo e aplicação do ajuste */}
       {todayReadings.length > 0 ? (
@@ -294,74 +234,66 @@ const ReadingRound = () => {
       ) : null}
 
       {/* Leitura do curral */}
-      <Sheet open={Boolean(activePen)} onOpenChange={(open) => (!open ? setActivePen(null) : undefined)}>
-        <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto rounded-t-2xl">
+      <Sheet open={Boolean(activePen)} onOpenChange={(open) => (!open && !saving ? setActivePen(null) : undefined)}>
+        <SheetContent side="bottom" className="reading-round-dialog" onInteractOutside={(event) => { if (saving) event.preventDefault(); }} onEscapeKeyDown={(event) => { if (saving) event.preventDefault(); }}>
           {activePen ? (
-            <div className="mx-auto w-full max-w-xl space-y-5 pb-6">
-              <SheetHeader className="text-left">
-                <SheetTitle className="font-display text-xl">
-                  {locationName(activePen.pen)}
-                </SheetTitle>
-                <p className="text-sm text-muted-foreground">
-                  {t("feed.reading.penContext", {
-                    lot: activePen.lot?.code ?? "—",
-                    kg: formatNumber(basePerHead(activePen.pen.id), 2),
-                  })}
-                </p>
+            <>
+              <SheetHeader className="reading-round-header text-left">
+                <SheetTitle className="pr-6 font-display text-xl">{locationName(activePen.pen)}</SheetTitle>
+                <SheetDescription>
+                  {activePen.lot?.code ?? "—"} · {activePen.lot?.head_count ?? 0} animais · Leitura de cocho
+                </SheetDescription>
+                <div className="space-y-2 pt-2">
+                  <p className="text-xs text-muted-foreground">{pensWithLot.filter(item => readPenIds.has(item.pen.id)).length} de {pensWithLot.length} locais concluídos</p>
+                  <div role="progressbar" aria-label="Progresso da ronda" aria-valuemin={0} aria-valuemax={pensWithLot.length} aria-valuenow={pensWithLot.filter(item => readPenIds.has(item.pen.id)).length} className="h-1.5 overflow-hidden rounded-full border border-border bg-black/5 dark:bg-white/10">
+                    <div className="h-full rounded-full bg-emerald-600 transition-[width] dark:bg-emerald-400" style={{ width: `${pensWithLot.length ? pensWithLot.filter(item => readPenIds.has(item.pen.id)).length / pensWithLot.length * 100 : 0}%` }} />
+                  </div>
+                </div>
               </SheetHeader>
 
-              <NumericField label="Oferta base da manhã (confira antes de aplicar)" unit="kg/cab" value={baseInput} onValueChange={setBaseInput} />
-              <p className="text-xs text-muted-foreground">Sem trato anterior da manhã, a referência vem da soma diária da dieta, com os percentuais calculados sobre o peso médio do lote. Sem peso válido, informe a oferta manualmente. Informe aqui apenas a parcela prevista para a manhã. Cada leitura gera o trato uma única vez.</p>
-              <TroughScoreSelector value={score} onChange={selectScore} />
+              <fieldset disabled={saving} className="reading-round-body min-w-0 space-y-4">
+                <NumericField label="Oferta da manhã (kg/animal)" unit="kg" value={baseInput} onValueChange={setBaseInput} compact />
+                <details className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+                  <summary className="cursor-pointer font-medium text-foreground"><Info className="mr-1 inline size-3.5" />Como é calculada a oferta?</summary>
+                  <p className="pt-2 leading-relaxed">Sem trato anterior da manhã, a referência vem da soma diária da dieta, com os percentuais calculados sobre o peso médio do lote. Sem peso válido, informe a oferta manualmente. Confira e informe apenas a parcela prevista para a manhã. Cada leitura gera o trato uma única vez.</p>
+                </details>
 
-              <NumericField
-                label={t("feed.reading.leftover")}
-                unit="kg"
-                value={leftover}
-                onValueChange={setLeftover}
-              />
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Selecione a leitura do cocho</p>
+                  <TroughScoreSelector value={score} onChange={selectScore} variant="cards" />
+                </div>
 
-              <div className="space-y-2">
-                <NumericField
-                  label={t("feed.reading.adjustment")}
-                  unit="%"
-                  value={adjustmentPct}
-                  onValueChange={setAdjustmentPct}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("feed.kgPerHead")}: {formatNumber(unitBase, 2)} →{" "}
-                  <span className="font-semibold text-foreground">
-                    {formatNumber(unitBase + adjustmentKg, 2)} kg
-                  </span>{" "}
-                  ({adjustmentKg >= 0 ? "+" : ""}
-                  {formatNumber(adjustmentKg, 2)} kg)
-                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <NumericField label="Sobra no cocho (total)" unit="kg" value={leftover} onValueChange={setLeftover} helper="Opcional · sobra total deste local." compact />
+                  <NumericField label="Ajuste da oferta" unit="%" value={adjustmentPct} onValueChange={setAdjustmentPct} helper="Sugerido pela leitura; pode ser ajustado." compact />
+                </div>
+
+                <section aria-label="Resumo da oferta da manhã" aria-live="polite" className="rounded-xl border border-border bg-card p-3 sm:p-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Oferta da manhã</h3>
+                  {score === null ? <p className="mt-2 text-sm text-muted-foreground">Selecione uma leitura para visualizar o ajuste.</p> : parseNumberInput(baseInput) === null || unitBase < 0 || parseNumberInput(adjustmentPct) === null || pct < -100 ? <p className="mt-2 text-sm text-destructive">Confira a oferta base e o percentual de ajuste.</p> : (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Por animal</p>
+                        <p className="mt-1 flex flex-wrap items-center gap-2 text-base font-semibold num"><span className="text-muted-foreground">{formatNumber(unitBase, 2)}</span><ArrowRight className="size-4 text-muted-foreground" /><span>{formatNumber(unitBase + adjustmentKg, 2)} kg</span></p>
+                        <p className="mt-1 text-xs text-muted-foreground">Ajuste: {pct > 0 ? "+" : ""}{formatNumber(pct, 1)}% ({adjustmentKg > 0 ? "+" : ""}{formatNumber(adjustmentKg, 2)} kg)</p>
+                      </div>
+                      <div className="border-t border-border pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+                        <p className="text-xs text-muted-foreground">Total do lote · {activePen.lot?.head_count ?? 0} animais</p>
+                        <p className="mt-1 text-base font-semibold num">{formatNumber((unitBase + adjustmentKg) * (activePen.lot?.head_count ?? 0), 2)} kg</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Quantidade prevista para a manhã.</p>
+                      </div>
+                    </div>
+                  )}
+                </section>
+                <TextField label="Observações (opcional)" value={notes} onChange={setNotes} />
+              </fieldset>
+
+              <div className="reading-round-footer">
+                <Button className="h-11 w-full" onClick={() => void save()} disabled={score === null || saving || parseNumberInput(baseInput) === null || unitBase < 0 || parseNumberInput(adjustmentPct) === null || pct < -100}>
+                  <Check />{saving ? "Salvando…" : nextPending(activePen.pen.id) ? t("action.saveAndNext") : "Salvar e concluir"}
+                </Button>
               </div>
-
-              <TextField label={t("field.notes")} value={notes} onChange={setNotes} />
-
-              {pending.length > 1 ? (
-                <p className="text-xs text-muted-foreground">
-                  {t("feed.reading.pending", { count: pending.length - 1 })}
-                </p>
-              ) : null}
-
-              <Button
-                className="h-12 w-full"
-                onClick={() => void save()}
-                disabled={score === null || saving}
-              >
-                <Check />
-                {t("action.saveAndNext")}
-              </Button>
-
-              <p className="text-center text-xs text-muted-foreground">
-                {t("feed.reading.roundProgress", {
-                  done: todayReadings.length,
-                  total: pensWithLot.length,
-                })}
-              </p>
-            </div>
+            </>
           ) : null}
         </SheetContent>
       </Sheet>
@@ -369,12 +301,6 @@ const ReadingRound = () => {
       {lastSavedPen && pending.length === 0 ? (
         <p className="text-center text-sm text-muted-foreground">
           {t("feed.reading.allDone")}
-        </p>
-      ) : null}
-
-      {todayReadings.length > 0 ? (
-        <p className="text-center text-xs text-muted-foreground">
-          {t("pens.lastReading")}: {formatDate(today)}
         </p>
       ) : null}
     </div>
