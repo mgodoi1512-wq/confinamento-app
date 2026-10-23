@@ -2,7 +2,7 @@ import { FarmSystemSettings } from "@/components/farms/farm-system-settings";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { BarChart3, Cog, CreditCard, Package, Save, Users } from "lucide-react";
+import { BarChart3, CreditCard, Package, Save, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
@@ -33,6 +33,7 @@ const SettingsHome = () => {
   }, [farmQuery.data]);
 
   const submit = async () => {
+    if (!isGestor || saveFarm.isPending) return;
     if (!name.trim()) {
       toast.error(t("toast.requiredFields"));
       return;
@@ -52,35 +53,33 @@ const SettingsHome = () => {
   };
 
   const shortcuts = [
-    { to: "/config/currais", icon: Package, labelKey: "config.pens.title", gestorOnly: true },
+    { to: "/config/currais", icon: Package, labelKey: "Locais de manejo", gestorOnly: true },
     { to: "/config/dietas", icon: BarChart3, labelKey: "config.diets.title", gestorOnly: true },
     { to: "/config/usuarios", icon: Users, labelKey: "config.users.title", gestorOnly: true },
   ].filter((item) => !item.gestorOnly || isGestor);
 
   return (
-    <div className="space-y-5">
-      <PageHeader titleKey="config.title" subtitleKey="config.subtitle" />
-
-      {tenant?.isAdmin ? <Button asChild variant="outline"><Link to="/admin">Administração do sistema</Link></Button> : null}
+    <div className="min-w-0 space-y-5 pb-20">
+      <PageHeader titleKey="config.title" subtitleKey="config.subtitle" actions={tenant?.isAdmin ? <Button asChild variant="outline" className="h-10"><Link to="/admin">Administração do sistema</Link></Button> : undefined} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="font-display text-lg">{t("config.farm.title")}</CardTitle>
+          <CardHeader className="px-4 pb-3 pt-4">
+            <CardTitle className="font-sans text-base font-semibold">{t("config.farm.title")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 px-4 pb-4 pt-0 [&_input]:h-10 [&_select]:h-10 [&_label]:text-xs">
             <TextField
               label={t("config.farm.name")}
               value={name}
               onChange={setName}
-              disabled={!isGestor}
+              disabled={!isGestor || saveFarm.isPending}
               required
             />
             <LocationFields state={state} city={city} onStateChange={setState} onCityChange={setCity} disabled={!isGestor || saveFarm.isPending} />
 
             {isGestor ? (
-              <Button className="h-11" onClick={() => void submit()} disabled={saveFarm.isPending}>
+              <Button className="h-10 w-40 shrink-0" onClick={() => void submit()} disabled={saveFarm.isPending}>
                 <Save />
-                {t("action.save")}
+                {saveFarm.isPending ? "Salvando…" : "Salvar dados"}
               </Button>
             ) : (
               <p className="text-xs text-muted-foreground">{t("config.users.gestorOnly")}</p>
@@ -89,15 +88,15 @@ const SettingsHome = () => {
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="font-display text-lg">
-              {t("config.users.title")}
+          <CardHeader className="px-4 pb-3 pt-4">
+            <CardTitle className="font-sans text-base font-semibold">
+              Acessos e conta
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 px-4 pb-4 pt-0">
             <div className="rounded-lg border border-border px-3 py-2">
               <p className="text-sm font-medium">{profile?.full_name ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
+              <p className="break-all text-xs text-muted-foreground">{user?.email}</p>
               {profile ? (
                 <div className="pt-2">
                   <StatusBadge
@@ -128,10 +127,7 @@ const SettingsHome = () => {
               </li> : null}
             </ul>
 
-            <p className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
-              <Cog className="size-3.5" />
-              {t("common.appSubtitle")}
-            </p>
+
           </CardContent>
         </Card>
       </div>

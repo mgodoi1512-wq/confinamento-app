@@ -7,8 +7,21 @@ const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const url = source => 'data:text/javascript;base64,' + Buffer.from(source).toString('base64');
 const compile = source => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 const tutorialUrl = url(compile(read('../src/lib/tutorial.ts')));
-const { tutorialChapters, chapterForPath, tutorialPage, lotDemoReducer, initialLotDemo } = await import(tutorialUrl);
+const { tutorialChapters, tutorialJourney, chapterForPath, tutorialPage, lotDemoReducer, initialLotDemo } = await import(tutorialUrl);
 const chapter = path => tutorialChapters[chapterForPath(path)].id;
+
+test('ciclo inicial cobre dez etapas e todos os atalhos abrem capítulos existentes', () => {
+  assert.equal(tutorialChapters[0].demo, 'cycle');
+  assert.equal(tutorialJourney.length, 10);
+  for (const step of tutorialJourney) {
+    assert.ok(step.result.trim());
+    assert.ok(step.chapters.length);
+    for (const id of step.chapters) assert.ok(tutorialChapters.some(entry => entry.id === id), id);
+  }
+  assert.equal(chapter('/sanidade/ocorrencias'), 'health');
+  assert.equal(chapter('/config/plano'), 'plan');
+  assert.equal(chapter('/config/usuarios'), 'team');
+});
 
 test('tutorial contextual distingue leitura, trato e detalhes sem coincidir prefixos de outra página', () => {
   for (const [path, expected] of Object.entries({ '/': 'dashboard', '/trato': 'feed', '/trato/leitura?dia=hoje': 'reading', '/lotes/novo/': 'lots', '/lotes/123': 'lots', '/currais': 'pens', '/pesagens/123': 'weighings', '/config/dietas': 'diets', '/lotes-extra': 'welcome', '/desconhecida': 'welcome' })) assert.equal(chapter(path), expected, path);

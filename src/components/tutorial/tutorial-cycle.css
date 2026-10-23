@@ -1,0 +1,25 @@
+.tutorial-cycle { container-type: inline-size; }
+.tutorial-cycle__orbit { position: relative; width: min(100%, 660px); aspect-ratio: 1; margin: 0 auto; }
+.tutorial-cycle__lines { position: absolute; inset: 0; width: 100%; height: 100%; color: hsl(var(--muted-foreground)); opacity: .65; pointer-events: none; }
+.tutorial-cycle__node { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 44px; height: 44px; padding: 3px; border: 1px solid hsl(var(--border)); border-radius: 14px; background: hsl(var(--card)); color: hsl(var(--foreground)); cursor: pointer; transition: background-color .2s, border-color .2s, color .2s; }
+.tutorial-cycle__node:hover { border-color: hsl(var(--primary)); background: hsl(var(--muted)); }
+.tutorial-cycle__node:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.tutorial-cycle__node[aria-pressed="true"] { background: hsl(var(--primary)); border-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.tutorial-cycle__node svg { width: 16px; height: 16px; flex-shrink: 0; }
+.tutorial-cycle__number { font-size: 10px; line-height: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tutorial-cycle__label { display: none; }
+.tutorial-cycle__center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 49%; text-align: center; }
+.tutorial-cycle__eyebrow { font-size: 9px; line-height: 13px; text-transform: uppercase; letter-spacing: .035em; color: hsl(var(--primary)); font-weight: 700; }
+.tutorial-cycle__center h3 { margin: 5px 0; font-size: 13px; line-height: 17px; font-weight: 700; }
+.tutorial-cycle__result { color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 15px; }
+@container (min-width: 460px) {
+  .tutorial-cycle__node { width: 18%; height: 70px; gap: 2px; border-radius: 16px; }
+  .tutorial-cycle__node svg { width: 18px; height: 18px; }
+  .tutorial-cycle__number { position: absolute; top: 5px; left: 7px; }
+  .tutorial-cycle__label { display: block; font-size: 11px; line-height: 14px; font-weight: 600; }
+  .tutorial-cycle__center { width: 44%; }
+  .tutorial-cycle__eyebrow { font-size: 11px; line-height: 16px; }
+  .tutorial-cycle__center h3 { margin: 9px 0; font-size: 19px; line-height: 24px; }
+  .tutorial-cycle__result { font-size: 13px; line-height: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .tutorial-cycle__node { transition: none; } }

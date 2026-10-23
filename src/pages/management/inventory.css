@@ -1,0 +1,13 @@
+.inventory-page .inventory-tabs [role="tab"] {
+  height: 40px;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: none;
+}
+.inventory-page .inventory-tabs [aria-selected="false"]:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+.inventory-page .inventory-animal-table td {
+  vertical-align: middle;
+}

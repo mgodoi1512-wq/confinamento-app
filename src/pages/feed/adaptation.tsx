@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useCostSheet } from "@/hooks/use-finance";
+import { computeFinance } from "@/lib/finance";
 import { Calculator, FileDown, Info, Loader2, LockKeyhole, Pencil, RefreshCw, Save, Sprout, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable, type Column } from "@/components/app/data-table";
@@ -23,6 +26,7 @@ import { formatDate, formatDateTime, formatNumber, parseNumberInput, todayIso } 
 
 const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 type Draft = { startDate: string; headCount: string; averageWeightKg: string; feedPriceKg: string; roughagePriceKg: string; totalDays: string; postFeedPct: string; postRoughagePct: string; phases: { feedPct: string; roughagePct: string }[] };
+type DraftState = Omit<Draft,"feedPriceKg"|"roughagePriceKg"> & {feedPriceKg:string|null;roughagePriceKg:string|null};
 const decimalInput = (value: number) => String(value).replace(".", ",");
 const priceInput = (value: number) => {
   const raw = decimalInput(value);
@@ -32,7 +36,7 @@ const draftFromInput = (input: AdaptationInput): Draft => ({
   startDate: input.startDate, headCount: decimalInput(input.headCount), averageWeightKg: decimalInput(input.averageWeightKg), feedPriceKg: priceInput(input.feedPriceKg), roughagePriceKg: priceInput(input.roughagePriceKg), totalDays: decimalInput(input.totalDays), postFeedPct: decimalInput(input.postFeedPct), postRoughagePct: decimalInput(input.postRoughagePct),
   phases: input.phases.map(phase => ({ feedPct: decimalInput(phase.feedPct), roughagePct: decimalInput(phase.roughagePct) })),
 });
-const initialDraft = (): Draft => ({ ...draftFromInput({ startDate: todayIso(), headCount: 0, averageWeightKg: 0, feedPriceKg: 1.87, roughagePriceKg: 0.8, totalDays: 90, postFeedPct: 2.5, postRoughagePct: 0.8, phases: defaultAdaptationPhases() }), headCount: "", averageWeightKg: "" });
+const initialDraft = (): DraftState => ({ ...draftFromInput({ startDate: todayIso(), headCount: 0, averageWeightKg: 0, feedPriceKg: 0, roughagePriceKg: 0, totalDays: 90, postFeedPct: 2.5, postRoughagePct: 0.8, phases: defaultAdaptationPhases() }), headCount: "", averageWeightKg: "", feedPriceKg:null, roughagePriceKg:null });
 const inputFromDraft = (draft: Draft): AdaptationInput => {
   const number = (value: string) => parseNumberInput(value) ?? NaN;
   return validateAdaptation({ ...draft, headCount: number(draft.headCount), averageWeightKg: number(draft.averageWeightKg), feedPriceKg: number(draft.feedPriceKg), roughagePriceKg: number(draft.roughagePriceKg), totalDays: number(draft.totalDays), postFeedPct: number(draft.postFeedPct), postRoughagePct: number(draft.postRoughagePct), phases: draft.phases.map(phase => ({ days: 3, feedPct: number(phase.feedPct), roughagePct: number(phase.roughagePct) })) });
@@ -47,6 +51,12 @@ const PlanningValue = ({ label, value, unit }: { label: string; value: string; u
 
 const Adaptation = () => {
   const { isGestor } = useAuth();
+  const costsQuery=useCostSheet();
+  const costDefaults=useMemo(()=>{
+    if(!costsQuery.data)return null;
+    try{const costs=computeFinance(costsQuery.data.parameters);return{feedPriceKg:priceInput(Number(costs.rationPerKg.toPrecision(12))),roughagePriceKg:costs.silage?priceInput(Number(costs.silage.pricePerKg.toPrecision(12))):null};}
+    catch{return null;}
+  },[costsQuery.data]);
   const lotsQuery = useLots();
   const weighingsQuery = useWeighings();
   const plansQuery = useAdaptationPlans();
@@ -57,10 +67,11 @@ const Adaptation = () => {
   const busy = savePlan.isPending || deletePlan.isPending;
   const [lotId, setLotId] = useState("");
   const [mode, setMode] = useState<"registered" | "manual">("registered");
-  const [registeredDraft, setRegisteredDraft] = useState<Draft>(initialDraft);
-  const [manualDraft, setManualDraft] = useState<Draft>(initialDraft);
+  const [registeredDraft, setRegisteredDraft] = useState<DraftState>(initialDraft);
+  const [manualDraft, setManualDraft] = useState<DraftState>(initialDraft);
   const [simulationName, setSimulationName] = useState("");
-  const draft = mode === "manual" ? manualDraft : registeredDraft;
+  const rawDraft = mode === "manual" ? manualDraft : registeredDraft;
+  const draft=useMemo<Draft>(()=>({...rawDraft,feedPriceKg:rawDraft.feedPriceKg??costDefaults?.feedPriceKg??"",roughagePriceKg:rawDraft.roughagePriceKg??costDefaults?.roughagePriceKg??""}),[rawDraft,costDefaults]);
   const setDraft = mode === "manual" ? setManualDraft : setRegisteredDraft;
   const canCalculate = mode === "manual" || Boolean(lotId);
   const [loadedVersion, setLoadedVersion] = useState<string | null>(null);
@@ -104,7 +115,7 @@ const Adaptation = () => {
     if (mode !== "registered" || !input || !lotId || !isGestor || busy) return;
     try {
       const saved = await savePlan.mutateAsync({ lotId, parameters: input, expectedUpdatedAt: loadedVersion });
-      setLoadedVersion(saved.updated_at); setSavedDraft(JSON.stringify(draft)); toast.success("Plano de adaptação salvo.");
+      setRegisteredDraft(draft); setLoadedVersion(saved.updated_at); setSavedDraft(JSON.stringify(draft)); toast.success("Plano de adaptação salvo.");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível salvar o plano."); }
   };
   const edit = (plan: AdaptationPlan) => {
@@ -206,8 +217,13 @@ const Adaptation = () => {
           <NumericField compact label="Dias totais de confinamento" unit="dias" value={draft.totalDays} onValueChange={value=>field("totalDays",value)} />
           {mode === "registered" && <div className="space-y-1.5"><span className="block text-xs font-medium text-muted-foreground">Dados atuais do lote</span><Button variant="outline" className="h-10 w-full whitespace-normal text-xs" disabled={busy || !lotId || lotsQuery.isFetching || weighingsQuery.isFetching} onClick={()=>void refreshLot()}><RefreshCw className="size-4" />Atualizar dados do lote</Button></div>}
         </fieldset>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          <p className="min-w-0 flex-1">{costsQuery.isLoading?"Carregando custos salvos da calculadora…":costsQuery.isError||costsQuery.data&&!costDefaults?"Não foi possível usar os custos salvos. Informe os valores nos campos ou revise a calculadora.":costDefaults?`Novos planejamentos usam os custos salvos da calculadora, incluindo frete.${costDefaults.roughagePriceKg===null?" O volumoso ainda não tem custo salvo; informe seu preço por kg.":" Você pode ajustar os valores nesta simulação."}`:"Sem custos salvos na calculadora. Informe os preços por kg ou cadastre os custos da fazenda."}</p>
+          {costDefaults&&<Button type="button" variant="outline" className="h-9 text-xs" disabled={busy} onClick={()=>setDraft(current=>({...current,feedPriceKg:costDefaults.feedPriceKg,roughagePriceKg:costDefaults.roughagePriceKg??current.roughagePriceKg}))}><RefreshCw className="size-3.5"/>Usar custos salvos</Button>}
+          {isGestor&&<Button variant="link" asChild className="h-9 px-1 text-xs"><Link to="/gestao/financeiro/alimentacao">Calculadora de ração</Link></Button>}
+        </div>
         <p className="text-xs text-muted-foreground">Os dias totais de confinamento incluem os 15 dias de adaptação.</p>
-        <details className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground"><summary className="cursor-pointer font-medium text-foreground">Como funciona</summary><p className="pt-2 leading-relaxed">Os custos iniciais de R$ 1,87/kg e R$ 0,80/kg são valores de referência; ajuste aos seus preços. O peso é fixo nesta simulação. Novas pesagens não alteram planos salvos automaticamente. No modo Lote cadastrado, use Atualizar dados do lote para trazer peso e quantidade atuais. Os percentuais são aplicados ao peso vivo, sem projeção de ganho de peso.</p></details>
+        <details className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground"><summary className="cursor-pointer font-medium text-foreground">Como funciona</summary><p className="pt-2 leading-relaxed">Novos planejamentos, com lote ou avulsos, usam os preços por kg salvos na calculadora da fazenda. Sem custo cadastrado, preencha o campo; zero é permitido. Planos salvos conservam seus preços. Use “Usar custos salvos” para atualizar o planejamento aberto; salve as alterações para atualizar o plano. O peso é fixo nesta simulação. Novas pesagens não alteram planos salvos automaticamente. No modo Lote cadastrado, use Atualizar dados do lote para trazer peso e quantidade atuais. Os percentuais são aplicados ao peso vivo, sem projeção de ganho de peso.</p></details>
         {mode === "registered" && <p role="status" aria-live="polite" className="min-h-5 text-xs text-muted-foreground">
           {dirty ? (loadedVersion ? "Alterações ainda não salvas." : "Novo planejamento ainda não salvo.") : (loadedVersion ? "Plano salvo. Nenhuma alteração pendente." : "Selecione um lote para iniciar o planejamento.")}
         </p>}
@@ -226,9 +242,13 @@ const Adaptation = () => {
             <p>Volumoso: <span className="font-semibold text-foreground num">{canCalculate && result && input ? formatNumber(result.phases[index].roughageDailyKg / input.headCount, 2) : "—"} kg</span></p>
           </div>
         </div>)}</div>
+        <section aria-labelledby="post-adaptation-title" className="space-y-3 border-t border-border pt-4">
+          <div className="space-y-1"><h3 id="post-adaptation-title" className="text-sm font-semibold">Após a adaptação</h3><p className="text-xs text-muted-foreground">Percentuais a partir do dia 16 até o fim do planejamento.</p></div>
+          <div className="grid gap-3 sm:grid-cols-2 [&_label]:text-xs"><NumericField compact className="[&_span]:shrink-0 [&_span]:whitespace-nowrap" label="Ração após adaptação" unit="% PV" value={draft.postFeedPct} onValueChange={value=>field("postFeedPct",value)} /><NumericField compact className="[&_span]:shrink-0 [&_span]:whitespace-nowrap" label="Volumoso após adaptação" unit="% PV" value={draft.postRoughagePct} onValueChange={value=>field("postRoughagePct",value)} /></div>
+        </section>
         <p className="text-xs text-muted-foreground">Os percentuais são aplicados ao peso vivo total: peso médio por animal × quantidade de animais. Não há projeção de ganho de peso dentro deste cálculo.</p>
         {canCalculate && calculation.error && <p role="status" className="rounded-md border border-warning p-3 text-sm">{calculation.error}</p>}
-        {!canCalculate && <p className="py-6 text-center text-sm text-muted-foreground"><Sprout className="mx-auto mb-2 size-6" />Selecione um lote para calcular o planejamento.</p>}
+        {!canCalculate && <p className="flex items-center gap-2 rounded-md bg-muted/20 px-3 py-2 text-xs text-muted-foreground"><Sprout className="size-4 shrink-0" />Selecione um lote para calcular o planejamento.</p>}
         {canCalculate && result && <>
           <div className="overflow-x-auto"><DataTable rows={result.phases} columns={phaseColumns} getRowKey={row=>String(row.index)} renderCard={row=><div className="space-y-2 text-sm"><p className="font-semibold">Dias {row.startDay} a {row.endDay} · {formatDate(row.startDate)} a {formatDate(row.endDate)}</p><p>Ração: {formatNumber(row.feedDailyKg,2)} kg/dia · {formatNumber(row.feedPeriodKg,2)} kg no período</p><p>Volumoso: {formatNumber(row.roughageDailyKg,2)} kg/dia · {formatNumber(row.roughagePeriodKg,2)} kg no período</p><p className="font-semibold">{money(row.cost)} no período</p></div>} /></div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -238,14 +258,11 @@ const Adaptation = () => {
             <StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Adaptação por animal" value={money(result.adaptationCostPerHead)} />
           </div>
         </>}
+        {canCalculate && result && <section aria-labelledby="post-adaptation-results" className="space-y-3 border-t border-border pt-4"><h3 id="post-adaptation-results" className="text-sm font-semibold">Resultados após a adaptação</h3><p className="text-sm text-muted-foreground">{result.postDays} dias após a adaptação{result.postDays>0?` · ${formatDate(result.postStartDate)} a ${formatDate(result.endDate)}`:""}.</p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Ração diária do lote" value={formatNumber(result.postFeedDailyKg,2)} unitKey="kg/dia" /><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Volumoso diário do lote" value={formatNumber(result.postRoughageDailyKg,2)} unitKey="kg/dia" /><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Custo diário do lote" value={money(result.postDailyCost)} /><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Custo diário por animal" value={money(result.postDailyCostPerHead)} /></div>
+        </section>}
       </CardContent></Card>
 
-      <Card><CardHeader><CardTitle>Após a adaptação</CardTitle></CardHeader><CardContent className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2"><NumericField label="Ração após adaptação" unit="% PV" value={draft.postFeedPct} onValueChange={value=>field("postFeedPct",value)} /><NumericField label="Volumoso após adaptação" unit="% PV" value={draft.postRoughagePct} onValueChange={value=>field("postRoughagePct",value)} /></div>
-        {canCalculate && result && <><p className="text-sm text-muted-foreground">{result.postDays} dias após a adaptação{result.postDays>0?` · ${formatDate(result.postStartDate)} a ${formatDate(result.endDate)}`:""}.</p>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Ração diária do lote" value={formatNumber(result.postFeedDailyKg,2)} unitKey="kg/dia" /><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Volumoso diário do lote" value={formatNumber(result.postRoughageDailyKg,2)} unitKey="kg/dia" /><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Custo diário do lote" value={money(result.postDailyCost)} /><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Custo diário por animal" value={money(result.postDailyCostPerHead)} /></div>
-        </>}
-      </CardContent></Card>
       {canCalculate && result && <Card><CardHeader><CardTitle>Simulação do confinamento completo</CardTitle></CardHeader><CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{draft.totalDays} dias, de {formatDate(draft.startDate)} a {formatDate(result.endDate)}. Peso vivo total utilizado: {formatNumber(result.totalLiveWeight,2)} kg.</p>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Ração total" value={formatNumber(result.totalFeedKg,2)} unitKey="kg" /><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Volumoso total" value={formatNumber(result.totalRoughageKg,2)} unitKey="kg" /><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Custo total do lote" value={money(result.totalCost)} /><StatCard className="min-w-0 [&_.font-display]:break-all [&_.font-display]:text-2xl" labelKey="Custo total por animal" value={money(result.totalCostPerHead)} /></div>

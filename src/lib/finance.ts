@@ -25,7 +25,7 @@ export const validateIngredient = (value: unknown): IngredientCost => {
 };
 export const validateSilage = (value: unknown): SilageCost => {
   const data=object(value);
-  if (!valid(data.price,0) || !["kg","ton"].includes(String(data.priceUnit))) throw new Error("Informe o preço e a unidade da silagem.");
+  if (!valid(data.price,0) || !["kg","ton"].includes(String(data.priceUnit))) throw new Error("Informe o preço e a unidade do volumoso.");
   checkFreight(data,["kg","ton","load"]);
   return data as SilageCost;
 };

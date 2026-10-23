@@ -222,3 +222,50 @@ O fluxo não envia convites por e-mail automaticamente. Os gestores criam convit
 - `src/pages/feed/reading-overview.tsx`: resumo compacto da ronda, filtros Todos/Pendentes/Lidos, tabela em telas a partir de 768px e cartões com ações acessíveis no celular. Usa os temas existentes.
 - `src/pages/feed/reading.tsx`: integra a apresentação sem alterar cálculos da oferta base, gravação ou aplicação de ajustes; ordena os locais naturalmente por nome.
 - A oferta exibida é identificada como referência para ajuste da manhã (não como último trato, pois pode vir da dieta). O progresso conta somente os locais com lote ativo exibidos na ronda.
+
+
+## Listas sanitárias de Tratamentos e Ocorrências (21/10/2026)
+
+- `src/pages/health/health-list.ts`: estado e filtragem local por texto, lote,
+  período inclusivo e situação. Usa a regra de carência existente do domínio;
+  filtros não alteram dados nem indicadores gerais.
+- `src/pages/health/health-list-tools.tsx`: filtros responsivos, resumo de prazo
+  por aplicação e ajuda acessível do indicador de mortalidade com Portal.
+- Tratamentos e Ocorrências mantêm os payloads de gravação e cálculos originais.
+  Os indicadores informam seu escopo: situação atual ou histórico acumulado.
+  Ocorrências classifica óbitos e demais registros com diagnóstico como casos
+  clínicos. O cadastro dessa página continua registrando exclusivamente óbito;
+  diagnósticos clínicos são registrados em Tratamentos.
+- `tests/health-list.test.mjs`: busca sem acentos, período inclusivo, vínculos
+  ausentes, classificação por prazo/tipo e imutabilidade dos dados filtrados.
+
+
+## Formulários sanitários: busca, carência explícita e revisão de óbito (21/10/2026)
+
+- `src/pages/health/health-form.ts`: validação de animal disponível, produto,
+  causa, data até hoje e prazo inteiro explícito de 0 a 36500 dias.
+- `src/pages/health/health-form-fields.tsx`: seletor pesquisável por brinco,
+  lote/local, contexto do animal e campo de carência com ajuda em Portal.
+- Tratamentos exige prazo explícito; zero grava a própria data de aplicação como
+  fim do prazo, sem carência ativa. Vazio ou texto não vira zero automaticamente.
+- Ocorrências inclui causa Não determinada por escolha explícita e revisão de
+  brinco, data, lote, local e causa antes de chamar a mutação de óbito existente.
+  Nenhuma mutação ocorre ao abrir a revisão ou voltar ao formulário.
+- Ambos os formulários mantêm dados em caso de falha e bloqueiam envio duplicado
+  e fechamento durante a gravação. Reutilizam a API e chave de idempotência atuais.
+
+As listas sanitárias usam também health-list.ts para filtragem e
+health-list-tools.tsx para filtros, resumo por aplicação e ajuda de mortalidade.
+Testes: tests/health-list.test.mjs e tests/health-form.test.mjs.
+
+
+## Mercado: apresentação compacta e tema grafite (21/10/2026)
+
+- `src/pages/market/market.css`: tokens de grafite/cobre somente dentro de
+  .market-page, abas ativas destacadas e rolagem interna discreta.
+- Mercado físico mantém IDs e URLs dos widgets; alturas menores, link de fonte
+  próximo da categoria, largura mínima da tabela com rolagem interna acessível.
+- O dark adapta o iframe por escala de cinza/inversão, pois a fonte incorpora
+  linhas brancas que não seguem sua configuração de cores. Não interpreta,
+  replica ou altera preços, datas ou unidades. A data continua na tabela da fonte.
+- O gráfico futuro mantém símbolos/configuração e usa fundo grafite no dark.

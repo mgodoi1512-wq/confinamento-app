@@ -6,7 +6,7 @@ import {
   MapPin,
   Cog,
   LayoutDashboard,
-  Package,
+  Settings2,
   Sprout,
   ShieldAlert,
   Syringe,
@@ -15,12 +15,17 @@ import {
   Wheat,
   type LucideIcon,
 } from "lucide-react";
+import {
+  HeartPulse,
+  // demais ícones...
+} from "lucide-react";
 
 import { WeightKgIcon } from "./weight-kg-icon";
 
 export type NavItem = {
   to: string;
   labelKey: string;
+  sidebarLabelKey?: string;
   icon: LucideIcon;
   gestorOnly?: boolean;
   end?: boolean;
@@ -56,16 +61,16 @@ export const navGroups: NavGroup[] = [
     labelKey: "nav.group.health",
     items: [
       { to: "/sanidade/protocolos", labelKey: "nav.protocols", icon: Syringe, gestorOnly: true },
-      { to: "/sanidade/tratamentos", labelKey: "nav.treatments", icon: ShieldAlert },
+      { to: "/sanidade/tratamentos", labelKey: "nav.treatments", icon: HeartPulse },
       { to: "/sanidade/ocorrencias", labelKey: "nav.occurrences", icon: ShieldAlert },
     ],
   },
   {
     labelKey: "nav.group.management",
     items: [
-      { to: "/gestao/mercado", labelKey: "nav.market", icon: TrendingUp },
+      { to: "/gestao/mercado", labelKey: "nav.market", sidebarLabelKey: "Mercado", icon: TrendingUp },
       { to: "/gestao/financeiro", labelKey: "nav.finance", icon: Wallet, gestorOnly: true },
-      { to: "/config/currais", labelKey: "Cadastro de locais", icon: Package, gestorOnly: true },
+      { to: "/config/currais", labelKey: "Cadastro de locais", icon: Settings2, gestorOnly: true },
       { to: "/config/usuarios", labelKey: "nav.users", icon: Users, gestorOnly: true },
       { to: "/config", labelKey: "nav.settings", icon: Cog, end: true },
     ],

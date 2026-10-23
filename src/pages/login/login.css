@@ -277,3 +277,12 @@
       url("/bg-dark.png");
   }
 }
+.login-screen-card input {
+  color-scheme: dark;
+  -webkit-text-fill-color: #fff8ef;
+  caret-color: #f1b077;
+}
+
+.dark .login-screen-card input {
+  -webkit-text-fill-color: #fff3e6;
+}

@@ -1,0 +1,50 @@
+/* Usa as cores e os componentes compartilhados da plataforma. */
+.market-tabs-scroll,
+.market-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+  overscroll-behavior-x: contain;
+}
+
+.market-tabs-scroll::-webkit-scrollbar,
+.market-table-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.market-tabs-scroll::-webkit-scrollbar-thumb,
+.market-table-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: hsl(var(--border));
+}
+
+/* Mesma seleção segmentada usada nos filtros de Leitura de cocho. */
+.market-page [role="tablist"] {
+  height: auto;
+  min-height: 48px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.market-page [role="tab"] {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.market-page [role="tab"][data-state="active"] {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: none;
+}
+
+.market-page [role="tab"][data-state="inactive"]:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}

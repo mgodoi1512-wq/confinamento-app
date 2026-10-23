@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { CreditCard, LogOut, Menu } from "lucide-react";
+import { ChevronDown, CreditCard, LogOut, MapPin, Menu, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
@@ -38,35 +38,36 @@ export const Topbar = ({
     routeTitles.find((route) => route.pattern.test(pathname))?.labelKey ?? "nav.dashboard";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border bg-background/80 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border bg-card/95 px-3 backdrop-blur md:px-6">
       <div className="flex min-w-0 items-center gap-2">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="size-10 shrink-0 rounded-lg lg:hidden"
           aria-label={t("nav.openMenu")}
           onClick={onOpenMenu}
         >
           <Menu />
         </Button>
         <div className="min-w-0">
-          <p className="truncate font-display text-base font-semibold tracking-tight">
+          <p className="truncate font-display text-sm font-semibold tracking-tight">
             {t(titleKey)}
           </p>
-          <p className="hidden min-h-4 truncate text-xs text-muted-foreground sm:block">{farmName || " "}</p>
+          <div className="flex min-h-4 min-w-0 items-center gap-1 text-xs font-medium text-muted-foreground"><MapPin aria-hidden="true" className="size-3 shrink-0" /><p className="truncate" title={farmName}>{farmName || "Fazenda"}</p></div>
         </div>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1 [&_button]:rounded-lg">
         <ThemeToggle />
         <TutorialLauncher currentPath={pathname} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={profile?.full_name ?? "Usuário"}>
+            <Button variant="ghost" className="h-10 shrink-0 gap-1 px-1.5 sm:px-2" aria-label={`Abrir menu do perfil de ${profile?.full_name ?? "usuário"}`}>
               <span className="grid size-7 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                 {initials(profile?.full_name, user?.email)}
               </span>
+              <ChevronDown aria-hidden="true" className="size-3 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-60">
@@ -88,8 +89,11 @@ export const Topbar = ({
                 Meu Plano
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-2">
+              <Link to="/config"><Settings className="size-4" />Configurações</Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void signOut().catch((error) => toast.error(error instanceof Error ? error.message : "Não foi possível sair."))} className="gap-2">
+            <DropdownMenuItem onSelect={() => void signOut().catch((error) => toast.error(error instanceof Error ? error.message : "Não foi possível sair."))} className="gap-2 text-red-700 focus:bg-red-500/10 focus:text-red-700 dark:text-red-300 dark:focus:text-red-300">
               <LogOut className="size-4" />
               {t("action.signOut")}
             </DropdownMenuItem>

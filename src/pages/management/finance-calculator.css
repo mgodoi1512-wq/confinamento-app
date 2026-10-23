@@ -1,0 +1,51 @@
+/* Resultados em areia no claro e verde discreto no escuro. */
+.finance-calculator .feed-cost-result {
+  border-color: hsl(var(--primary) / .4);
+  border-left-width: 3px;
+  background: hsl(var(--primary) / .14);
+  color: hsl(var(--foreground));
+}
+.finance-calculator .feed-cost-result p { color: inherit; }
+.finance-calculator .feed-cost-contribution { border-color: hsl(var(--primary) / .25); }
+.dark .finance-calculator .feed-cost-result {
+  border-color: hsl(var(--primary) / .5);
+  background: hsl(var(--primary) / .12);
+  color: hsl(var(--foreground));
+}
+.dark .finance-calculator .feed-cost-result .num { color: hsl(var(--primary)); }
+.dark .finance-calculator .feed-cost-contribution { border-color: hsl(var(--primary) / .3); }
+
+.finance-calculator .feed-cost-result .num { color: hsl(var(--primary)); }
+.finance-calculator .feed-cost-summary .feed-cost-result > div:first-child {
+  min-height: 32px;
+  align-items: flex-start;
+}
+.finance-calculator .feed-cost-silage-fields > div {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 24px auto;
+  row-gap: 6px;
+}
+.finance-calculator .feed-cost-silage-fields > div > * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+/* NumericField pode envolver o rótulo em uma div com acessórios. */
+.finance-calculator .feed-cost-silage-fields > div > div:has(> label) {
+  height: 24px;
+  min-height: 24px;
+  align-items: flex-end;
+}
+.finance-calculator .feed-cost-silage-fields label {
+  display: flex;
+  align-items: flex-end;
+  height: 24px;
+  min-height: 24px;
+}
+.finance-calculator .feed-cost-silage-fields > div > div:has(> input),
+.finance-calculator .feed-cost-silage-fields button[role="combobox"] { height: 44px; }
+.finance-calculator .feed-cost-silage-fields > div > div > input { height: 100%; }
+@media (min-width: 640px) {
+  .finance-calculator .feed-cost-silage-fields > div > div:has(> input),
+  .finance-calculator .feed-cost-silage-fields button[role="combobox"] { height: 40px; }
+}

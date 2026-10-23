@@ -1,0 +1,239 @@
+import { locationName } from "@/lib/location-name";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { AlertTriangle, Plus, Save, ClipboardList } from "lucide-react";
+import { toast } from "sonner";
+import { Link } from "react-router-dom";
+
+import { DataTable, type Column } from "@/components/app/data-table";
+import { EmptyState } from "@/components/app/empty-state";
+import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
+import { StatusBadge } from "@/components/app/status-badge";
+import { SelectField } from "@/components/form/select-field";
+import { TextField } from "@/components/form/text-field";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useAnimals } from "@/hooks/use-animals";
+import { useAuth } from "@/hooks/use-auth";
+import { useHealthEvents, useSaveHealthEvent } from "@/hooks/use-health";
+import { useLots } from "@/hooks/use-lots";
+import { usePens } from "@/hooks/use-pens";
+import { type HealthEvent } from "@/lib/domain";
+import { formatDate, formatNumber, todayIso } from "@/lib/format";
+
+import { emptyHealthFilters, filterHealthEvents, hasHealthFilters } from "./health-list";
+import { HealthListFilters, HealthMetricHelp } from "./health-list-tools";
+
+const Occurrences = () => {
+  const { t } = useTranslation();
+  const today = todayIso();
+  const { user } = useAuth();
+
+  const eventsQuery = useHealthEvents();
+  const animalsQuery = useAnimals();
+  const lotsQuery = useLots();
+  const pensQuery = usePens();
+  const saveEvent = useSaveHealthEvent();
+
+  const events = useMemo(() => eventsQuery.data ?? [], [eventsQuery.data]);
+  const animals = useMemo(() => animalsQuery.data ?? [], [animalsQuery.data]);
+  const lots = useMemo(() => lotsQuery.data ?? [], [lotsQuery.data]);
+  const pens = useMemo(() => pensQuery.data ?? [], [pensQuery.data]);
+
+  const occurrences = useMemo(
+    () =>
+      events
+        .filter((event) => event.kind === "obito" || Boolean(event.diagnosis))
+        .sort((a, b) => b.event_date.localeCompare(a.event_date) || b.id.localeCompare(a.id)),
+    [events],
+  );
+
+  const deaths = events.filter((event) => event.kind === "obito" && lots.some((lot) => lot.id === event.lot_id));
+  const deathHead = deaths.reduce((sum, event) => sum + (event.head_count ?? 1), 0);
+  const totalHead = lots.reduce((sum, lot) => sum + (lot.initial_head_count ?? lot.head_count), 0);
+  const mortalityRate = totalHead > 0 ? (deathHead / totalHead) * 100 : null;
+
+  const [filters, setFilters] = useState(emptyHealthFilters);
+  const animalMap = useMemo(() => new Map(animals.map(animal => [animal.id, animal])), [animals]);
+  const lotMap = useMemo(() => new Map(lots.map(lot => [lot.id, lot])), [lots]);
+  const filtered = filterHealthEvents(occurrences, filters, animalMap, lotMap, "occurrences", today);
+  const loading = eventsQuery.isLoading || animalsQuery.isLoading || lotsQuery.isLoading || pensQuery.isLoading;
+  const failed = eventsQuery.isError || animalsQuery.isError || lotsQuery.isError || pensQuery.isError;
+  const retry = () => void Promise.all([eventsQuery.refetch(), animalsQuery.refetch(), lotsQuery.refetch(), pensQuery.refetch()]);
+
+  const [open, setOpen] = useState(false);
+  const [animalId, setAnimalId] = useState("");
+  const [cause, setCause] = useState("");
+  const [date, setDate] = useState(today);
+  const [notes, setNotes] = useState("");
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const [error, setError] = useState<string | null>(null);
+
+  const animalOptions = animals
+    .filter((animal) => animal.status === "ativo" || animal.status === "tratamento")
+    .map((animal) => ({
+      value: animal.id,
+      labelKey: `${animal.ear_tag} · ${lots.find((lot) => lot.id === animal.lot_id)?.code ?? "—"}`,
+    }));
+
+  const submit = async () => {
+    if (!animalId || !cause.trim()) {
+      setError(t("toast.requiredFields"));
+      return;
+    }
+
+    const animal = animals.find((item) => item.id === animalId);
+
+    try {
+      await saveEvent.mutateAsync({
+        requestId,
+        event: {
+          animal_id: animalId,
+          lot_id: animal?.lot_id ?? null,
+          pen_id: animal?.pen_id ?? null,
+          kind: "obito",
+          diagnosis: cause.trim(),
+          event_date: date,
+          notes: notes.trim() || null,
+          recorded_by: user?.id ?? null,
+        },
+      });
+
+
+      setRequestId(crypto.randomUUID());
+      toast.success(t("health.occurrences.saved"));
+      setOpen(false);
+      setAnimalId("");
+      setCause("");
+      setNotes("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
+    }
+  };
+
+  const columns: Column<HealthEvent>[] = [
+    { key: "date", headerKey: "field.date", render: event => <span className="num">{formatDate(event.event_date)}</span> },
+    { key: "kind", headerKey: "field.kind", render: event => <StatusBadge tone={event.kind === "obito" ? "destructive" : "warning"} label={t(event.kind === "obito" ? "Óbito" : "Caso clínico")} size="sm" /> },
+    { key: "animal", headerKey: "Animal / lote", render: event => <div className="space-y-1 py-2"><p className="font-semibold">{animalMap.get(event.animal_id)?.ear_tag ?? "—"}</p><p className="text-xs text-muted-foreground">{lotMap.get(event.lot_id)?.code ?? "—"}</p></div> },
+    { key: "pen", headerKey: "field.pen", render: event => locationName(pens.find(pen => pen.id === event.pen_id), "—") },
+    { key: "description", headerKey: "Descrição / causa", render: event => event.diagnosis ?? "—" },
+    { key: "notes", headerKey: "field.notes", render: event => event.notes ?? "—" },
+  ];
+
+  if (failed) return <div className="space-y-4"><PageHeader titleKey="health.occurrences.title" /><div role="alert" className="rounded-lg border border-destructive/40 bg-card p-4"><p>{t("Não foi possível carregar os dados sanitários.")}</p><Button variant="outline" className="mt-3" onClick={retry}>{t("Tentar novamente")}</Button></div></div>;
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        titleKey="health.occurrences.title"
+        subtitleKey="health.occurrences.subtitle"
+        actions={
+          <Button className="h-10 max-w-full shrink-0 gap-1.5 whitespace-nowrap px-4" onClick={() => setOpen(true)}>
+            <Plus />
+            <span>{t("Nova ocorrência")}</span>
+          </Button>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="relative">
+          <StatCard className="h-full [&>div:first-child]:pr-7" loading={loading} labelKey="Taxa de mortalidade" value={mortalityRate !== null ? formatNumber(mortalityRate, 2) : "—"} unitKey="common.unit.percent" note={t("Acumulada · lotes cadastrados")} />
+          <HealthMetricHelp label={t("Como a mortalidade é calculada?")}>{t("Óbitos vinculados aos lotes cadastrados ÷ total de cabeças de entrada desses lotes × 100. Inclui lotes ativos e encerrados, em todo o histórico. Usa a quantidade inicial do lote; quando ausente, usa a quantidade cadastrada. Sem base de animais, a taxa aparece como —. Os filtros abaixo não alteram esse cálculo.")}</HealthMetricHelp>
+        </div>
+        <StatCard className="h-full [&>div:first-child>svg]:shrink-0" loading={loading} labelKey="Óbitos registrados" value={formatNumber(deathHead, 0)} unitKey="common.unit.head" icon={AlertTriangle} variant={deathHead > 0 ? "agro" : "default"} note={t("Acumulados · lotes cadastrados")} />
+        <StatCard className="h-full [&>div:first-child>svg]:shrink-0" loading={loading} labelKey="Ocorrências registradas" value={formatNumber(occurrences.length, 0)} icon={ClipboardList} note={t("Histórico completo · casos e óbitos")} />
+        <StatCard className="h-full [&>div:first-child>svg]:shrink-0" loading={loading} labelKey="Animais confinados" value={formatNumber(lots.filter(lot => lot.status === "ativo").reduce((sum, lot) => sum + lot.head_count, 0), 0)} unitKey="common.unit.head" note={t("Situação atual · lotes ativos")} />
+      </div>
+      <p className="text-xs text-muted-foreground">{t("Indicadores gerais, independentes dos filtros da lista. Casos clínicos correspondem a registros com diagnóstico.")}</p>
+      {(occurrences.length > 0 || hasHealthFilters(filters)) && !loading && (
+        <HealthListFilters value={filters} onChange={setFilters} lots={lots} mode="occurrences" count={filtered.length} total={occurrences.length} />
+      )}
+
+      <DataTable
+        rows={filtered}
+        columns={columns}
+        getRowKey={(event) => event.id}
+        loading={loading}
+        className="[&_table]:table-fixed [&_th]:text-center [&_td]:text-center [&_td]:py-2 [&_td]:break-words [&_td]:[overflow-wrap:anywhere]"
+        emptyState={
+          <EmptyState className="min-h-0 gap-2 py-5" icon={ClipboardList}
+            titleKey={occurrences.length > 0 ? "Nenhuma ocorrência encontrada" : "health.occurrences.empty.title"}
+            descriptionKey={occurrences.length > 0 ? "Ajuste ou limpe os filtros para consultar outros registros." : "Registre casos clínicos e óbitos para acompanhar a saúde do rebanho."}
+            action={occurrences.length > 0
+              ? <Button variant="outline" className="h-10" onClick={() => setFilters(emptyHealthFilters())}>{t("Limpar filtros")}</Button>
+              : <Button className="h-10 gap-1.5 whitespace-nowrap px-4" onClick={() => setOpen(true)}><Plus />{t("Nova ocorrência")}</Button>}
+          />
+        }
+        renderCard={event => (
+          <article className="min-w-0 space-y-3 [overflow-wrap:anywhere]">
+            <div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="font-display text-base font-semibold">{animalMap.get(event.animal_id)?.ear_tag ?? "—"}</p><p className="text-xs text-muted-foreground">{t("field.lot")}: {lotMap.get(event.lot_id)?.code ?? "—"}</p></div><StatusBadge tone={event.kind === "obito" ? "destructive" : "warning"} label={t(event.kind === "obito" ? "Óbito" : "Caso clínico")} size="sm" /></div>
+            <p className="text-sm">{event.diagnosis ?? "—"}</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span className="num">{formatDate(event.event_date)}</span><span>{t("field.pen")}: {locationName(pens.find(pen => pen.id === event.pen_id), "—")}</span></div>
+            {event.notes && <p className="border-t border-border pt-2 text-xs text-muted-foreground">{event.notes}</p>}
+          </article>
+        )}
+      />
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="flex max-h-[92dvh] w-[94vw] max-w-lg flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="shrink-0 border-b border-border p-4 text-left">
+            <DialogTitle>{t("Registrar óbito")}</DialogTitle>
+            <DialogDescription>{t("Este formulário registra óbito. Para um caso clínico, informe o diagnóstico em")} <Link to="/sanidade/tratamentos" className="underline">{t("health.treatments.title")}</Link>.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid min-h-0 gap-4 overflow-y-auto p-4 sm:grid-cols-2">
+            <SelectField
+              className="sm:col-span-2"
+              label={t("health.treatments.selectAnimal")}
+              value={animalId}
+              onChange={(value) => {
+                setAnimalId(value);
+                setError(null);
+              }}
+              placeholder={t("field.earTag")}
+              options={animalOptions}
+            />
+            <TextField
+              className="sm:col-span-2"
+              label={t("field.deathCause")}
+              value={cause}
+              onChange={(value) => {
+                setCause(value);
+                setError(null);
+              }}
+              error={error ?? undefined}
+              required
+            />
+            <TextField label={t("field.date")} type="date" value={date} onChange={setDate} />
+            <TextField
+              className="sm:col-span-2"
+              label={t("field.notes")}
+              value={notes}
+              onChange={setNotes}
+            />
+          </div>
+
+          <DialogFooter className="shrink-0 gap-2 border-t border-border p-4">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              {t("action.cancel")}
+            </Button>
+            <Button onClick={() => void submit()} disabled={saveEvent.isPending}>
+              <Save />
+              {t("action.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default Occurrences;

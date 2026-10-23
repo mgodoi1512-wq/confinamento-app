@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { chapterForPath, tutorialChapters, tutorialPage } from "@/lib/tutorial";
 import { LotTutorialDemo } from "./lot-tutorial-demo";
+import { TutorialCycle } from "./tutorial-cycle";
 
 export default function TutorialDialog({ currentPath, onClose }: { currentPath: string; onClose: () => void }) {
-  const [page, setPage] = useState(() => chapterForPath(currentPath));
+  const [page, setPage] = useState(0);
   const [showIndex, setShowIndex] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -39,6 +40,7 @@ export default function TutorialDialog({ currentPath, onClose }: { currentPath: 
         </header>
         <div className="relative flex min-h-0 flex-1">
           <nav id="tutorial-index" aria-label="Capítulos do tutorial" className={`${showIndex ? "absolute inset-0 z-10 block" : "hidden"} overflow-y-auto border-r border-border bg-background p-3 md:static md:block md:w-64 md:shrink-0`}>
+            <button type="button" className="mb-2 min-h-11 w-full rounded-lg border border-border px-3 py-2 text-left text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary" onClick={() => selectPage(chapterForPath(currentPath))}>Ajuda desta página</button>
             <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Índice · {tutorialChapters.length} capítulos</p>
             {tutorialChapters.map((entry, index) => <button key={entry.id} type="button" onClick={() => selectPage(index)} aria-current={index === page ? "step" : undefined} className={`mb-1 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-primary ${index === page ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}><span className="w-5 shrink-0 text-xs tabular-nums">{String(index + 1).padStart(2, "0")}</span><span>{entry.title}</span></button>)}
           </nav>
@@ -46,7 +48,9 @@ export default function TutorialDialog({ currentPath, onClose }: { currentPath: 
             <article key={chapter.id} className="mx-auto max-w-5xl space-y-6 pb-2 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
               <div><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary">{chapter.group}</p><h2 ref={headingRef} tabIndex={-1} className="font-display text-2xl font-semibold outline-none sm:text-3xl">{chapter.title}</h2><p className="mt-3 max-w-3xl text-base leading-relaxed text-muted-foreground">{chapter.summary}</p><p className="mt-3 text-xs text-muted-foreground">Onde encontrar: <span className="font-medium text-foreground">{chapter.path}</span></p></div>
               {chapter.managerOnly && !isGestor && <p className="rounded-lg border border-border bg-muted p-3 text-sm">As ações de cadastro deste capítulo são realizadas pelo gestor. Consulte-o se precisar de acesso.</p>}
-              <div className={chapter.demo ? "grid items-start gap-6 xl:grid-cols-2" : ""}>
+              {page !== 0 && <button type="button" onClick={() => selectPage(0)} className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary hover:underline"><ArrowLeft className="size-4" />Voltar ao ciclo da fazenda</button>}
+              {chapter.demo === "cycle" && <TutorialCycle onChapter={selectPage} />}
+              <div className={chapter.demo === "lot" ? "grid items-start gap-6 xl:grid-cols-2" : ""}>
                 <ol className="space-y-3">{chapter.steps.map((step, index) => <li key={step.title} className="flex gap-3 rounded-xl border border-border bg-card p-4"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{index + 1}</span><div><h3 className="text-sm font-semibold">{step.title}</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">{step.text}</p></div></li>)}</ol>
                 {chapter.demo === "lot" && <LotTutorialDemo />}
               </div>
