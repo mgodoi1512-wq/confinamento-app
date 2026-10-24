@@ -339,7 +339,7 @@ const NewLot = () => {
                 value={code}
                 onChange={setCode}
                 placeholder={suggestion}
-                helper={`${t("field.code")}: ${suggestion}`}
+                helper={`Sugestão: ${suggestion}. Deixe em branco para usar o código sugerido.`}
                 error={errors.code}
                 required
               />

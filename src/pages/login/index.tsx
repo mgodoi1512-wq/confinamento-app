@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowRight, BarChart3, Beef, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, BarChart3, Beef, Eye, EyeOff, LockKeyhole, Mail, Phone, UserRound, ShieldCheck, UtensilsCrossed } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -8,9 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeContactPhone } from "@/lib/contact-phone";
+import { formatContactPhoneInput, normalizeContactPhone } from "@/lib/contact-phone";
 import { useAuth } from "@/hooks/use-auth";
 import "./login.css";
+import { LegalDocumentDialog } from "@/components/legal/legal-document-dialog";
+import type { LegalDocumentKind } from "@/components/legal/legal-document-content";
+import { LEGAL_VERSION } from "@/lib/legal-documents";
+
+const fallbackLogo = (event: React.SyntheticEvent<HTMLImageElement>, fallback: string) => {
+  const img = event.currentTarget;
+  if (img.dataset.fallback) return;
+  img.dataset.fallback = "true";
+  img.parentElement?.querySelector("source")?.removeAttribute("srcset");
+  img.src = fallback;
+};
 
 const Login = () => {
   const { t } = useTranslation();
@@ -18,7 +29,7 @@ const Login = () => {
   const location = useLocation();
   const { session, loading, passwordRecovery } = useAuth();
 
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState(() => new URLSearchParams(location.search).get("modo") === "cadastro" ? "signup" : "login");
   const reduceMotion = useReducedMotion();
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelHeight, setPanelHeight] = useState<number | null>(null);
@@ -35,12 +46,44 @@ const Login = () => {
   }, [mode]);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const changePhone = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const raw = input.value;
+    const caret = input.selectionStart ?? raw.length;
+    const formatted = formatContactPhoneInput(raw);
+    const digits = raw.replace(/\D/g, "");
+    const countryPrefix = digits.startsWith("55") && (digits.length === 12 || digits.length === 13) ? 2 : 0;
+    const preceding = Math.max(0, raw.slice(0, caret).replace(/\D/g, "").length - countryPrefix);
+    setPhone(formatted);
+    requestAnimationFrame(() => {
+      if (document.activeElement !== input) return;
+      let position = 0, count = 0;
+      while (position < formatted.length && count < preceding) {
+        if (/\d/.test(formatted[position])) count++;
+        position++;
+      }
+      input.setSelectionRange(position, position);
+    });
+  };
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [notice, setNotice] = useState<string | null>(location.state?.accountConfirmed ? "Sua conta foi confirmada. Entre com seu e-mail e senha." : null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
+  const [legalDocument, setLegalDocument] = useState<LegalDocumentKind | null>(null);
+  const [completedDocuments, setCompletedDocuments] = useState({ terms: false, privacy: false });
+  const legalRead = completedDocuments.terms && completedDocuments.privacy;
+  const legalTrigger = useRef<HTMLButtonElement | null>(null);
+  const closeLegal = () => {
+    setLegalDocument(null);
+    requestAnimationFrame(() => legalTrigger.current?.focus());
+  };
+  const openLegal = (kind: LegalDocumentKind, trigger: HTMLButtonElement) => {
+    legalTrigger.current = trigger;
+    setLegalDocument(kind);
+  };
 
   useEffect(() => {
     if (!loading && session) navigate(passwordRecovery ? "/redefinir-senha" : "/", { replace: true });
@@ -65,6 +108,10 @@ const Login = () => {
       setError("Informe um telefone válido com DDD, com 10 ou 11 dígitos.");
       return;
     }
+    if (mode === "signup" && (!fullName.trim() || !legalRead || !acceptedLegal)) {
+      setError("Informe seu nome e aceite os Termos de Uso após ler o Aviso de Privacidade.");
+      return;
+    }
     setSubmitting(true);
 
     if (mode === "signup") {
@@ -73,7 +120,7 @@ const Login = () => {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/conta-confirmada`,
-          data: { full_name: fullName, phone: contactPhone },
+          data: { full_name: fullName.trim(), phone: contactPhone, terms_accepted: true, privacy_notice_acknowledged: true, terms_version: LEGAL_VERSION, privacy_version: LEGAL_VERSION },
         },
       });
       setSubmitting(false);
@@ -86,7 +133,7 @@ const Login = () => {
         return;
       }
       if (!data.session) {
-        setNotice("Confira seu e-mail para confirmar o cadastro. Depois do login, aguarde a aprovação do administrador do sistema.");
+        setNotice("Confira seu e-mail para confirmar o cadastro. Depois do login, siga as orientações de acesso e plano exibidas na sua conta.");
         return;
       }
       navigate("/", { replace: true });
@@ -121,10 +168,11 @@ const Login = () => {
             <div className="login-screen-brand">
   <picture className="login-logo-claro">
     <source media="(max-width: 1023px)" srcSet="/logo-marrom.png" />
-    <img src="/logo-marrom-claro.png" alt="LiBen Gestão de Fazendas" />
+    <img src="/logo-marrom-claro.png" alt="LiBen Gestão de Fazendas" onError={event => fallbackLogo(event, "/logo-liben-2.png")} />
   </picture>
   <img
     src="/logo-cinza.png"
+    onError={event => fallbackLogo(event, "/logo-liben-dark.png")}
     alt="LiBen Gestão de Fazendas"
     className="login-logo-dark"
   />
@@ -181,19 +229,22 @@ const Login = () => {
                         <label htmlFor="fullName" className="text-sm font-medium">
                           {t("auth.fullName")}
                         </label>
-                        <Input
+                        <div className="login-screen-field"><UserRound className="login-screen-field-icon hidden" aria-hidden="true" /><Input
                           id="fullName"
                           value={fullName}
                           onChange={(event) => setFullName(event.target.value)}
                           autoComplete="name"
+                          placeholder="Ex.: João da Silva"
                           className="h-11"
-                        />
+                          required
+                          maxLength={120}
+                        /></div>
                       </div>
                     ) : null}
 
                     {mode === "signup" ? <div className="space-y-2">
                       <label htmlFor="phone" className="text-sm font-medium">Telefone com DDD</label>
-                      <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => setPhone(event.target.value)} maxLength={22} required className="h-11" />
+                      <div className="login-screen-field"><Phone className="login-screen-field-icon hidden" aria-hidden="true" /><Input id="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="(xx) xxxxx-xxxx" value={phone} onChange={changePhone} maxLength={22} required className="h-11" /></div>
                       <p className="text-xs text-muted-foreground">Telefone para contato. Seu acesso continua por e-mail e senha.</p>
                     </div> : null}
 
@@ -228,6 +279,7 @@ const Login = () => {
                           value={password}
                           onChange={(event) => setPassword(event.target.value)}
                           autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                          placeholder={mode === "signup" ? "Mínimo de 6 caracteres" : "Digite sua senha"}
                           className="h-11"
                         />
                         <button
@@ -252,11 +304,13 @@ const Login = () => {
                       </p>
                     ) : null}
 
-                    <Button type="submit" size="lg" className="login-screen-submit h-12 w-full" disabled={submitting}>
+                    {mode === "signup" && <div className="login-screen-legal space-y-2"><div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{(["terms", "privacy"] as const).map(kind => <button key={kind} type="button" disabled={submitting} onClick={event => openLegal(kind, event.currentTarget)} className="login-screen-legal-document min-h-11 rounded-lg border px-3 py-2 text-left text-xs leading-relaxed"><span className="block font-medium">{kind === "terms" ? "Ler Termos de Uso" : "Ler Aviso de Privacidade"}</span><span className="mt-1 block text-[11px] opacity-80">{completedDocuments[kind] ? "✓ Leitura concluída" : "Pendente de leitura"}</span></button>)}</div><p className="text-xs leading-relaxed text-muted-foreground">{legalRead ? "Documentos concluídos. Marque abaixo se concordar." : "Abra os dois documentos e conclua a leitura até o final para liberar o aceite."}</p><label className={`flex items-start gap-2 text-xs leading-relaxed ${legalRead ? "cursor-pointer" : "opacity-60"}`}><input type="checkbox" checked={acceptedLegal} onChange={event => { if (legalRead) setAcceptedLegal(event.target.checked); }} required disabled={submitting || !legalRead} className="mt-0.5 size-4 shrink-0 accent-current" /><span>Li e aceito os Termos de Uso e declaro ciência do Aviso de Privacidade.</span></label></div>}
+
+                    <Button type="submit" size="lg" className="login-screen-submit h-12 w-full" disabled={submitting || (mode === "signup" && (!legalRead || !acceptedLegal))}>
                       <span>{submitting ? "Aguarde…" : mode === "signup" ? t("action.signUp") : "Acessar minha fazenda"}</span>
                       <ArrowRight className="login-screen-submit-arrow hidden" aria-hidden="true" />
                     </Button>
-                    {mode === "signup" && <p className="login-screen-signup-hint hidden">{t("auth.signupHint")}</p>}
+                    {mode === "signup" && <p className="login-screen-signup-hint hidden">Após o cadastro, confirme seu e-mail quando solicitado e siga as orientações de acesso e plano da sua conta.</p>}
                   </form>
                 </motion.div>
               </motion.div>
@@ -266,6 +320,7 @@ const Login = () => {
 
         </div>
       </main>
+      {legalDocument && <LegalDocumentDialog key={legalDocument} kind={legalDocument} onClose={closeLegal} onComplete={kind => { setCompletedDocuments(current => ({ ...current, [kind]: true })); closeLegal(); }} />}
     </div>
   );
 };

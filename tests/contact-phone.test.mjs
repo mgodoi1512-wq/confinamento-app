@@ -14,3 +14,10 @@ test('recusa telefone vazio, sem DDD, país diferente, letras e tamanho inválid
 test('apresenta celular, fixo e legado sem contato',()=>{
   assert.equal(formatContactPhone('+5562999991234'),'(62) 99999-1234');assert.equal(formatContactPhone('+551134567890'),'(11) 3456-7890');assert.equal(formatContactPhone(null),'Não informado');
 });
+
+test('máscara acompanha digitação, colagem e limpeza sem alterar a normalização',async()=>{
+  const {formatContactPhoneInput:mask}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+  for(const [raw,expected] of [['',''],['6','(6'],['62','(62'],['629','(62) 9'],['629999','(62) 9999'],['62999991234','(62) 99999-1234'],['1134567890','(11) 3456-7890'],['+55 (62) 99999-1234','(62) 99999-1234'],['55999991234','(55) 99999-1234']])assert.equal(mask(raw),expected,raw);
+  assert.equal(normalizeContactPhone(mask('62999991234')),'+5562999991234');
+  let value=mask('62999991234');while(value)value=mask(value.slice(0,-1));assert.equal(value,'');
+});

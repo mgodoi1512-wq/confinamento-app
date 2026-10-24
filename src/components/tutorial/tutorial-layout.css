@@ -1,0 +1,20 @@
+/* Explicit foreground for the theme's brown/green hover surfaces. */
+.tutorial-dialog button:not(:disabled):hover,
+.tutorial-dialog .tutorial-index-link:focus-visible {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.tutorial-dialog button:not(:disabled):hover span,
+.tutorial-dialog .tutorial-index-link:focus-visible span {
+  color: inherit;
+}
+.tutorial-dialog .tutorial-index-link {
+  transition: background-color .18s, color .18s;
+}
+.tutorial-dialog .tutorial-index-link:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-dialog .tutorial-index-link { transition: none; }
+}

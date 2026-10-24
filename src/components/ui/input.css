@@ -1,0 +1,16 @@
+/* iOS Safari atribui largura intrínseca a controles nativos de data. */
+input[type="date"], input[type="month"], input[type="time"], input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow: hidden;
+}
+input::-webkit-date-and-time-value { min-width: 0; text-align: left; white-space: nowrap; }
+input::-webkit-datetime-edit { padding: 0; min-width: 0; max-width: 100%; }
+input::-webkit-calendar-picker-indicator { flex-shrink: 0; }

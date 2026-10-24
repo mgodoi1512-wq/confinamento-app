@@ -36,7 +36,7 @@ export const TextField = ({
   const id = useId();
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("min-w-0 space-y-1.5", className)}>
       <label htmlFor={id} className="block text-sm font-medium">
         {label}
         {required ? <span className="text-destructive"> *</span> : null}

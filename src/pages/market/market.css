@@ -48,3 +48,7 @@
   background: hsl(var(--accent));
   color: hsl(var(--accent-foreground));
 }
+
+/* Todas as categorias seguem a mesma grade, sem corte ou rolagem das abas. */
+.market-bovine-tabs [role="tab"] { width: 100%; min-width: 0; white-space: normal; text-align: center; }
+@media (min-width: 1024px) { .market-bovine-tabs [role="tab"] { min-width: 88px; } }

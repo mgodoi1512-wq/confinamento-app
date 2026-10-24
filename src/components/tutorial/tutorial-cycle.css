@@ -1,8 +1,8 @@
 .tutorial-cycle { container-type: inline-size; }
-.tutorial-cycle__orbit { position: relative; width: min(100%, 660px); aspect-ratio: 1; margin: 0 auto; }
+.tutorial-cycle__orbit { position: relative; width: min(100%, 520px); aspect-ratio: 1; margin: 0 auto; }
 .tutorial-cycle__lines { position: absolute; inset: 0; width: 100%; height: 100%; color: hsl(var(--muted-foreground)); opacity: .65; pointer-events: none; }
 .tutorial-cycle__node { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 44px; height: 44px; padding: 3px; border: 1px solid hsl(var(--border)); border-radius: 14px; background: hsl(var(--card)); color: hsl(var(--foreground)); cursor: pointer; transition: background-color .2s, border-color .2s, color .2s; }
-.tutorial-cycle__node:hover { border-color: hsl(var(--primary)); background: hsl(var(--muted)); }
+.tutorial-cycle__node:hover { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .tutorial-cycle__node:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
 .tutorial-cycle__node[aria-pressed="true"] { background: hsl(var(--primary)); border-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .tutorial-cycle__node svg { width: 16px; height: 16px; flex-shrink: 0; }

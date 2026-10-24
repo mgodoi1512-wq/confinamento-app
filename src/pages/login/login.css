@@ -213,6 +213,8 @@
 .dark .login-screen-card input:-webkit-autofill { -webkit-text-fill-color: #fff3e6; box-shadow: 0 0 0 1000px #101113 inset; }
 .dark .login-screen-field-icon, .dark .login-screen-password { color: #dbbf9e; }
 .dark .login-screen-placeholder { color: #b3a79a; }
+.login-screen-card .login-screen-field input::placeholder { color: #c9b8a8; opacity: 1; }
+.dark .login-screen-card .login-screen-field input::placeholder { color: #b3a79a; }
 .dark .login-screen-card a { color: #ebc29b; }
 .dark .login-screen-card .text-muted-foreground, .dark .login-screen-signup-hint { color: #c5b8a9; }
 .dark .login-screen-card .login-screen-submit { background: #8d4e29; border-color: #c28855; color: #fff6ec; }
@@ -277,12 +279,13 @@
       url("/bg-dark.png");
   }
 }
-.login-screen-card input {
-  color-scheme: dark;
-  -webkit-text-fill-color: #fff8ef;
-  caret-color: #f1b077;
-}
 
-.dark .login-screen-card input {
-  -webkit-text-fill-color: #fff3e6;
-}
+/* Aceite: conserva os ícones e a altura dos campos, sem ampliar o checkbox. */
+.login-screen-card .login-screen-legal label { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.6; }
+.login-screen-card .login-screen-legal input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; min-width: 16px; padding: 0; margin: 3px 0 0; accent-color: #b57745; box-shadow: none; }
+.login-screen-card .login-screen-legal a { min-height: 36px; }
+
+.login-screen-card .login-screen-legal-document { border-color: rgb(250 221 189 / 55%); color: #fff0de; background: rgb(19 12 8 / 18%); }
+.login-screen-card .login-screen-legal-document:hover { background: rgb(255 229 197 / 10%); }
+.login-screen-card .login-screen-legal-document:focus-visible { outline: 2px solid #e5a46f; outline-offset: 2px; }
+.dark .login-screen-card .login-screen-legal-document { border-color: #79634f; color: #eee4d8; background: #171819; }

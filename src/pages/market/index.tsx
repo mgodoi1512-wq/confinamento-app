@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
-import { BarChart3, Beef, ExternalLink, Info, Leaf, LoaderCircle, RefreshCw, Wheat } from "lucide-react";
+import { BarChart3, Beef, ExternalLink, Info, Leaf, LoaderCircle, RefreshCw, Maximize2, Minimize2, Wheat } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PageHeader } from "@/components/app/page-header";
@@ -33,7 +33,7 @@ const SourceLink = ({ href, children }: { href: string; children: React.ReactNod
 
 const MarketInfo = ({ item }: { item: Market }) => {
   const [open, setOpen] = useState(false);
-  return <Tooltip open={open} onOpenChange={setOpen} delayDuration={150}><TooltipTrigger asChild><button type="button" aria-label={`Informações da cotação de ${item.title}`} onClick={()=>setOpen(value=>!value)} className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><Info className="size-4" /></button></TooltipTrigger><TooltipContent className="max-w-[min(22rem,calc(100vw-2rem))] space-y-2 text-xs leading-relaxed"><p>Tabela do Notícias Agrícolas. Confira a data, a unidade e a fonte indicadas na tabela. Role dentro do quadro para consultar todas as colunas e praças.</p>{item.note && <p>{item.note}</p>}<p>Se a tabela não carregar, use Fonte e histórico.</p></TooltipContent></Tooltip>;
+  return <Tooltip open={open} onOpenChange={setOpen} delayDuration={150}><TooltipTrigger asChild><button type="button" aria-label={`Informações da cotação de ${item.title}`} onClick={()=>setOpen(value=>!value)} className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><Info className="size-4" /></button></TooltipTrigger><TooltipContent className="max-w-[min(22rem,calc(100vw-2rem))] space-y-2 text-xs leading-relaxed"><p>Tabela do Notícias Agrícolas. Confira a data, a unidade e a fonte indicadas na tabela. O modo Ajustado reduz o quadro para caber na largura disponível. Use Ampliar se precisar ler em tamanho maior; nesse modo, a rolagem pode ser necessária.</p>{item.note && <p>{item.note}</p>}<p>Se a tabela não carregar, use Fonte e histórico.</p></TooltipContent></Tooltip>;
 };
 
 const MarketTable = ({ item, refresh }: { item: Market; refresh: number }) => {
@@ -41,6 +41,20 @@ const MarketTable = ({ item, refresh }: { item: Market; refresh: number }) => {
   const isDark = resolvedTheme === "dark";
   const [loaded, setLoaded] = useState(false);
   const [waiting, setWaiting] = useState(false);
+  const [fit, setFit] = useState(true);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [availableWidth, setAvailableWidth] = useState(0);
+  const baseWidth = item.key === "bezerro" ? 960 : 600;
+  const frameHeight = item.height ?? 320;
+  const scale = fit && availableWidth > 0 ? Math.min(1, availableWidth / baseWidth) : 1;
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const observer = new ResizeObserver(() => setAvailableWidth(frame.clientWidth));
+    setAvailableWidth(frame.clientWidth);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
   const params = new URLSearchParams({
     id: String(item.widget), largura: "100%", fonte: "Arial, Helvetica, sans-serif", tamanho: "12pt",
     // O provedor mantém linhas brancas que não aceitam os parâmetros de cor.
@@ -62,6 +76,7 @@ const MarketTable = ({ item, refresh }: { item: Market; refresh: number }) => {
         <p className="text-xs leading-relaxed text-muted-foreground">{item.subtitle}</p><MarketInfo item={item} />
       </div>
         {item.widget ? <>
+          <div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">{fit ? "Ajustado à largura" : "Tamanho de leitura ampliado"}</span><Button variant="outline" size="sm" className="h-9 shrink-0 text-xs" onClick={() => setFit(current => !current)} aria-pressed={!fit}>{fit ? <Maximize2 className="size-3.5" /> : <Minimize2 className="size-3.5" />}{fit ? "Ampliar tabela" : "Ajustar tabela"}</Button></div>
           <div className="relative overflow-hidden rounded-lg border border-border bg-white dark:bg-[#1a1a1a]">
             {!loaded && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-card px-4 py-5 text-center" role="status" aria-live="polite" aria-atomic="true">
               <div className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary"><LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" /></div>
@@ -69,15 +84,15 @@ const MarketTable = ({ item, refresh }: { item: Market; refresh: number }) => {
               <div className="w-full max-w-52 space-y-2 motion-safe:animate-pulse" aria-hidden="true"><div className="h-2 rounded-full bg-primary/15" /><div className="mx-auto h-2 w-5/6 rounded-full bg-primary/10" /><div className="mx-auto h-2 w-2/3 rounded-full bg-primary/10" /></div>
               {waiting && <a href={item.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-xs font-medium text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-primary">Consultar fonte<ExternalLink className="size-3.5" aria-hidden="true" /></a>}
             </div>}
-            <div role="region" aria-label={`Tabela de ${item.title}: role para ver todas as colunas`} tabIndex={0} className="market-table-scroll overflow-auto rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-            <iframe key={`${refresh}-${src}`} src={src} title={`Cotações: ${item.title}`} width="100%" height={item.height ?? 320}
-              className={`block w-full min-w-[600px] border-0 ${loaded ? "visible" : "invisible"}`} aria-hidden={!loaded} tabIndex={loaded ? 0 : -1} referrerPolicy="strict-origin-when-cross-origin"
-              style={{ colorScheme: "light", backgroundColor: "#FFFFFF", filter: isDark ? "grayscale(1) invert(0.9)" : undefined }}
+            <div ref={frameRef} role="region" aria-label={`Tabela de ${item.title}: ${fit ? "ajustada à largura" : "role para ver todas as colunas"}`} tabIndex={0} className={`market-table-scroll rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${fit ? "overflow-hidden" : "overflow-auto"}`} style={{height: frameHeight * scale}}>
+            <iframe key={`${refresh}-${src}`} src={src} title={`Cotações: ${item.title}`} width="100%" height={frameHeight}
+              className={`block border-0 ${loaded ? "visible" : "invisible"}`} aria-hidden={!loaded} tabIndex={loaded ? 0 : -1} referrerPolicy="strict-origin-when-cross-origin"
+              style={{ width: scale < 1 ? baseWidth : "100%", minWidth: baseWidth, transform: scale < 1 ? `scale(${scale})` : undefined, transformOrigin: "top left", colorScheme: "light", backgroundColor: "#FFFFFF", filter: isDark ? "grayscale(1) invert(0.9)" : undefined }}
               sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
               onLoad={() => setLoaded(true)} onError={() => { setLoaded(false); setWaiting(true); }} />
             </div>
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">Notícias Agrícolas · data e fonte na tabela · role para consultar mais.</p>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">Notícias Agrícolas · data e fonte na tabela · use Ampliar para ler em tamanho maior.</p>
         </> : <div className="flex min-h-36 flex-col justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/40 p-4">
           <BarChart3 className="size-7 text-muted-foreground" />
           <p className="text-sm leading-relaxed">Consulte cotações, datas e referências diretamente na página da fonte.</p>
@@ -105,8 +120,8 @@ const BovinesCard = ({ refresh }: { refresh: number }) => {
     <CardHeader className="p-4 pb-2">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2"><Beef className="size-5 shrink-0 text-primary" /><CardTitle className="font-sans text-base font-semibold">BOVINOS</CardTitle></div>
-        <div className="market-tabs-scroll order-3 w-full max-w-full overflow-x-auto pb-1 lg:order-none lg:w-auto">
-          <TabsList aria-label="Categoria de bovinos" className="flex h-auto w-max min-w-full justify-start gap-1 sm:min-w-0">
+        <div className="market-bovine-tabs order-3 w-full max-w-full lg:order-none lg:w-auto">
+          <TabsList aria-label="Categoria de bovinos" className="grid h-auto w-full grid-cols-2 gap-1 min-[420px]:grid-cols-4 lg:w-auto">
             {bovines.map(item=><TabsTrigger key={item.key} value={item.key} className="min-h-10 shrink-0 px-4 text-xs sm:text-sm">{item.title}</TabsTrigger>)}
           </TabsList>
         </div>
