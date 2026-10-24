@@ -30,7 +30,8 @@ export function createProductionAnnualHandler(deps: Deps) {
       let body:unknown;try{body=JSON.parse(raw);}catch{return fail(400,"Dados inválidos.");}
       if(!record(body)||!["create","refresh","cancel"].includes(String(body.action)))return fail(400,"Ação inválida.");
       const creating=body.action==="create";
-      const fields=creating?["action","installmentCount","name","cpfCnpj","priceVersion","productionConsent"]:["action","id","confirm"];
+      if(body.couponQuoteId!==undefined&&(typeof body.couponQuoteId!=="string"||!/^[0-9a-f-]{36}$/i.test(body.couponQuoteId)))return fail(400,"Cupom inválido. Aplique novamente.");
+      const fields=creating?["action","installmentCount","name","cpfCnpj","priceVersion","productionConsent","couponQuoteId"]:["action","id","confirm"];
       if(Object.keys(body).some(x=>!fields.includes(x)))return fail(400,"Campo não permitido.");
       if(creating&&(!Number.isInteger(body.installmentCount)||Number(body.installmentCount)<1||Number(body.installmentCount)>12||typeof body.name!=="string"||body.name.trim().length<3||body.name.length>120||!documentValid(body.cpfCnpj)||typeof body.priceVersion!=="string"||body.productionConsent!==true))return fail(400,"Confira pagador, parcelas, valor e confirmação da contratação real.");
       if(!creating&&(typeof body.id!=="string"||!/^[0-9a-f-]{36}$/i.test(body.id)))return fail(400,"Contratação inválida.");
@@ -52,7 +53,7 @@ export function createProductionAnnualHandler(deps: Deps) {
         if(!response.ok)throw new Error("PROVIDER");const result:unknown=await response.json();if(!record(result))throw new Error("PROVIDER");return result;
       };
       const get=(path:string)=>provider(path);
-      let order=await rpc(creating?"prepare":"get",creating?{installmentCount:body.installmentCount,priceVersion:body.priceVersion,productionConsent:true}:{id:body.id});
+      let order=await rpc(creating?"prepare":"get",creating?{installmentCount:body.installmentCount,priceVersion:body.priceVersion,productionConsent:true,...(body.couponQuoteId?{couponQuoteId:body.couponQuoteId}:{})}:{id:body.id});
       let created:AnnualData|undefined;
       if(order.fresh===true&&creating){
         const customer=await provider("customers",{name:String(body.name).trim(),cpfCnpj:body.cpfCnpj,externalReference:`liben-annual-${order.id}`,notificationDisabled:true});

@@ -1,3 +1,4 @@
+import { expectedSubscriptionPaymentCents } from "../_shared/coupon-payment.ts";
 type SubscriptionDeps = { env: (key: string) => string | undefined; fetch: typeof fetch; now?: () => Date };
 type RecordData = Record<string, unknown>;
 const object = (value: unknown): value is RecordData => !!value && typeof value === "object" && !Array.isArray(value);
@@ -50,7 +51,8 @@ export function createProductionSubscriptionHandler(deps: SubscriptionDeps) {
       try { body = JSON.parse(raw); } catch { return fail(400, "Dados inválidos."); }
       if (!object(body) || !["create", "refresh", "cancel"].includes(String(body.action))) return fail(400, "Ação inválida.");
       const creating = body.action === "create";
-      if (Object.keys(body).some(x => !(creating ? ["action", "plan", "method", "name", "cpfCnpj", "productionConsent", "priceVersion"] : ["action", "id", "confirm"]).includes(x))) return fail(400, "Campo não permitido.");
+      if (body.couponQuoteId !== undefined && (typeof body.couponQuoteId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.couponQuoteId))) return fail(400,"Cupom inválido. Aplique novamente.");
+      if (Object.keys(body).some(x => !(creating ? ["action", "plan", "method", "name", "cpfCnpj", "productionConsent", "priceVersion", "couponQuoteId"] : ["action", "id", "confirm"]).includes(x))) return fail(400, "Campo não permitido.");
       if (creating && (!["monthly", "annual"].includes(String(body.plan)) || !["PIX", "CREDIT_CARD"].includes(String(body.method)) || typeof body.name !== "string" || body.name.trim().length < 3 || body.name.length > 120 || typeof body.cpfCnpj !== "string" || !validDocument(body.cpfCnpj))) return fail(400, "Informe nome, CPF/CNPJ e um plano válido. Use apenas dados do pagador.");
       if (!creating && (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/i.test(body.id))) return fail(400, "Pagamento inválido.");
       if (body.action === "cancel" && body.confirm !== true) return fail(400, "Confirme o cancelamento da renovação.");
@@ -67,7 +69,7 @@ export function createProductionSubscriptionHandler(deps: SubscriptionDeps) {
         if (!res.ok) throw new Error("PROVIDER");
         const value: unknown = await res.json(); if (!object(value)) throw new Error("PROVIDER"); return value;
       };
-      let subscription = await rpc(creating ? "prepare" : "get", creating ? { plan: body.plan, method: body.method, productionConsent: body.productionConsent, priceVersion: body.priceVersion } : { id: body.id });
+      let subscription = await rpc(creating ? "prepare" : "get", creating ? { plan: body.plan, method: body.method, productionConsent: body.productionConsent, priceVersion: body.priceVersion, ...(body.couponQuoteId ? { couponQuoteId: body.couponQuoteId } : {}) } : { id: body.id });
       if (subscription.status === "CANCELLED" && body.action === "refresh") return new Response(JSON.stringify({ ok: true, environment: "production", id: subscription.id }), { headers });
       let provider: RecordData | undefined;
       const observedAt = (deps.now?.() ?? new Date()).toISOString();
@@ -108,8 +110,18 @@ export function createProductionSubscriptionHandler(deps: SubscriptionDeps) {
           const paymentsObservedAt = (deps.now?.() ?? new Date()).toISOString();
           const list = await asaas(`subscriptions/${encodeURIComponent(String(provider.id))}/payments?limit=100&offset=${page * 100}`);
           if (!Array.isArray(list.data)) throw new Error("INVALID_PAYMENTS");
-          for (const item of list.data) {
-            if (!object(item) || typeof item.id !== "string" || item.subscription !== provider.id || item.customer !== subscription.customer_id || !compatibleMethod(subscription.method, item.billingType) || typeof item.value !== "number" || Math.round(item.value * 100) !== subscription.amount_cents || typeof item.dueDate !== "string" || !invoice(item.invoiceUrl)) throw new Error("INVALID_PAYMENT");
+          for (let item of list.data) {
+            if (subscription.coupon_quote_id && object(item) && item.dueDate === subscription.first_due_on) {
+              if (typeof item.id !== "string" || !/^pay_[A-Za-z0-9_-]+$/.test(item.id) || item.subscription !== provider.id || item.customer !== subscription.customer_id || !compatibleMethod(subscription.method,item.billingType)) throw new Error("COUPON_PAYMENT_MISMATCH");
+              const bind = await call(`${url}/rest/v1/rpc/app_coupon_bind_first_payment`, { method:"POST", headers:serviceHeaders, body:JSON.stringify({p_subscription_id:subscription.id,p_payment_id:item.id,p_due:item.dueDate}) });
+              const bound:unknown=await bind.json();if(!bind.ok||!object(bound))throw new Error("COUPON_BIND");subscription=bound;
+              if (typeof item.value!=="number")throw new Error("COUPON_VALUE");
+              if (Math.round(item.value*100)!==subscription.first_payment_cents) {
+                if (Math.round(item.value*100)!==subscription.amount_cents || !["PENDING","OVERDUE"].includes(String(item.status)))throw new Error("COUPON_ALREADY_PAID");
+                item=await asaas(`payments/${encodeURIComponent(String(item.id))}`,{value:Number(subscription.first_payment_cents)/100,billingType:item.billingType,dueDate:item.dueDate},"PUT");
+              }
+            }
+            if (!object(item) || typeof item.id !== "string" || item.subscription !== provider.id || item.customer !== subscription.customer_id || !compatibleMethod(subscription.method, item.billingType) || typeof item.value !== "number" || Math.round(item.value * 100) !== expectedSubscriptionPaymentCents(subscription,item) || typeof item.dueDate !== "string" || !invoice(item.invoiceUrl)) throw new Error("INVALID_PAYMENT");
             const refunds = Array.isArray(item.refunds) ? item.refunds : [];
             const refundedCents = refunds.reduce((sum: number, x: unknown) => sum + (object(x) && x.status === "DONE" && typeof x.value === "number" ? Math.round(x.value * 100) : 0), 0);
             const sync = await call(`${url}/rest/v1/rpc/app_ingest_production_subscription_payment`, { method: "POST", headers: serviceHeaders, body: JSON.stringify({ p_subscription_id: subscription.id, p_payload: { paymentId: item.id, providerSubscriptionId: item.subscription, customerId: item.customer, externalReference: subscription.id, method: subscription.method, amountCents: Math.round(item.value * 100), dueDate: item.dueDate, invoiceUrl: item.invoiceUrl, status: item.deleted === true ? "DELETED" : item.status, refundedCents, observedAt: paymentsObservedAt } }) });
@@ -119,6 +131,7 @@ export function createProductionSubscriptionHandler(deps: SubscriptionDeps) {
           if (page === 9) throw new Error("RECONCILIATION_LIMIT");
         }
       }
+      if (subscription.coupon_quote_id && !subscription.coupon_first_payment_id && !cancelled) return fail(409,"Primeira fatura com cupom em preparação. Use Consultar assinatura para concluir, sem criar outra cobrança.");
       return new Response(JSON.stringify({ ok: true, environment: "production", id: subscription.id }), { headers });
     } catch {
       return fail(502, "Não foi possível concluir. Se a assinatura já foi iniciada, use Consultar assinatura para recuperar a situação. Um cancelamento só termina após confirmação do Asaas.");

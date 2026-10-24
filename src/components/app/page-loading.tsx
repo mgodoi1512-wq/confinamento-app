@@ -33,8 +33,8 @@ export const PageLoading = ({
       >
         {fullScreen && (
           <>
-            <img src="/logo-liben-2.png" alt="LiBen Agronegócios" width={80} height={80} className="size-20 rounded-xl object-contain dark:hidden" />
-            <img src="/logo-liben-dark.png" alt="LiBen Agronegócios" width={80} height={80} className="hidden size-20 rounded-xl object-contain dark:block" />
+            <img src="/logo-liben-2.webp" alt="LiBen Agronegócios" width={80} height={80} className="size-20 rounded-xl object-contain dark:hidden" />
+            <img src="/logo-liben-dark.webp" alt="LiBen Agronegócios" width={80} height={80} className="hidden size-20 rounded-xl object-contain dark:block" />
           </>
         )}
         <Loader2 aria-hidden="true" className="size-5 animate-spin motion-reduce:animate-none" />

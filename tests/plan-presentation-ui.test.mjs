@@ -20,11 +20,12 @@ const result = await build({
   bundle: true, write: false, platform: 'node', format: 'esm', jsx: 'automatic',
   external: ['react','react/jsx-runtime','lucide-react'],
   plugins: [{name:'authenticated-fixtures',setup(b){
-    b.onResolve({filter:/^(@\/hooks\/use-auth|@tanstack\/react-query|react-router-dom|@\/lib\/billing|@\/components\/ui\/|@radix-ui\/react-dialog|sonner)/}, a=>({path:a.path,namespace:'fixture'}));
+    b.onResolve({filter:/^(@\/components\/app\/plan-coupon-field|@\/hooks\/use-auth|@tanstack\/react-query|react-router-dom|@\/lib\/billing|@\/components\/ui\/|@radix-ui\/react-dialog|sonner)/}, a=>({path:a.path,namespace:'fixture'}));
     b.onResolve({filter:/^@\//},a=>({path:fileURLToPath(new URL('../src/'+a.path.slice(2)+(a.path.endsWith('utils')||a.path.endsWith('signup-plan')?'.ts':'.tsx'),import.meta.url))}));
     b.onLoad({filter:/.*/,namespace:'fixture'},a=>{
       const f='globalThis.__planPresentation'; let contents;
-      if(a.path==='@/hooks/use-auth') contents=`export const useAuth=()=>${f}.auth;`;
+      if(a.path==='@/components/app/plan-coupon-field') contents='export const PlanCouponField=()=>null;';
+      else if(a.path==='@/hooks/use-auth') contents=`export const useAuth=()=>${f}.auth;`;
       else if(a.path==='@tanstack/react-query') contents=`export const useQuery=()=>${f}.query; export const useQueryClient=()=>({invalidateQueries:async()=>{}});export const useMutation=()=>({isPending:false,mutate:()=>{}});`;
       else if(a.path==='react-router-dom') contents=`import React from 'react';export const useNavigate=()=>()=>{};export const useSearchParams=()=>[new URLSearchParams(globalThis.__planPresentation.search??'')]; export const Link=({children})=>React.createElement('a',null,children);`;
       else if(a.path==='@/lib/billing') contents=`export const billingMoney=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n/100);`+billingNames.map(n=>`export const ${n}=async()=>{};`).join('');

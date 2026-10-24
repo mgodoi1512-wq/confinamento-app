@@ -5,6 +5,7 @@ import ts from 'typescript';
 const importHandler=async name=>{
  let source=fs.readFileSync(new URL(`../supabase/functions/asaas-production-${name}/handler.ts`,import.meta.url),'utf8');
  if(source.includes('annual-reconcile'))source=fs.readFileSync(new URL('../supabase/functions/_shared/annual-reconcile.ts',import.meta.url),'utf8')+'\n'+source.replace(/^import .*annual-reconcile.*\n/m,'');
+ if(source.includes('coupon-payment'))source=fs.readFileSync(new URL('../supabase/functions/_shared/coupon-payment.ts',import.meta.url),'utf8')+'\n'+source.replace(/^import .*coupon-payment.*\n/m,'');
  const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
  return import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 };

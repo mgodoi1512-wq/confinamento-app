@@ -1,3 +1,4 @@
+import { CouponAdmin } from "./coupon-admin";
 import { ProductionBillingControls } from "./production-billing-controls";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,7 +24,7 @@ const SandboxConnection = () => {
       {check.isPending && <p role="status" className="text-sm text-muted-foreground">Verificando o acesso administrativo e a resposta do Sandbox...</p>}
       {check.isError && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{check.error.message}</p>}
       {check.isSuccess && !check.isPending && <div role="status" className="space-y-1 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm"><p className="flex items-center gap-2 font-medium"><CheckCircle2 className="size-4 shrink-0" />Conexão Sandbox confirmada</p><p className="text-xs text-muted-foreground">Último teste nesta sessão: {new Date(check.data.checkedAt).toLocaleString("pt-BR")}. O teste não criou clientes, assinaturas ou cobranças.</p></div>}
-      <p className="text-xs leading-relaxed text-muted-foreground">A conexão confirmada não ativa a cobrança. Checkout, confirmação de pagamento e controle automático de acesso ainda precisam ser implementados e validados.</p>
+      <p className="text-xs leading-relaxed text-muted-foreground">A conexão confirmada não ativa a cobrança. O Sandbox é separado das cobranças reais e não altera o acesso financeiro das fazendas.</p>
     </CardContent>
   </Card>;
 };
@@ -55,7 +56,7 @@ const SettingsEditor = ({ settings }: { settings: BillingSettings }) => {
         <NumericField label="Anuidade" unit="R$" value={annual} onValueChange={setAnnual} disabled={saving.isPending} error={annualCents === null ? "Informe um preço positivo com até duas casas decimais." : undefined} />
       </div>
       {valid && <p className="text-sm text-muted-foreground">Anual equivalente a {billingMoney(annualCents / 12)}/mês.{savings !== null && savings > 0 ? ` Economia de ${billingMoney(savings)} (${formatNumber(savings / (monthlyCents * 12) * 100, 1)}%) em relação a 12 mensalidades.` : ""}</p>}
-      <p className="text-sm text-muted-foreground">Valores por fazenda preparados para a integração. Salvar aqui não cria planos, cobranças ou assinaturas no Asaas.</p>
+      <p className="text-sm text-muted-foreground">Valores de catálogo por fazenda. Salvar aqui não cria planos, cobranças ou assinaturas no Asaas.</p>
       <Button disabled={!valid || !dirty || saving.isPending} onClick={() => saving.mutate()}><Save className="size-4" />{saving.isPending ? "Salvando..." : "Salvar preços"}</Button>
       {saving.isError && <p role="alert" className="text-sm text-destructive">{saving.error.message}</p>}
     </CardContent>
@@ -100,8 +101,9 @@ export const BillingAdmin = () => {
   const term = search.trim().toLocaleLowerCase("pt-BR");
   const filtered = farms.filter(farm => `${farm.farmName} ${farm.ownerName} ${farm.ownerEmail}`.toLocaleLowerCase("pt-BR").includes(term));
   return <section className="space-y-5" aria-label="Controles de cobrança">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">Cobrança e acesso</h2><p className="text-sm text-muted-foreground">Preparação da integração Asaas em ambiente de testes, sem cobranças reais.</p></div><Button variant="outline" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className="size-4" />Atualizar</Button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">Cobrança e acesso</h2><p className="text-sm text-muted-foreground">Gerencie preços, cupons e liberações de acesso.</p></div><Button variant="outline" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className="size-4" />Atualizar</Button></div>
     <ProductionBillingControls settings={settings} />
+    <CouponAdmin />
     <SandboxConnection />
     <SettingsEditor key={settings.updatedAt} settings={settings} />
     <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm leading-relaxed">As fazendas existentes na primeira instalação têm acesso manual preservado. Ativar a cobrança mantém essas liberações até que você as altere individualmente. Desligar a exigência de pagamento no LiBen não cancela cobranças já autorizadas no provedor.</div>

@@ -46,7 +46,7 @@ export async function exportPdf(report: ExportReport) {
   if (report.feedingSuggestion) {
     const { buildFeedingSuggestionPdf } = await import("./feed-suggestion-pdf");
     const base = import.meta.env?.BASE_URL ?? "/";
-    const files = await Promise.all(["logo-liben-2.png", "fonts/liben-report-regular.ttf", "fonts/liben-report-bold.ttf"].map(async file => {
+    const files = await Promise.all(["logo-relatorio.png", "fonts/liben-report-regular.ttf", "fonts/liben-report-bold.ttf"].map(async file => {
       const response = await fetch(`${base}${file}`);
       if (!response.ok) throw new Error("Não foi possível carregar a logo ou as fontes do relatório.");
       return new Uint8Array(await response.arrayBuffer());
@@ -57,7 +57,7 @@ export async function exportPdf(report: ExportReport) {
   }
   if (report.adaptation) {
     const { buildAdaptationPdf } = await import("./adaptation-pdf");
-    const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}logo-liben-2.png`);
+    const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}logo-relatorio.png`);
     if (!response.ok) throw new Error("Não foi possível carregar a logo do relatório.");
     const fontBytes = await Promise.all(["regular", "bold"].map(async style => {
       const font = await fetch(`${import.meta.env?.BASE_URL ?? "/"}fonts/liben-report-${style}.ttf`);
@@ -88,7 +88,7 @@ export async function exportPdf(report: ExportReport) {
     }
     reportFont="liben";
   }
-  const logoResponse = await fetch(`${import.meta.env?.BASE_URL ?? "/"}logo-liben-2.png`);
+  const logoResponse = await fetch(`${import.meta.env?.BASE_URL ?? "/"}logo-relatorio.png`);
   if (!logoResponse.ok) throw new Error("Não foi possível carregar a logo do relatório.");
   const logo = new Uint8Array(await logoResponse.arrayBuffer());
   const image = doc.getImageProperties(logo);

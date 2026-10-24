@@ -1,3 +1,4 @@
+import { expectedSubscriptionPaymentCents } from "../_shared/coupon-payment.ts";
 import { annualSnapshot } from "../_shared/annual-reconcile.ts";
 type WebhookDeps = { env: (name: string) => string | undefined; fetch: typeof fetch; now?: () => Date };
 type Data = Record<string, unknown>;
@@ -103,7 +104,7 @@ export function createProductionWebhookHandler(deps: WebhookDeps) {
         payment = { id: paymentId, customer: order.customer_id, externalReference: order.provider_reference ?? order.id, subscription: order.provider_subscription_id, dueDate: order.due_on, value: Number(order.amount_cents) / 100, billingType: order.method, invoiceUrl: order.invoice_url, deleted: true };
       } else { if (!response.ok) throw new Error("PROVIDER_UNAVAILABLE"); payment = await response.json(); }
       const expected = subscription ?? order;
-      if (!expected || !record(payment) || payment.id !== paymentId || payment.customer !== expected.customer_id || !compatibleMethod(expected.method, payment.billingType) || typeof payment.value !== "number" || Math.round(payment.value * 100) !== expected.amount_cents || typeof payment.invoiceUrl !== "string" || !/^https:\/\/(www\.asaas\.com|asaas\.com)\/i\/[A-Za-z0-9_-]+$/.test(payment.invoiceUrl)) throw new Error("PAYMENT_MISMATCH");
+      if (!expected || !record(payment) || payment.id !== paymentId || payment.customer !== expected.customer_id || !compatibleMethod(expected.method, payment.billingType) || typeof payment.value !== "number" || Math.round(payment.value * 100) !== (subscription ? expectedSubscriptionPaymentCents(subscription,payment) : expected.amount_cents) || typeof payment.invoiceUrl !== "string" || !/^https:\/\/(www\.asaas\.com|asaas\.com)\/i\/[A-Za-z0-9_-]+$/.test(payment.invoiceUrl)) throw new Error("PAYMENT_MISMATCH");
       if (subscription ? (!subscription.provider_id || payment.subscription !== subscription.provider_id) : (payment.externalReference !== order?.id || order?.payment_id != null && order.payment_id !== payment.id)) throw new Error("PAYMENT_MISMATCH");
       const refunds = Array.isArray(payment.refunds) ? payment.refunds : [];
       let refundedCents = 0;

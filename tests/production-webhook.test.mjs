@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import ts from 'typescript';
 let source=fs.readFileSync(new URL('../supabase/functions/asaas-production-webhook/handler.ts',import.meta.url),'utf8');
 source=fs.readFileSync(new URL('../supabase/functions/_shared/annual-reconcile.ts',import.meta.url),'utf8')+'\n'+source.replace(/^import .*annual-reconcile.*\n/m,'');
+ if(source.includes('coupon-payment'))source=fs.readFileSync(new URL('../supabase/functions/_shared/coupon-payment.ts',import.meta.url),'utf8')+'\n'+source.replace(/^import .*coupon-payment.*\n/m,'');
 const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {createProductionWebhookHandler}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 const token='fixture-webhook-secret-with-at-least-32-characters';

@@ -3,17 +3,17 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 const shared=fs.readFileSync(new URL('../supabase/functions/_shared/annual-reconcile.ts',import.meta.url),'utf8');
-async function load(name){const handler=fs.readFileSync(new URL(`../supabase/functions/asaas-production-${name}/handler.ts`,import.meta.url),'utf8').replace(/^import .*annual-reconcile.*\n/m,'');const code=ts.transpileModule(shared+'\n'+handler,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));}
+async function load(name){const handler=fs.readFileSync(new URL(`../supabase/functions/asaas-production-${name}/handler.ts`,import.meta.url),'utf8').replace(/^import .*annual-reconcile.*\n/m,'').replace(/^import .*coupon-payment.*\n/m,'');const code=ts.transpileModule(fs.readFileSync(new URL('../supabase/functions/_shared/coupon-payment.ts',import.meta.url),'utf8')+'\n'+shared+'\n'+handler,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));}
 const {createProductionAnnualHandler}=await load('annual');const {createProductionWebhookHandler}=await load('webhook');
 const id='11111111-1111-4111-8111-111111111111';const user='22222222-2222-4222-8222-222222222222';
 const token='fixture-webhook-with-64-characters-no-real-secrets-0123456789012345';
 const env={APP_ALLOWED_ORIGINS:'https://liben-agro.com',SUPABASE_URL:'https://fixture.supabase.co',SUPABASE_ANON_KEY:'fixture-anon',SUPABASE_SERVICE_ROLE_KEY:'fixture-service-private',ASAAS_PRODUCTION_API_KEY:'$aact_prod_fixture',ASAAS_PRODUCTION_WEBHOOK_TOKEN:token};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status});
 function fixture(options={}){
- const calls=[];let deleted=false;const count=options.count??12;
- const order={id,farm_id:'farm',user_id:user,plan:'annual',method:'CREDIT_CARD',amount_cents:24990,installment_count:count,due_on:'2026-10-18',annual_base_from:'2026-10-18',annual_members:[],annual_cancel_state:null,customer_id:options.fresh===false?'cus_fixture':null,payment_id:null,provider_installment_id:null,fresh:options.fresh!==false,status:'creating',...options.order};
+ const calls=[];let deleted=false;const count=options.count??12;const total=options.total??24990;
+ const order={id,farm_id:'farm',user_id:user,plan:'annual',method:'CREDIT_CARD',amount_cents:total,installment_count:count,due_on:'2026-10-18',annual_base_from:'2026-10-18',annual_members:[],annual_cancel_state:null,customer_id:options.fresh===false?'cus_fixture':null,payment_id:null,provider_installment_id:null,fresh:options.fresh!==false,status:'creating',...options.order};
  const group=count>1?'group_fixture':null;
- const payments=Array.from({length:count},(_,i)=>({id:'pay_annual_'+i,customer:'cus_fixture',billingType:'CREDIT_CARD',value:(i===count-1?24990-Math.round(24990/count)*(count-1):Math.round(24990/count))/100,installment:group,installmentNumber:i+1,externalReference:id,invoiceUrl:'https://www.asaas.com/i/annual_'+i,dueDate:new Date(Date.UTC(2026,9+i,18)).toISOString().slice(0,10),status:'PENDING'}));
+ const payments=Array.from({length:count},(_,i)=>({id:'pay_annual_'+i,customer:'cus_fixture',billingType:'CREDIT_CARD',value:(i===count-1?total-Math.round(total/count)*(count-1):Math.round(total/count))/100,installment:group,installmentNumber:i+1,externalReference:id,invoiceUrl:'https://www.asaas.com/i/annual_'+i,dueDate:new Date(Date.UTC(2026,9+i,18)).toISOString().slice(0,10),status:'PENDING'}));
  if(options.change)options.change(payments);
  if(options.order?.payment_id)order.annual_members=payments.map(p=>({id:p.id,customerId:p.customer,method:p.billingType,amountCents:Math.round(p.value*100),installmentId:p.installment,externalReference:p.externalReference,invoiceUrl:p.invoiceUrl,dueDate:p.dueDate,status:p.status,refundedCents:0}));
  const now=()=>new Date('2026-10-18T00:00:00Z');
@@ -71,3 +71,11 @@ function webhookFixture(options={}){
 }
 test('webhook de parcela intermediária verifica todo o grupo e conclui o evento anual',async()=>{const f=webhookFixture();assert.equal((await f.handler(f.request())).status,200);const claim=JSON.parse(f.calls[0].init.body).p_payload;assert.equal(claim.providerInstallmentId,'group_fixture');const applied=JSON.parse(f.calls.find(x=>x.url.endsWith('/app_apply_annual_snapshot')).init.body);assert.equal(applied.p_snapshot.source,'webhook');assert.equal(applied.p_snapshot.payments.length,12);assert.equal(applied.p_snapshot.payments.reduce((n,x)=>n+x.amountCents,0),24990);assert.ok(f.calls.some(x=>x.url.endsWith('/app_production_webhook')&&JSON.parse(x.init.body).p_action==='complete_annual'));});
 test('webhook com parcela de outro grupo não confirma contratação',async()=>{const f=webhookFixture({change:p=>p[5].installment='other'});assert.equal((await f.handler(f.request())).status,503);assert.ok(!f.calls.some(x=>x.url.endsWith('/app_apply_annual_snapshot')));assert.ok(f.calls.some(x=>x.url.endsWith('/app_production_webhook')&&JSON.parse(x.init.body).p_action==='fail'));});
+
+test('cupom anual usa o total líquido do servidor antes de dividir as 12 parcelas',async()=>{
+ const f=fixture({total:19990});const q='33333333-3333-4333-8333-333333333333';
+ const r=await f.handler(f.request({action:'create',installmentCount:12,name:'Teste',cpfCnpj:'12345678909',priceVersion:'version',productionConsent:true,couponQuoteId:q}));assert.equal(r.status,200,await r.text());
+ assert.equal(JSON.parse(f.calls.find(c=>c.url.endsWith('/app_annual_purchase_server')).init.body).p_payload.couponQuoteId,q);
+ assert.equal(JSON.parse(apiCalls(f).find(c=>c.url.endsWith('/payments')&&c.init.method==='POST').init.body).totalValue,199.9);
+ assert.equal(f.order.annual_members.reduce((sum,x)=>sum+x.amountCents,0),19990);
+});

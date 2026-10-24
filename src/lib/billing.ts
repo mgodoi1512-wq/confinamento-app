@@ -130,7 +130,7 @@ async function productionInvoke(name: string, body: Record<string, unknown>) {
   return data;
 }
 export const checkAsaasProduction = () => productionInvoke("asaas-production-check", { action: "check_production" });
-export const productionSubscription = (input: SubscriptionInput, priceVersion?: string) => productionInvoke("asaas-production-subscription", input.action === "create" ? { ...input, productionConsent: true, priceVersion } : input);
+export const productionSubscription = (input: SubscriptionInput, priceVersion?: string, couponQuoteId?: string) => productionInvoke("asaas-production-subscription", input.action === "create" ? { ...input, productionConsent: true, priceVersion, ...(couponQuoteId ? { couponQuoteId } : {}) } : input);
 export const productionPayment = (id: string) => productionInvoke("asaas-production-payment", { action: "refresh", id });
 
 export type PlanPix = {
@@ -150,4 +150,4 @@ export async function getProductionPix(id: string): Promise<PlanPix> {
 
 export type AnnualPurchase = { id: string; installmentCount: number; amountCents: number; status: string; cancelState: "canceling" | "CANCELLED" | null; invoiceUrl: string | null; validFrom: string | null; validUntil: string | null; checkedAt: string | null; active: boolean; canCancel: boolean };
 export type AnnualPurchaseInput = { action: "create"; installmentCount: number; name: string; cpfCnpj: string } | { action: "refresh"; id: string } | { action: "cancel"; id: string; confirm: true };
-export const productionAnnual = (input: AnnualPurchaseInput, priceVersion?: string) => productionInvoke("asaas-production-annual", input.action === "create" ? { ...input, priceVersion, productionConsent: true } : input);
+export const productionAnnual = (input: AnnualPurchaseInput, priceVersion?: string, couponQuoteId?: string) => productionInvoke("asaas-production-annual", input.action === "create" ? { ...input, priceVersion, productionConsent: true, ...(couponQuoteId ? { couponQuoteId } : {}) } : input);

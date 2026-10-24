@@ -241,7 +241,7 @@ html {
 /* Fundo da página de login */
 .login-background {
   background-color: #75492e;
-  background-image: url("/bg-luz.png");
+  background-image: url("/bg-luz.webp");
   background-size: cover;
   background-position: left center;
   background-repeat: no-repeat;
@@ -249,7 +249,7 @@ html {
 
 .dark .login-background {
   background-color: #090909;
-  background-image: url("/bg-dark.png");
+  background-image: url("/bg-dark.webp");
 }
 
 /* Texto claro apenas nas superfícies muted (marrom escuro no tema claro).

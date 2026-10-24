@@ -28,7 +28,7 @@
 .home-button.is-quiet { background:transparent; color:#f7ecde; border-color:#ad9276; }
 .home-button.is-quiet:hover { background:#ffffff12; }
 .home-menu-button { display:none; }
-.home-hero { color:#fff4e6; background:linear-gradient(90deg,rgba(15,18,15,.85),rgba(17,17,13,.32)),url('/bg-luz.png') center 48%/cover; }
+.home-hero { color:#fff4e6; background:linear-gradient(90deg,rgba(15,18,15,.85),rgba(17,17,13,.32)),url('/bg-luz.webp') center 48%/cover; }
 .home-hero-grid { display:grid; grid-template-columns:1fr 1.15fr; gap:48px; align-items:center; padding-block:82px 76px; min-height:620px; }
 .home-hero .home-eyebrow { color:#e4bb91; }
 .home-hero h1 { font-size:clamp(40px,4.5vw,65px); line-height:1.08; letter-spacing:-.04em; margin:0 0 24px; }

@@ -103,7 +103,7 @@ export const routeTitles: { pattern: RegExp; labelKey: string }[] = [
 
 export const bottomNavItems: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
-  { to: "/currais", labelKey: "nav.pens", icon: MapPin },
+  { to: "/gestao/financeiro", labelKey: "nav.finance", icon: Wallet },
   { to: "/trato", labelKey: "nav.feed", icon: UtensilsCrossed },
   { to: "/pesagens", labelKey: "nav.weighings", icon: WeightKgIcon },
 ];

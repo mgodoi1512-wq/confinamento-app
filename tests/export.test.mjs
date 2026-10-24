@@ -79,7 +79,7 @@ test('PDF real pagina tabelas extensas e repete o cabeçalho', async () => {
   report.rows=Array.from({length:180},(_,index)=>[String(index).padStart(6,'0'),...report.rows[0].slice(1)]);
   const save=jsPDF.API.save;
   const originalFetch=globalThis.fetch;
-  globalThis.fetch=async url => new Response(fs.readFileSync(new URL(String(url).endsWith('.ttf')?'../public'+String(url):'../public/logo-liben-2.png',import.meta.url)), {status:200});
+  globalThis.fetch=async url => new Response(fs.readFileSync(new URL('../public'+String(url),import.meta.url)), {status:200});
   let document;
   jsPDF.API.save=function(){ document=this; return this; };
   try {
@@ -143,7 +143,7 @@ test('PDF real da sugestão usa A4, logo e valores por refeição',async()=>{
  const samplePens=fixtures.map((l,i)=>({id:l.pen_id,code:`Curral ${String(i+1).padStart(2,'0')}`}));
  const report=feedingSuggestionReport(computeFeedingSuggestions(fixtures,samplePens,[],'2026-10-16'),'Fazenda Exemplo - dados demonstrativos','2026-10-16');
  const originalSave=jsPDF.API.save,originalFetch=globalThis.fetch;let pdf;
- globalThis.fetch=async url=>new Response(fs.readFileSync(new URL(String(url).endsWith('.ttf')?'../public'+String(url):'../public/logo-liben-2.png',import.meta.url)),{status:200});
+ globalThis.fetch=async url=>new Response(fs.readFileSync(new URL('../public'+String(url),import.meta.url)),{status:200});
  jsPDF.API.save=function(){pdf=this;return this;};
  try{
   await exportPdf(report);

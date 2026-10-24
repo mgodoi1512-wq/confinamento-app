@@ -843,6 +843,8 @@ export type Database = {
       app_finance_workspace: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
       app_my_production_plan: { Args: Record<string, never>; Returns: Json };
       app_my_plan: { Args: Record<string, never>; Returns: Json };
+      app_coupons_admin: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
+      app_coupon_quote: { Args: { p_code: string; p_plan: string; p_installments?: number }; Returns: Json };
       app_public_plan_prices: { Args: Record<string, never>; Returns: Json };
       app_billing_admin: { Args: { p_action: string; p_payload?: Json }; Returns: Json };
       app_save_feed_schedule: { Args: { p_schedule: Json; p_expected_updated_at?: string | null }; Returns: Json };

@@ -27,8 +27,8 @@ export const SidebarNav = ({ onNavigate, className }: SidebarNavProps) => {
     compact?"w-20":"w-64",className,
   )}>
     <div className={cn("flex shrink-0 items-center gap-3 p-3",compact&&"justify-center px-2 py-4")} title={compact?farm?.name??t("common.appName"):undefined}>
-      <img src="/logo-liben-2.png" alt="LiBen Agronegócios" className={cn("shrink-0 rounded-md object-contain dark:hidden",compact?"size-10":"size-14")}/>
-      <img src="/logo-liben-dark.png" alt="LiBen Agronegócios" className={cn("hidden shrink-0 rounded-md object-contain dark:block",compact?"size-10":"size-14")}/>
+      <img src="/logo-liben-2.webp" alt="LiBen Agronegócios" className={cn("shrink-0 rounded-md object-contain dark:hidden",compact?"size-10":"size-14")}/>
+      <img src="/logo-liben-dark.webp" alt="LiBen Agronegócios" className={cn("hidden shrink-0 rounded-md object-contain dark:block",compact?"size-10":"size-14")}/>
       {!compact&&<div className="min-w-0 flex-1"><p className="truncate font-display text-sm font-semibold tracking-tight">{t("common.appName")}</p><p className="min-h-4 truncate text-xs text-sidebar-foreground/70" title={farm?.name}>{farm===undefined?" ":farm?.name??t("common.appSubtitle")}</p></div>}
     </div>
     {collapseControl}
