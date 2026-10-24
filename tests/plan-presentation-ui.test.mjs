@@ -21,12 +21,12 @@ const result = await build({
   external: ['react','react/jsx-runtime','lucide-react'],
   plugins: [{name:'authenticated-fixtures',setup(b){
     b.onResolve({filter:/^(@\/hooks\/use-auth|@tanstack\/react-query|react-router-dom|@\/lib\/billing|@\/components\/ui\/|@radix-ui\/react-dialog|sonner)/}, a=>({path:a.path,namespace:'fixture'}));
-    b.onResolve({filter:/^@\//},a=>({path:fileURLToPath(new URL('../src/'+a.path.slice(2)+(a.path.endsWith('utils')?'.ts':'.tsx'),import.meta.url))}));
+    b.onResolve({filter:/^@\//},a=>({path:fileURLToPath(new URL('../src/'+a.path.slice(2)+(a.path.endsWith('utils')||a.path.endsWith('signup-plan')?'.ts':'.tsx'),import.meta.url))}));
     b.onLoad({filter:/.*/,namespace:'fixture'},a=>{
       const f='globalThis.__planPresentation'; let contents;
       if(a.path==='@/hooks/use-auth') contents=`export const useAuth=()=>${f}.auth;`;
       else if(a.path==='@tanstack/react-query') contents=`export const useQuery=()=>${f}.query; export const useQueryClient=()=>({invalidateQueries:async()=>{}});export const useMutation=()=>({isPending:false,mutate:()=>{}});`;
-      else if(a.path==='react-router-dom') contents=`import React from 'react';export const useNavigate=()=>()=>{};export const useSearchParams=()=>[new URLSearchParams()]; export const Link=({children})=>React.createElement('a',null,children);`;
+      else if(a.path==='react-router-dom') contents=`import React from 'react';export const useNavigate=()=>()=>{};export const useSearchParams=()=>[new URLSearchParams(globalThis.__planPresentation.search??'')]; export const Link=({children})=>React.createElement('a',null,children);`;
       else if(a.path==='@/lib/billing') contents=`export const billingMoney=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n/100);`+billingNames.map(n=>`export const ${n}=async()=>{};`).join('');
       else if(a.path==='sonner') contents='export const toast={success:()=>{},error:()=>{},info:()=>{}};';
       else if(a.path==='@radix-ui/react-dialog') contents=`import React from 'react'; const C=({children})=>React.createElement('div',null,children);`+['Root','Portal','Overlay','Content','Close','Title','Description'].map(n=>`export const ${n}=C;`).join('');
@@ -81,4 +81,18 @@ test('anual cancelado sem pagamento continua apenas no histórico',()=>{
 
 test('entrada após a barreira de pagamento permanece disponível sem aviso fixo ou nome duplicado',()=>{
   setup(overview([order('RECEIVED')],{access:{allowed:true,reason:'paid'},farmName:'Fazenda São Miguel'}));const html=renderToStaticMarkup(React.createElement(MyPlan,{forceProduction:true}));assert.ok(!html.includes('Pagamento confirmado!'));assert.ok(html.includes('Ir para Fazenda São Miguel'));assert.ok(!html.includes('Fazenda Fazenda'));
+});
+
+test('contratação recupera escolha da conta após novo login e permite alterar plano',()=>{
+  for(const plan of ['monthly','annual']){
+    setup(overview([]));fixture().auth.user.user_metadata={preferred_plan:plan};
+    const html=renderToStaticMarkup(React.createElement(MyPlan,{forceProduction:true}));
+    assert.match(html,new RegExp('name="plan"[^>]*checked=""[^>]*value="'+plan+'"'));assert.match(html,/Selecionar mensal/);assert.match(html,/Selecionar anual/);
+  }
+});
+test('escolha explícita válida tem prioridade; contrato existente permanece soberano',()=>{
+  setup(overview([]));fixture().auth.user.user_metadata={preferred_plan:'annual'};fixture().search='plano=monthly';
+  let html=renderToStaticMarkup(React.createElement(MyPlan,{forceProduction:true}));assert.match(html,/name="plan"[^>]*checked=""[^>]*value="monthly"/);
+  setup(overview([],{subscription:{id:'sub',plan:'monthly',status:'ACTIVE',amountCents:2490,method:'PIX'}}));fixture().search='plano=annual';
+  html=renderToStaticMarkup(React.createElement(MyPlan,{forceProduction:true}));assert.match(html,/name="plan"[^>]*checked=""[^>]*value="monthly"/);fixture().search='';
 });

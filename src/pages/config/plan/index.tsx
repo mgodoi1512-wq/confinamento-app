@@ -1,3 +1,4 @@
+import { initialSignupPlan } from "@/lib/signup-plan";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,7 +34,7 @@ export default function MyPlan({ forceProduction = false }: { forceProduction?: 
     refetchIntervalInBackground: false,
   });
   const [pixOrderId, setPixOrderId] = useState<string | null>(null);
-  const [plan, setPlan] = useState<"monthly" | "annual">("monthly");
+  const [plan, setPlan] = useState<"monthly" | "annual">(() => initialSignupPlan(params.get("plano"), user?.user_metadata?.preferred_plan));
   const [method, setMethod] = useState<"PIX" | "CREDIT_CARD">("PIX");
   const [name, setName] = useState("");
   const [cpf, setCpf] = useState("");

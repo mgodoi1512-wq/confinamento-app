@@ -1,3 +1,4 @@
+import { lotName } from "@/lib/lot-name";
 import { locationName } from "@/lib/location-name";
 import "./lot-detail.css";
 import { weightHistory } from "@/lib/weight-history";
@@ -237,7 +238,7 @@ const LotDetail = () => {
   return (
     <div className="lot-detail space-y-4">
       <PageHeader
-        titleKey={lot.code}
+        titleKey={lotName(lot.code)}
         actions={
           <>
             <Button variant="outline" className="h-10" onClick={() => navigate("/lotes")}>

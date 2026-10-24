@@ -12,7 +12,7 @@ import { formatContactPhoneInput, normalizeContactPhone } from "@/lib/contact-ph
 import { useAuth } from "@/hooks/use-auth";
 import "./login.css";
 import { LegalDocumentDialog } from "@/components/legal/legal-document-dialog";
-import type { LegalDocumentKind } from "@/components/legal/legal-document-content";
+import { signupPlanFromSearch } from "@/lib/signup-plan";
 import { LEGAL_VERSION } from "@/lib/legal-documents";
 
 const fallbackLogo = (event: React.SyntheticEvent<HTMLImageElement>, fallback: string) => {
@@ -28,6 +28,8 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { session, loading, passwordRecovery } = useAuth();
+  const preferredPlan = signupPlanFromSearch(location.search);
+  const afterLogin = preferredPlan ? `/config/plano?plano=${preferredPlan}` : "/";
 
   const [mode, setMode] = useState(() => new URLSearchParams(location.search).get("modo") === "cadastro" ? "signup" : "login");
   const reduceMotion = useReducedMotion();
@@ -72,22 +74,22 @@ const Login = () => {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [acceptedLegal, setAcceptedLegal] = useState(false);
-  const [legalDocument, setLegalDocument] = useState<LegalDocumentKind | null>(null);
+  const [legalDocument, setLegalDocument] = useState(false);
   const [completedDocuments, setCompletedDocuments] = useState({ terms: false, privacy: false });
   const legalRead = completedDocuments.terms && completedDocuments.privacy;
   const legalTrigger = useRef<HTMLButtonElement | null>(null);
   const closeLegal = () => {
-    setLegalDocument(null);
+    setLegalDocument(false);
     requestAnimationFrame(() => legalTrigger.current?.focus());
   };
-  const openLegal = (kind: LegalDocumentKind, trigger: HTMLButtonElement) => {
+  const openLegal = (trigger: HTMLButtonElement) => {
     legalTrigger.current = trigger;
-    setLegalDocument(kind);
+    setLegalDocument(true);
   };
 
   useEffect(() => {
-    if (!loading && session) navigate(passwordRecovery ? "/redefinir-senha" : "/", { replace: true });
-  }, [loading, session, navigate, passwordRecovery]);
+    if (!loading && session) navigate(passwordRecovery ? "/redefinir-senha" : afterLogin, { replace: true });
+  }, [loading, session, navigate, passwordRecovery, afterLogin]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -120,7 +122,7 @@ const Login = () => {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/conta-confirmada`,
-          data: { full_name: fullName.trim(), phone: contactPhone, terms_accepted: true, privacy_notice_acknowledged: true, terms_version: LEGAL_VERSION, privacy_version: LEGAL_VERSION },
+          data: { ...(preferredPlan ? { preferred_plan: preferredPlan } : {}), full_name: fullName.trim(), phone: contactPhone, terms_accepted: true, privacy_notice_acknowledged: true, terms_version: LEGAL_VERSION, privacy_version: LEGAL_VERSION },
         },
       });
       setSubmitting(false);
@@ -136,7 +138,7 @@ const Login = () => {
         setNotice("Confira seu e-mail para confirmar o cadastro. Depois do login, siga as orientações de acesso e plano exibidas na sua conta.");
         return;
       }
-      navigate("/", { replace: true });
+      navigate(afterLogin, { replace: true });
       return;
     }
 
@@ -146,7 +148,7 @@ const Login = () => {
       setError(t("auth.errorInvalid"));
       return;
     }
-    navigate("/", { replace: true });
+    navigate(afterLogin, { replace: true });
   };
 
   const highlights = [
@@ -304,7 +306,8 @@ const Login = () => {
                       </p>
                     ) : null}
 
-                    {mode === "signup" && <div className="login-screen-legal space-y-2"><div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{(["terms", "privacy"] as const).map(kind => <button key={kind} type="button" disabled={submitting} onClick={event => openLegal(kind, event.currentTarget)} className="login-screen-legal-document min-h-11 rounded-lg border px-3 py-2 text-left text-xs leading-relaxed"><span className="block font-medium">{kind === "terms" ? "Ler Termos de Uso" : "Ler Aviso de Privacidade"}</span><span className="mt-1 block text-[11px] opacity-80">{completedDocuments[kind] ? "✓ Leitura concluída" : "Pendente de leitura"}</span></button>)}</div><p className="text-xs leading-relaxed text-muted-foreground">{legalRead ? "Documentos concluídos. Marque abaixo se concordar." : "Abra os dois documentos e conclua a leitura até o final para liberar o aceite."}</p><label className={`flex items-start gap-2 text-xs leading-relaxed ${legalRead ? "cursor-pointer" : "opacity-60"}`}><input type="checkbox" checked={acceptedLegal} onChange={event => { if (legalRead) setAcceptedLegal(event.target.checked); }} required disabled={submitting || !legalRead} className="mt-0.5 size-4 shrink-0 accent-current" /><span>Li e aceito os Termos de Uso e declaro ciência do Aviso de Privacidade.</span></label></div>}
+                    {mode === "signup" && preferredPlan && <p className="rounded-lg border border-current/20 px-3 py-2 text-xs leading-relaxed text-muted-foreground">Plano {preferredPlan === "annual" ? "anual" : "mensal"} escolhido. Após confirmar seu e-mail e cadastrar a fazenda, confira o valor atualizado e escolha como pagar. Você poderá trocar o plano antes de contratar.</p>}
+                    {mode === "signup" && <div className="login-screen-legal space-y-2"><button type="button" disabled={submitting} onClick={event => openLegal(event.currentTarget)} className="login-screen-legal-document min-h-11 w-full rounded-lg border px-3 py-2 text-left text-xs leading-relaxed"><span className="block font-medium">Termos de Uso e Privacidade</span><span className="mt-1 block text-[11px] opacity-80">{legalRead ? "✓ Leitura concluída · toque para reler" : "Leia e confirme o aceite em uma única janela"}</span></button><label className={`flex items-start gap-2 text-xs leading-relaxed ${legalRead ? "cursor-pointer" : "opacity-60"}`}><input type="checkbox" checked={acceptedLegal} onChange={event => { if (legalRead) setAcceptedLegal(event.target.checked); }} required disabled={submitting || !legalRead} className="mt-0.5 size-4 shrink-0 accent-current" /><span>Li e aceito os Termos de Uso e declaro ciência do Aviso de Privacidade.</span></label></div>}
 
                     <Button type="submit" size="lg" className="login-screen-submit h-12 w-full" disabled={submitting || (mode === "signup" && (!legalRead || !acceptedLegal))}>
                       <span>{submitting ? "Aguarde…" : mode === "signup" ? t("action.signUp") : "Acessar minha fazenda"}</span>
@@ -320,7 +323,7 @@ const Login = () => {
 
         </div>
       </main>
-      {legalDocument && <LegalDocumentDialog key={legalDocument} kind={legalDocument} onClose={closeLegal} onComplete={kind => { setCompletedDocuments(current => ({ ...current, [kind]: true })); closeLegal(); }} />}
+      {legalDocument && <LegalDocumentDialog onClose={closeLegal} onComplete={() => { setCompletedDocuments({ terms: true, privacy: true }); setAcceptedLegal(true); closeLegal(); }} />}
     </div>
   );
 };

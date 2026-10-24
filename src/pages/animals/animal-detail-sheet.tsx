@@ -73,12 +73,13 @@ export const AnimalDetailSheet = ({
   const withdrawal = withdrawalDaysLeft(animal);
 
   const remove = async () => {
+    if (!window.confirm(`Excluir o cadastro do animal ${animal.ear_tag} por equívoco?${animal.lot_id ? " A quantidade do lote será reduzida em uma cabeça." : ""} Para venda, abate ou óbito, registre a saída em vez de excluir.`)) return;
     try {
       await deleteAnimal.mutateAsync(animal.id);
       toast.success(t("animals.deleted"));
       onClose();
-    } catch {
-      toast.error(t("toast.error.generic"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("toast.error.generic"));
     }
   };
 

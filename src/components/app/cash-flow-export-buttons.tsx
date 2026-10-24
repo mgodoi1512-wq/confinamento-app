@@ -1,5 +1,6 @@
+import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from "@/components/ui/dropdown-menu";
 import {useState} from "react";
-import {Download,FileSpreadsheet} from "lucide-react";
+import {Download,FileSpreadsheet,ChevronDown,FileDown} from "lucide-react";
 import {toast} from "sonner";
 import {Button} from "@/components/ui/button";
 import {supabase} from "@/integrations/supabase/client";
@@ -24,5 +25,5 @@ export function CashFlowExportButtons({getReport,getData,farmId}:{getReport:()=>
    }
   }catch(e){toast.error(e instanceof Error?e.message:"Não foi possível exportar o relatório.");}finally{setBusy(null);}
  };
- return <><Button variant="outline" disabled={!!busy} onClick={()=>void run("pdf")}><Download className="size-4"/>{busy==="pdf"?"Gerando PDF…":"Exportar PDF"}</Button><Button variant="outline" disabled={!!busy} onClick={()=>void run("excel")}><FileSpreadsheet className="size-4"/>{busy==="excel"?"Gerando Excel…":"Exportar Excel"}</Button></>;
+ return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" disabled={!!busy}><Download className="size-4"/>{busy?"Exportando…":"Exportar"}<ChevronDown className="size-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem disabled={!!busy} onSelect={()=>void run("pdf")}><FileDown className="mr-2 size-4"/>Exportar PDF</DropdownMenuItem><DropdownMenuItem disabled={!!busy} onSelect={()=>void run("excel")}><FileSpreadsheet className="mr-2 size-4"/>Exportar Excel</DropdownMenuItem></DropdownMenuContent></DropdownMenu>;
 }

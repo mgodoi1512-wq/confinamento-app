@@ -75,3 +75,18 @@ test('atalhos do painel filtram hoje e atrasados, exportam os mesmos registros e
  button(draw(h,Cash),'Remover filtro de data').props.onClick();const actions=nodes(draw(h,Cash)).find(n=>n.type.name==='PageHeader').props.actions;
  assert.equal(nodes(actions).find(n=>n.type.name==='ExportButtons').props.getData().entries.length,3);
 });
+
+test('lançamentos ordenam recentes e por valor; totais respeitam a busca',()=>{
+ const h=fixture(),month=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).slice(0,7);
+ const base={category:'Alimentação',notes:'',lot_id:null,settled_on:null,updated_at:'v',direction:'saida'};
+ h.workspace.entries=[{...base,id:'a',description:'Compra antiga',due_date:month+'-01',amount:300},{...base,id:'b',description:'Compra recente',due_date:month+'-02',amount:100}];
+ const report=()=>nodes(nodes(draw(h,Cash)).find(n=>n.type.name==='PageHeader').props.actions).find(n=>n.type.name==='ExportButtons').props.getReport();
+ assert.deepEqual(report().rows.map(r=>r[2]),['Compra recente','Compra antiga']);
+ nodes(draw(h,Cash)).find(n=>n.type==='select').props.onChange({target:{value:'amount'}});
+ assert.deepEqual(report().rows.map(r=>r[2]),['Compra antiga','Compra recente']);
+ field(draw(h,Cash),'Buscar lançamento').props.onChange('recente');
+ const tree=draw(h,Cash);assert.equal(report().rows.length,1);
+ assert.ok(nodes(tree).some(n=>n.type==='strong'&&String(n.props.children).includes('100,00')));
+ const footer=nodes(tree).find(n=>n.type==='div'&&n.props.className?.includes('gap-x-6'));
+ assert.ok(!nodes(footer).some(n=>n.type==='strong'&&String(n.props.children).includes('400,00')));
+});

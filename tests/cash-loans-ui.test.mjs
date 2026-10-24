@@ -39,3 +39,11 @@ test('a pagar e a receber incluem vencidas e futuras, preservando filtros e expo
  assert.deepEqual(report().rows.map(r=>r[2]),['Quitada']);click(h,'A pagar');assert.deepEqual(report().rows.map(r=>r[2]),['Vencida','Parcela futura']);assert.match(report().filters,/todas as datas pendentes/);
  change(h,'Buscar lançamento','futura');assert.deepEqual(report().rows.map(r=>r[2]),['Parcela futura']);change(h,'Buscar lançamento','');click(h,'A receber');assert.deepEqual(report().rows.map(r=>r[2]),['Recebimento futuro']);click(h,'Realizados');assert.deepEqual(report().rows.map(r=>r[2]),['Quitada']);
 });
+
+test('compra parcelada agenda vencimentos de uma vez sem marcar como pago',async()=>{
+ const h=fixture();open(h);change(h,'Categoria','Outras despesas');change(h,'Descrição','Misturador');
+ const label=nodes(draw(h)).find(n=>n.type==='label'&&Array.isArray(n.props.children)&&n.props.children.includes('Compra parcelada'));
+ nodes(label).find(n=>n.type==='input').props.onChange({target:{checked:true}});
+ change(h,'Valor de cada parcela','820');change(h,'Quantidade de parcelas','3');change(h,'Primeiro vencimento das saídas','2027-02-24');
+ click(h,'Agendar parcelas');await flush();assert.equal(h.calls.length,1);assert.equal(h.calls[0].action,'create_installments');assert.deepEqual(h.calls[0].payload.dates,['2027-02-24','2027-03-24','2027-04-24']);assert.equal(h.calls[0].payload.amount_per_installment,820);assert.ok(!('settled_on' in h.calls[0].payload));
+});

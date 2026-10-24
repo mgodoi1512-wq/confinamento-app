@@ -90,7 +90,7 @@ const NewLot = () => {
 
   const [purchasePerHead, setPurchasePerHead] = useState("");
 
-  const [registerAnimals, setRegisterAnimals] = useState(true);
+  const registerAnimals = true;
   const [animalTags, setAnimalTags] = useState(emptyAnimalTagInput);
   const nextTag = useNextEarTag(mode === "avg" && registerAnimals);
   const generated = buildAnimalTags(parseNumberInput(headCount) ?? 0, animalTags, nextTag.data?.next);
@@ -433,8 +433,9 @@ const NewLot = () => {
                 />
                 <NumericField label="Preço de compra por animal (opcional)" unit="R$/cabeça" value={purchasePerHead} onValueChange={setPurchasePerHead} error={errors.purchase}/>
                </div>
-               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={registerAnimals} onChange={event=>setRegisterAnimals(event.target.checked)}/>Cadastrar os animais automaticamente</label>
-               {registerAnimals?<><AnimalTagsEditor count={parseNumberInput(headCount)??0} value={animalTags} onChange={setAnimalTags} suggested={nextTag.data?.next} loading={nextTag.isLoading} onRetry={()=>void nextTag.refetch()}/><p className="text-xs text-muted-foreground">Cada animal receberá o peso médio e usará o preço por cabeça do lote. A sequência identifica os animais; não representa uma pesagem individual.</p></>:<p className="rounded-lg bg-muted p-3 text-sm">Somente a quantidade e as médias serão salvas. O Estoque continuará mostrando referências sem cadastro individual até os brincos serem cadastrados.</p>}
+               <p className="text-sm font-medium">Os animais serão cadastrados automaticamente.</p>
+               <AnimalTagsEditor count={parseNumberInput(headCount)??0} value={animalTags} onChange={setAnimalTags} suggested={nextTag.data?.next} loading={nextTag.isLoading} onRetry={()=>void nextTag.refetch()}/>
+               <p className="text-xs text-muted-foreground">Cada cabeça terá seu próprio cadastro com o peso médio de entrada informado e o preço por animal do lote. Esse peso é uma referência de entrada, não uma pesagem individual.</p>
                {errors.tags&&<p role="alert" className="text-sm text-destructive">{errors.tags}</p>}
                </div>
               ) : (
