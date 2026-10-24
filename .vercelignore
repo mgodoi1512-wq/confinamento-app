@@ -1,25 +1,27 @@
 # Somente fontes necessárias à compilação do site pela Vercel CLI.
 # Não utilizar com vercel --prebuilt: nesse fluxo dist precisa ser enviado.
+# A barra inicial limita cada pasta à raiz: nunca excluir src/pages,
+# src/components ou src/integrations/supabase.
 node_modules/
-dist/
-dist-ssr/
-.git/
-.vercel/
-.vite/
-.cache/
-.enter/
-android/
-ios/
-supabase/
-tests/
-docs/
-scripts/
-coverage/
-reports/
-backups*/
-opcional/
-pages/
-components/
+/dist/
+/dist-ssr/
+/.git/
+/.vercel/
+/.vite/
+/.cache/
+/.enter/
+/android/
+/ios/
+/supabase/
+/tests/
+/docs/
+/scripts/
+/coverage/
+/reports/
+/backups*/
+/opcional/
+/pages/
+/components/
 **/*.log
 **/*.tsbuildinfo
 **/*.zip
@@ -33,6 +35,6 @@ components/
 *.pfx
 *.jks
 *.keystore
-eslint-diagnostico.json
-aplicar-carencia.cjs
-manifesto.json
+/eslint-diagnostico.json
+/aplicar-carencia.cjs
+/manifesto.json
