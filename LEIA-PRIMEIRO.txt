@@ -1,0 +1,14 @@
+LiBen — Projeto limpo e revisado — 24/10/2026
+
+1. Extraia em uma NOVA pasta. Mantenha o projeto original como backup.
+2. Copie do projeto anterior somente seu .git e seu .env LOCAIS para a nova pasta. Preserve separadamente eventuais chaves e configurações privadas de assinatura Android. Nenhum desses arquivos vai no pacote.
+3. Na nova pasta, use Node 22.12+ e execute: npm ci; depois npm run build e npm run test:all (um comando por vez).
+4. Leia README.md e docs/REVISAO-2026-10-24.md antes de publicar. A lista de remoções está em docs/ARQUIVOS-REMOVIDOS.txt.
+5. Revise git status. O .gitignore protege arquivos gerados e privados. Se arquivos ignorados já estavam versionados, execute no PowerShell: .\scripts\desversionar-gerados.ps1 . O script não apaga arquivos do disco nem faz commit.
+6. Depois de conferir: git add .; git diff --cached --stat; git commit -m "Revisa seguranca e limpa arquivos gerados"; git push origin main (um comando por vez).
+
+Validação: build aprovado; 481 testes locais aprovados; npm audit sem vulnerabilidades conhecidas na consulta final; cap sync android concluído. Não houve deploy nem acesso às contas/banco reais.
+
+IMPORTANTE SOBRE SQL: não reaplique migrações em produção. Foi reconstruído um arquivo histórico de telefone ausente no ZIP, necessário à cadeia de testes. É preciso comparar com o histórico já instalado antes de qualquer execução. A atualização do frontend não exige reaplicar toda a base. O script de diagnóstico fornecido contém somente consultas e é opcional.
+
+O README explica como regenerar o aplicativo Android. O pacote não inclui APK/AAB nem implementa sincronização offline.

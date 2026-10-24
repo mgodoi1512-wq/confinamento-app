@@ -6,6 +6,9 @@ const mock=url(`
 export const useState=initial=>{const h=globalThis.__priceLot,i=h.cursor++;if(!(i in h.state))h.state[i]=typeof initial==='function'?initial():initial;return[h.state[i],v=>{h.state[i]=typeof v==='function'?v(h.state[i]):v;}];};
 export function AnimalTagsEditor(){}
 export const useNextEarTag=()=>({data:{next:'101'},isLoading:false,refetch:async()=>{}});
+export const locationName=p=>p.code;
+export const productionSystems=[{value:"confinamento",label:"Confinamento"}],validSystems=()=>true,compatibleLocation=()=>true;
+export const useFarm=()=>({data:{production_systems:["confinamento"],default_production_system:"confinamento"},isLoading:false,isSuccess:true});
 export const useMemo=f=>f();export const useTranslation=()=>({t:k=>k});export const useNavigate=()=>()=>{};
 export const useCreateLot=()=>({isPending:false,mutateAsync:async p=>{globalThis.__priceLot.saved.push(p);return{id:'new',...p.lot};}});
 const query=data=>({data,isSuccess:true,isLoading:false});

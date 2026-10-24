@@ -1,23 +1,38 @@
-# Upload de fontes pela Vercel CLI; não usar para --prebuilt.
+# Somente fontes necessárias à compilação do site pela Vercel CLI.
+# Não utilizar com vercel --prebuilt: nesse fluxo dist precisa ser enviado.
 node_modules/
 dist/
 dist-ssr/
 .git/
 .vercel/
+.vite/
+.cache/
+.enter/
+android/
+ios/
+supabase/
+tests/
+docs/
+scripts/
 coverage/
 reports/
-backups/
-.cache/
+backups*/
+opcional/
+pages/
+components/
 **/*.log
 **/*.tsbuildinfo
 **/*.zip
+**/*.rar
 .env
 .env.*
 !.env.example
-# Não são necessários para compilar o frontend.
-tests/
-docs/
-.enter/
-
-ATUALIZAR_SUPABASE.sql
-LEIA-ME-ATUALIZACAO.txt
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+eslint-diagnostico.json
+aplicar-carencia.cjs
+manifesto.json

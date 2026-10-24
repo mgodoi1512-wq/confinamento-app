@@ -38,17 +38,23 @@
 .home-hero-footnote { display:flex; gap:8px; margin-top:22px; font-size:11px; color:#d9c6b0; align-items:center; }
 .home-hero-footnote svg { width:15px; height:15px; }
 .home-device { min-width:0; margin:0; }
+.home-device-stage { position:relative; padding-bottom:9%; isolation:isolate; }
+.home-notebook { width:92%; }
+.home-phone { position:absolute; z-index:1; right:0; bottom:0; width:26%; padding:5px; background:#171918; border:1px solid #9b8d78; border-radius:clamp(16px,2vw,27px); box-shadow:0 16px 34px #0009; }
+.home-phone-screen { aspect-ratio:591 / 1062; overflow:hidden; border-radius:clamp(12px,1.6vw,22px); background:#efebe1; }
+.home-phone-camera { position:absolute; z-index:1; top:5px; left:35%; width:30%; height:7px; background:#171918; border-radius:0 0 8px 8px; }
 .home-device-screen { background:#161918; border:1px solid #9b8d78; border-radius:16px 16px 4px 4px; padding:9px; box-shadow:0 24px 48px #0008; }
 .home-device-top { display:flex; align-items:center; gap:4px; padding:1px 5px 8px; color:#ccc3b5; }
 .home-device-top>span { width:4px; height:4px; border-radius:50%; background:#a59b8d; }
 .home-device-top small { margin-left:auto; font-size:8px; }
-.home-device img { width:100%; aspect-ratio:1.5; object-fit:cover; object-position:top; border-radius:4px; }
+.home-device-screen img { display:block; width:100%; height:auto; border-radius:4px; }
+.home-phone-screen img { display:block; width:100%; height:auto; max-width:none; margin-top:-12.01354%; }
 .home-device-base { height:12px; width:106%; margin-left:-3%; background:linear-gradient(#b0ada6,#4f514d); border-radius:2px 2px 50% 50%; }
 .home-device figcaption { text-align:center; color:#e8d3b8; font-size:9px; margin-top:13px; }
 .home-preview-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
 .home-preview-card { overflow:hidden; background:var(--home-card); border:1px solid var(--home-line); border-radius:10px; box-shadow:0 6px 22px #31271507; }
 .home-preview-image { position:relative; display:block; width:100%; padding:7px; background:var(--home-card); border:0; cursor:zoom-in; }
-.home-preview-image img { display:block; width:100%; aspect-ratio:1.5; object-fit:cover; object-position:top; border-radius:5px; }
+.home-preview-image img { display:block; width:100%; height:auto; aspect-ratio:2 / 1; object-fit:contain; object-position:center; border-radius:5px; }
 .home-preview-image>span { position:absolute; bottom:15px; right:15px; display:flex; gap:6px; align-items:center; padding:6px 8px; border-radius:5px; background:#171b19e8; color:#fff; font-size:10px; }
 .home-preview-image>span svg { width:12px; height:12px; }
 .home-preview-copy { display:flex; gap:12px; padding:16px 18px 22px; }

@@ -1,1 +1,8 @@
 project_id = "spb-t4nrp3kdnl4o44z4"
+
+# Os webhooks autenticam o asaas-access-token no handler, sem JWT do usuário.
+[functions.asaas-production-webhook]
+verify_jwt = false
+
+[functions.asaas-sandbox-webhook]
+verify_jwt = false

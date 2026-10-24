@@ -2,6 +2,7 @@ import {test} from 'node:test';import assert from 'node:assert/strict';import fs
 const url=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64'),compile=s=>ts.transpileModule(s,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.ReactJSX}}).outputText,read=p=>fs.readFileSync(new URL(p,import.meta.url),'utf8');
 const dates=url(compile(read('../src/lib/loan-installments.ts')));
 const mock=url(`
+export const createPortal=(children)=>children;
 export const useState=initial=>{const h=globalThis.__equipment,i=h.cursor++;if(!(i in h.state))h.state[i]=typeof initial==='function'?initial():initial;return[h.state[i],v=>{h.state[i]=typeof v==='function'?v(h.state[i]):v;}];};
 export const useEquipment=()=>({data:globalThis.__equipment.items,isSuccess:true,isError:false});export const useEquipmentMutation=()=>({isPending:false,mutateAsync:async call=>{const h=globalThis.__equipment;h.calls.push(call);if(h.fail)throw new Error('Falha de rede');return{};}});
 export const todayIso=()=> '2026-10-18',formatDate=s=>s,formatNumber=(n,d=0)=>n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});

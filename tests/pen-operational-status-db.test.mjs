@@ -70,8 +70,8 @@ await (await import('./diet-feed-stock-db-cases.mjs')).testDietFeedStock({db,as,
 await (await import('./production-systems-db-cases.mjs')).testProductionSystems({db,as,rpc,tenant,ownerA,ownerB,staffA,admin,farmA,farmB,today});
 await (await import('./identify-legacy-lots-db-cases.mjs')).testIdentifyLegacyLots({db,as,rpc,ownerA,ownerB,farmA,today});
 await as(ownerB);const historyBefore=(await db.query('select id,lot_id,to_system,effective_date from lot_system_history order by id')).rows;const stockBefore=(await db.query("select app_finance_workspace('snapshot','{}') result")).rows[0].result;
-await db.exec('reset role');await db.exec(fs.readFileSync(new URL('../instalacao/instalar-sistemas-criacao.sql',import.meta.url),'utf8'));await as(ownerB);
-assert.deepEqual((await db.query('select id,lot_id,to_system,effective_date from lot_system_history order by id')).rows,historyBefore);assert.deepEqual((await db.query("select app_finance_workspace('snapshot','{}') result")).rows[0].result,stockBefore);console.log('INSTALADOR ÚNICO: reaplicação preservou históricos, saldos, dietas e vínculos.');
+await db.exec('reset role');for(const file of ['20261018130000_stock_feed_production.sql','20261018140000_diet_feed_stock_integration.sql','20261018150000_farm_production_systems.sql','20261018160000_identify_legacy_lots_on_system_selection.sql'])await db.exec(fs.readFileSync(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));await as(ownerB);
+assert.deepEqual((await db.query('select id,lot_id,to_system,effective_date from lot_system_history order by id')).rows,historyBefore);assert.deepEqual((await db.query("select app_finance_workspace('snapshot','{}') result")).rows[0].result,stockBefore);console.log('MIGRAÇÕES CANÔNICAS: reaplicação preservou históricos, saldos, dietas e vínculos.');
 
 await db.exec('reset role');
 const statusMigration=fs.readFileSync(new URL('../supabase/migrations/20261020020000_pen_operational_status.sql',import.meta.url),'utf8');

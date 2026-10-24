@@ -1,39 +1,59 @@
-# Logs
-logs
+# Dependências e resultados gerados
+node_modules/
+dist/
+dist-ssr/
+coverage/
+reports/
+.vite/
+.vercel/
+.cache/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+*.tsbuildinfo
+*.zip
+*.rar
+*.7z
 
-node_modules
-dist
-dist-ssr
-reports
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-code_template.zip
-
-# Credenciais locais
+# Credenciais locais: nunca versionar
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
 
-# Artefatos locais e backups
-.vercel/
-coverage/
-backups/
-.cache/
-*.tsbuildinfo
-*backup*.zip
+# Editor e sistema operacional
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Android: fontes nativas ficam no Git; build/assets são regenerados pelo Capacitor
+.gradle/
+android/local.properties
+android/key.properties
+android/keystore.properties
+android/app/build/
+android/build/
+android/app/src/main/assets/
+android/capacitor-cordova-android-plugins/
+android/app/src/main/res/xml/config.xml
+android/captures/
+android/.kotlin/
+*.apk
+*.aab
+
+# Arquivos antigos de entregas e diagnóstico
+/backups*/
+/.enter/
+/opcional/
+/pages/
+/components/
+/eslint-diagnostico.json
+/aplicar-carencia.cjs
+/manifesto.json
+
+# Diretórios temporários de testes locais
+tests/.tmp-*/

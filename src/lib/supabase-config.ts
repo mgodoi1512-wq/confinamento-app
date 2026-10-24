@@ -14,6 +14,17 @@ export const readSupabaseConfig = (env: SupabaseEnvironment) => {
   if (!["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== "/") {
     throw new Error("VITE_SUPABASE_URL deve conter apenas o endereço HTTP/HTTPS do projeto Supabase.");
   }
-  if (key.startsWith("sb_secret_")) throw new Error("Use a chave pública publishable/anon do Supabase no frontend.");
+  const publicKeyError = "Use a chave pública publishable/anon do Supabase no frontend. Chaves administrativas não podem ser publicadas.";
+  if (key.startsWith("sb_secret_")) throw new Error(publicKeyError);
+  if (key.startsWith("eyJ")) {
+    let role: unknown;
+    try {
+      const payload = key.split(".")[1];
+      role = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))).role;
+    } catch { throw new Error(publicKeyError); }
+    if (role !== "anon") throw new Error(publicKeyError);
+  }
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+  if (parsed.protocol === "http:" && !local) throw new Error("Use HTTPS para conectar ao Supabase fora do ambiente local.");
   return { url: parsed.origin, key };
 };

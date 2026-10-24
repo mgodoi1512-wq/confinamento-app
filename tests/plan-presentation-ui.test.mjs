@@ -4,6 +4,8 @@ import React from 'react';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Renderiza os componentes reais com respostas autenticadas de teste, sem Asaas.
 const uiNames = ['Button','Card','CardContent','CardHeader','CardTitle','Input',
@@ -19,7 +21,7 @@ const result = await build({
   external: ['react','react/jsx-runtime','lucide-react'],
   plugins: [{name:'authenticated-fixtures',setup(b){
     b.onResolve({filter:/^(@\/hooks\/use-auth|@tanstack\/react-query|react-router-dom|@\/lib\/billing|@\/components\/ui\/|@radix-ui\/react-dialog|sonner)/}, a=>({path:a.path,namespace:'fixture'}));
-    b.onResolve({filter:/^@\//},a=>({path:new URL('../src/'+a.path.slice(2)+(a.path.endsWith('utils')?'.ts':'.tsx'),import.meta.url).pathname}));
+    b.onResolve({filter:/^@\//},a=>({path:fileURLToPath(new URL('../src/'+a.path.slice(2)+(a.path.endsWith('utils')?'.ts':'.tsx'),import.meta.url))}));
     b.onLoad({filter:/.*/,namespace:'fixture'},a=>{
       const f='globalThis.__planPresentation'; let contents;
       if(a.path==='@/hooks/use-auth') contents=`export const useAuth=()=>${f}.auth;`;
@@ -33,10 +35,16 @@ const result = await build({
     });
   }}],
 });
-const bundle=new URL('../qa/plan-presentation-ui-bundle.mjs',import.meta.url);
-await fs.writeFile(bundle,result.outputFiles[0].contents);
-const {MyPlan,PlanPixDialog}=await import(bundle.href);
-await fs.unlink(bundle);
+const bundleDir=await fs.mkdtemp(new URL('./.tmp-plan-',import.meta.url));
+const bundle=pathToFileURL(join(bundleDir,'plan-presentation-ui-bundle.mjs'));
+let components;
+try {
+  await fs.writeFile(bundle,result.outputFiles[0].contents);
+  components=await import(bundle.href);
+} finally {
+  await fs.rm(bundleDir,{recursive:true,force:true});
+}
+const {MyPlan,PlanPixDialog}=components;
 const order=(status)=>({id:'order',archived:false,plan:'monthly',method:'PIX',amountCents:2490,status,invoiceUrl:null,validFrom:null,validUntil:null,checkedAt:null,createdAt:'2026-10-18'});
 const overview=(orders,extra={})=>({environment:'production',mode:'automatic',monthlyCents:2490,annualCents:24990,isOwner:true,canTest:true,canCreate:true,orders,...extra});
 function setup(data){

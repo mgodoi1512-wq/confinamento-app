@@ -3,11 +3,13 @@ const read=p=>fs.readFileSync(new URL(p,import.meta.url),'utf8'),url=s=>'data:te
 const format=url("export const todayIso=()=> '2026-10-18';export const daysBetween=(a,b)=>(Date.parse(b)-Date.parse(a))/86400000;export const formatDate=s=>s;export const formatNumber=n=>String(n);");
 const detail=url(compile(read('../src/lib/stock-animal-detail.ts')).replace('from "./format"',`from "${format}"`));
 const logic=url(compile(read('../src/lib/financial-workspace.ts')).replace('from "./format"',`from "${format}"`).replace('from "./stock-animal-detail"',`from "${detail}"`));
+const dashboard=url(compile(read('../src/lib/dashboard-finance.ts')));
 const loans=url(compile(read('../src/lib/loan-installments.ts')));
 const mock=url(`
 export const CashFlowExportButtons=ExportButtons;
 export default function AssetOverviewPanel(){}
 export const useState=initial=>{const h=globalThis.__loans,i=h.cursor++;if(!(i in h.state))h.state[i]=typeof initial==='function'?initial():initial;return[h.state[i],v=>{h.state[i]=typeof v==='function'?v(h.state[i]):v;}];};
+export const useSearchParams=()=>[new URLSearchParams(),()=>{}];
 export const useAuth=()=>({isGestor:true,tenant:{farmId:'f'}});
 export const useLots=()=>({data:[],isSuccess:true});export const useFinancialWorkspace=()=>({data:globalThis.__loans.workspace,isSuccess:true,isLoading:false,isError:false});
 const mutation=kind=>({isPending:false,mutateAsync:async p=>{const h=globalThis.__loans;h.calls.push({kind,...p});if(h.fail)throw new Error('Falha de rede');return{created:3};}});
@@ -15,7 +17,7 @@ export const useWorkspaceMutation=()=>mutation('single');export const useLoanMut
 export const toast={success:()=>{},error:e=>globalThis.__loans.errors.push(e)};export const money=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});export const number=s=>{if(!s.trim())return null;const n=Number(s.replace(',','.'));return Number.isFinite(n)?n:null;};
 ${['Check','Pencil','Plus','Settings2','Trash2','PageHeader','PageLoading','ExportButtons','NumericField','TextField','SelectField','Button','Dialog','DialogContent','DialogDescription','DialogHeader','DialogTitle','BackFinance','Metric','Pager','SettingsDialog','WorkspaceError'].map(n=>`export function ${n}(){}`).join('\n')}
 `);
-const source=compile(read('../src/pages/management/cash-flow.tsx')).replace(/from\s+(['"])(.*?)\1/g,(_,q,name)=>`from "${name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/format'?format:name==='@/lib/financial-workspace'?logic:name==='@/lib/loan-installments'?loans:mock}"`);
+const source=compile(read('../src/pages/management/cash-flow.tsx')).replace(/from\s+(['"])(.*?)\1/g,(_,q,name)=>`from "${name==='react/jsx-runtime'?import.meta.resolve(name):name==='@/lib/format'?format:name==='@/lib/financial-workspace'?logic:name==='@/lib/loan-installments'?loans:name==='@/lib/dashboard-finance'?dashboard:mock}"`);
 const {default:C}=await import(url(source));
 const fixture=()=>({state:[],cursor:0,calls:[],errors:[],workspace:{settings:null,entries:[],items:[],movements:[],links:[]}});
 const draw=h=>{globalThis.__loans=h;h.cursor=0;return C();},nodes=root=>{const out=[];const visit=n=>{if(Array.isArray(n))return n.forEach(visit);if(n?.props){out.push(n);visit(n.props.children);}};visit(root);return out;};

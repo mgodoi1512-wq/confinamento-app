@@ -1,3 +1,5 @@
+> Nota de revisão de 24/10/2026: este documento contém histórico de evolução. Para instalação, Git e estado atual multifazendas, siga README.md e docs/REVISAO-2026-10-24.md. Não reaplique esquemas antigos a partir dos exemplos históricos.
+
 # Code Guideline
 
 ## Project Structure Overview
