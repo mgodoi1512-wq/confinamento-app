@@ -57,3 +57,5 @@ android/.kotlin/
 
 # Diretórios temporários de testes locais
 tests/.tmp-*/
+
+/supabase/.temp/
