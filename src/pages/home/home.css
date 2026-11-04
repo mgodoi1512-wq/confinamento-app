@@ -134,3 +134,21 @@
 }
 @media(max-width:370px){.home-orbit-center h3{font-size:13px;line-height:1.2;margin:6px 0}.home-orbit-center p{font-size:10px;line-height:1.45}.home-orbit-center small{font-size:8px}.home-brand{gap:6px}.home-brand small{font-size:6px}.home-nav-actions .home-button{padding-inline:10px}.home-nav-actions>button{width:32px}.home-hero h1{font-size:38px}.home-feature h3{font-size:15px}.home-price strong{font-size:36px}}
 @media(prefers-reduced-motion:reduce){.liben-home *, .liben-home *::before,.liben-home *::after{scroll-behavior:auto!important;transition:none!important}}
+
+/* Divulgação do Instagram: links externos, sem carregar widgets ou rastreadores. */
+.home-social { padding:0 0 48px; }
+.home-social-card { display:flex; align-items:center; gap:24px; padding:28px 32px; border:1px solid var(--home-line); border-radius:14px; background:var(--home-card); }
+.home-social-icon { display:grid; place-items:center; width:60px; height:60px; flex-shrink:0; border:1px solid var(--home-line); border-radius:16px; color:var(--home-brand); }
+.home-social-icon svg { width:30px; height:30px; }
+.home-social-copy { flex:1; min-width:0; }
+.home-social-copy .home-eyebrow { margin-bottom:8px; }
+.home-social-copy h2 { margin:0 0 8px; font-size:26px; line-height:1.2; }
+.home-social-copy p { margin:0; color:var(--home-muted); font-size:13px; line-height:1.6; }
+.home-social-card .home-button { flex-shrink:0; }
+.home-social-card .home-button small { display:block; margin-top:3px; font-size:11px; font-weight:400; }
+.home-footer-instagram { display:inline-flex; gap:7px; align-items:center; }
+.home-footer-instagram svg { width:15px; height:15px; }
+.home-footer-instagram:hover { color:#efbd8b; }
+.home-social a:focus-visible,.home-footer-instagram:focus-visible { outline:2px solid var(--home-brand); outline-offset:4px; }
+@media(max-width:900px) { .home-social-card { flex-wrap:wrap; }.home-social-copy { flex-basis:calc(100% - 90px); }.home-social-card .home-button { margin-left:84px; } }
+@media(max-width:600px) { .home-social { padding-bottom:32px; }.home-social-card { padding:24px 20px; gap:16px; }.home-social-icon { width:44px; height:44px; border-radius:12px; }.home-social-icon svg { width:24px; height:24px; }.home-social-copy { flex-basis:calc(100% - 60px); }.home-social-copy h2 { font-size:23px; }.home-social-card .home-button { width:100%; margin-left:0; } }
