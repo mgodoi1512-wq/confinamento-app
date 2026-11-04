@@ -1,4 +1,5 @@
 import i18n from "i18next";
+import bundledResources from "virtual:liben-locales";
 import HttpBackend from "i18next-http-backend";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
@@ -15,25 +16,6 @@ export * from "./util";
 const baseUrl = import.meta.env.BASE_URL.endsWith("/")
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`;
-
-// Bundle every public/locales file at build time and pass them as synchronous
-// `resources`, so t() returns real strings on the first paint instead of returning
-// the key and re-rendering the whole tree once HttpBackend finishes loading. That
-// async swap is what remounts elements keyed off a translated value (key={t(...)})
-// and breaks their mount-time effects (scroll/stack animations, layout measurement),
-// leaving them flat after a reload. The preview re-imports these JSON files on every
-// rebuild, so the bundled copy never goes stale.
-const bundledResources = Object.fromEntries(
-  Object.entries(
-    import.meta.glob<Record<string, string>>("../../public/locales/*.json", {
-      eager: true,
-      import: "default",
-    }),
-  ).map(([filePath, translation]) => {
-    const code = filePath.match(/([^/]+)\.json$/)?.[1] ?? "";
-    return [code, { translation }];
-  }),
-);
 
 void i18n
   .use(HttpBackend)

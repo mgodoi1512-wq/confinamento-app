@@ -271,3 +271,8 @@ Testes: tests/health-list.test.mjs e tests/health-form.test.mjs.
   linhas brancas que não seguem sua configuração de cores. Não interpreta,
   replica ou altera preços, datas ou unidades. A data continua na tabela da fonte.
 - O gráfico futuro mantém símbolos/configuração e usa fundo grafite no dark.
+
+## Ajuste de build — 04/11/2026
+
+- `vite.config.ts` usa `@tailwindcss/vite`; o PostCSS não executa Tailwind novamente.
+- O módulo virtual `virtual:liben-locales`, declarado em `src/env.d.ts`, é gerado pelo Vite a partir de `public/locales/*.json`. Mantém traduções síncronas no primeiro render e uma única fonte de JSON. A URL pública `/locales/{code}.json` permanece disponível ao backend HTTP.

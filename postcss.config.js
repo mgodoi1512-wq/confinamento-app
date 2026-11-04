@@ -1,5 +1,2 @@
-export default {
-  plugins: {
-    "@tailwindcss/postcss": {},
-  },
-};
+// Tailwind is compiled by @tailwindcss/vite in vite.config.ts.
+export default { plugins: {} };
