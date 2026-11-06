@@ -1,5 +1,6 @@
 import type { ExportReport } from "./export-data";
 import { formatNumber, todayIso } from "./format";
+import { isNativeApp, savePdf, shareFileNative } from "./native-share";
 
 const filename = (report: ExportReport, extension: string) =>
   `liben-${report.filename.replace(/[^a-z0-9-]/gi, "-")}-${todayIso()}.${extension}`;
@@ -32,6 +33,7 @@ export async function exportExcel(report: ExportReport) {
   info.getRow(3).height = 48;
   info.getRow(5).height = 72;
   const bytes = await workbook.xlsx.writeBuffer();
+  if (isNativeApp()) { await shareFileNative(filename(report, "xlsx"), new Uint8Array(bytes)); return; }
   const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
   const link = document.createElement("a");
   link.href = url;
@@ -52,7 +54,7 @@ export async function exportPdf(report: ExportReport) {
       return new Uint8Array(await response.arrayBuffer());
     }));
     const data = report.feedingSuggestion;
-    buildFeedingSuggestionPdf(data.suggestions, data.farmName, data.date, files[0], { regular: files[1], bold: files[2] }).save(filename(report, "pdf"));
+    await savePdf(buildFeedingSuggestionPdf(data.suggestions, data.farmName, data.date, files[0], { regular: files[1], bold: files[2] }), filename(report, "pdf"));
     return;
   }
   if (report.adaptation) {
@@ -65,7 +67,7 @@ export async function exportPdf(report: ExportReport) {
       return new Uint8Array(await font.arrayBuffer());
     }));
     const doc = buildAdaptationPdf(report.adaptation.input, report.adaptation.lotName, new Uint8Array(await response.arrayBuffer()), undefined, { regular: fontBytes[0], bold: fontBytes[1] });
-    doc.save(filename(report, "pdf"));
+    await savePdf(doc, filename(report, "pdf"));
     return;
   }
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
@@ -144,5 +146,5 @@ export async function exportPdf(report: ExportReport) {
     doc.setFontSize(8);
     doc.text(`LiBen Agronegócios | Página ${page} de ${pages}`, width - 12, doc.internal.pageSize.getHeight() - 7, { align: "right" });
   }
-  doc.save(filename(report, "pdf"));
+  await savePdf(doc, filename(report, "pdf"));
 }

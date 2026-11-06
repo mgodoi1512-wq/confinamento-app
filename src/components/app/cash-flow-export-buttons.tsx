@@ -5,6 +5,7 @@ import {toast} from "sonner";
 import {Button} from "@/components/ui/button";
 import {supabase} from "@/integrations/supabase/client";
 import {todayIso} from "@/lib/format";
+import {isNativeApp,savePdf,shareFileNative} from "@/lib/native-share";
 import type {ExportReport} from "@/lib/export-data";
 import type {CashPdfData} from "@/lib/cash-flow-pdf";
 async function logoData(){try{const response=await fetch("/assets/liben-cash-report-logo.png");if(!response.ok)return undefined;const blob=await response.blob();return await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error("Logo indisponível"));reader.readAsDataURL(blob);});}catch{return undefined;}}
@@ -18,10 +19,12 @@ export function CashFlowExportButtons({getReport,getData,farmId}:{getReport:()=>
    if(kind==="pdf"){
     const data=getData();
     const [{createCashFlowPdf},logo,fonts,farm]=await Promise.all([import("@/lib/cash-flow-pdf"),logoData(),reportFonts(),supabase.from("farms").select("name").eq("id",farmId).maybeSingle()]);
-    createCashFlowPdf({...data,fonts,logoDataUrl:logo,farmName:farm.data?.name??undefined}).save(`liben-${report.filename}-${todayIso()}.pdf`);
+    await savePdf(createCashFlowPdf({...data,fonts,logoDataUrl:logo,farmName:farm.data?.name??undefined}),`liben-${report.filename}-${todayIso()}.pdf`);
    }else{
     const {createCashFlowWorkbook}=await import("@/lib/cash-flow-excel");const book=createCashFlowWorkbook(report);
-    const bytes=await book.xlsx.writeBuffer(),url=URL.createObjectURL(new Blob([bytes as BlobPart],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})),a=document.createElement("a");a.href=url;a.download=`liben-${report.filename}-${todayIso()}.xlsx`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const bytes=await book.xlsx.writeBuffer();
+    if(isNativeApp()){await shareFileNative(`liben-${report.filename}-${todayIso()}.xlsx`,new Uint8Array(bytes as ArrayBuffer));return;}
+    const url=URL.createObjectURL(new Blob([bytes as BlobPart],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})),a=document.createElement("a");a.href=url;a.download=`liben-${report.filename}-${todayIso()}.xlsx`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
    }
   }catch(e){toast.error(e instanceof Error?e.message:"Não foi possível exportar o relatório.");}finally{setBusy(null);}
  };
