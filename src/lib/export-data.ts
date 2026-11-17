@@ -11,6 +11,7 @@ export type ExportReport = {
   feedingSuggestion?: { suggestions: import("./feed-suggestion").FeedingSuggestion[]; farmName: string; date: string };
   adaptation?: { input: import("./adaptation").AdaptationInput; lotName: string };
   pdf?: { format: "a4" | "a3"; fontSize?: number; embeddedFont?: boolean; columnWidths?: number[]; centerColumns?: boolean; compactHeader?: boolean; summary?: string };
+  cashRange?: import("./cash-flow-range").CashRange;
   filename: string;
   recordCount?: number;
   filters: string;
