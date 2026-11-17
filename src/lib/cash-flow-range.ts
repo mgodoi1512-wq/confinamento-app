@@ -35,7 +35,7 @@ const round = (value: number) => Math.round((value + Number.EPSILON) * 100) / 10
 const dayMonth = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const fullDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const lastDayOfMonth = (iso: string) => toIso(new Date(Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)), 0)));
-const brl = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value).replace(/ /g, " ");
+const brl = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value).replace(/\u00a0/g, " ");
 
 export const isIsoDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && toIso(toDate(value)) === value;
 
